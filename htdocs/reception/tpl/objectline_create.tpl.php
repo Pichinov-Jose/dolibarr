@@ -85,7 +85,9 @@ if ($nolinesbefore) {
 	print '<td class="linecoldescription minwidth500imp">';
 	print '<div id="add"></div><span class="hideonsmartphone">'.$langs->trans('AddNewLine').'</span>';
 	print '</td>';
+	print '<td class="linecolcostprice right">'.$langs->trans('BuyingPrice').'</td>';
 	print '<td class="linecolqty right">'.$langs->trans('Qty').'</td>';
+	print '<td class="linecolwarehouse right">'.$langs->trans('Warehouse').'</td>';
 
 	if (getDolGlobalInt('PRODUCT_USE_UNITS')) {
 		print '<td class="linecoluseunit left">';
@@ -112,17 +114,35 @@ print '<td class="bordertop nobottom linecoldescription line minwidth500imp">';
 
 // Predefined product/service
 if (isModEnabled("product")) {
-	if ($filtertype == 1) {
-		print $langs->trans("Service");
-	} else {
-		print $langs->trans("Product");
-	}
-
-	echo '<span class="prod_entry_mode_predef nowraponall">';
-
-	$statustoshow = -1;
-
+	// PROTO-B: standard Dolibarr boxes (free line + predefined), purchase-oriented
+	echo '<span class="prod_entry_mode_free nowraponall">';
+	echo '<label for="prod_entry_mode_free"><input type="radio" class="prod_entry_mode_free" name="prod_entry_mode" id="prod_entry_mode_free" value="free"'.(GETPOST('prod_entry_mode', 'aZ09') == 'free' ? ' checked' : '').'></label> ';
+	$form->select_type_of_lines(GETPOSTISSET("type") ? GETPOST("type", 'alpha', 2) : -1, 'type', 1, 1, $forceall);
 	echo '</span>';
+	echo '<br>';
+	echo '<span class="prod_entry_mode_predef nowraponall">';
+	echo '<label for="prod_entry_mode_predef"><input type="radio" class="prod_entry_mode_predef" name="prod_entry_mode" id="prod_entry_mode_predef" value="predef"'.(GETPOST('prod_entry_mode', 'aZ09') != 'free' ? ' checked' : '').'></label> ';
+	$statustoshow = -1;
+	if (!empty($object->socid) && $object->socid > 0) {
+		// Supplier combo like supplier orders: searches supplier ref + supplier barcode, autofills buying price
+		$ajaxoptions = array('update' => array('cost_price' => 'unitprice'));
+		$form->select_produits_fournisseurs($object->socid, GETPOST('idprodfournprice'), 'idprodfournprice', '', '', $ajaxoptions, 1, 1, 'minwidth100 maxwidth500 widthcentpercentminusx', $langs->trans("PredefinedProductsAndServices"));
+	} else {
+		$form->select_produits(GETPOSTINT('idprod'), 'idprod', $filtertype, getDolGlobalInt('PRODUIT_LIMIT_SIZE'), 0, $statustoshow, 2, '', 1, array(), 0, '1', 0, 'maxwidth500 widthcentpercentminusx');
+	}
+	echo '</span>';
+	// Description editor (standard)
+	print '<br>';
+	require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
+	$doleditor = new DolEditor('dp_desc', GETPOST('dp_desc', 'restricthtml'), '', 100, 'dolibarr_details', '', false, true, getDolGlobalString('FCKEDITOR_ENABLE_DETAILS'), 2, '98%');
+	$doleditor->Create();
+	// Toggle radios like the standard interface
+	print '<script>
+jQuery(document).ready(function() {
+	jQuery("#select_type").change(function() { if (jQuery(this).val() >= 0) { jQuery("#prod_entry_mode_free").prop("checked", true); } });
+	jQuery("#search_idprodfournprice, #idprodfournprice, #search_idprod, #idprod").on("focus click", function() { jQuery("#prod_entry_mode_predef").prop("checked", true); });
+});
+</script>';
 }
 
 
@@ -139,7 +159,12 @@ print '</td>';
 
 // Qty
 $coldisplay++;
+print '<td class="bordertop nobottom linecolcostprice right"><input type="text" size="6" name="cost_price" id="cost_price" class="flat right" value="'.(GETPOSTISSET("cost_price") ? GETPOST("cost_price", 'alpha', 2) : '').'">';
+print '</td>';
 print '<td class="bordertop nobottom linecolqty right"><input type="text" size="2" name="qty" id="qty" class="flat right" value="'.(GETPOSTISSET("qty") ? GETPOST("qty", 'alpha', 2) : 1).'">';
+print '</td>';
+print '<td class="bordertop nobottom linecolwarehouse right">';
+print $formproduct->selectWarehouses(GETPOSTINT('entrepot_id') > 0 ? GETPOSTINT('entrepot_id') : 'ifone', 'entrepot_id', '', 1, 0, 0, '', 1);
 print '</td>';
 
 // Unit

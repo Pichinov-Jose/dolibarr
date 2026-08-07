@@ -119,6 +119,10 @@ include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php'; // Must be 'inclu
 //Parameters Page
 $paramwithsearch = '&sortfield=' . urlencode($sortfield);
 $paramwithsearch .= '&sortorder=' . urlencode($sortorder);
+$onlyfilled = GETPOSTINT('onlyfilled');	// PROTO-INV: show only lines with a real qty entered
+if ($onlyfilled) {
+	$paramwithsearch .= '&onlyfilled=1';
+}
 if ($limit > 0 && $limit != $conf->liste_limit) {
 	$paramwithsearch .= '&limit='.((int) $limit);
 }
@@ -315,10 +319,12 @@ if (empty($reshook)) {
 			$i = 0;
 			$totalarray = array();
 			$inventoryline = new InventoryLine($db);
+			$doneids = array();	// PROTO-INV
 
 			while ($i < $num) {
 				$line = $db->fetch_object($resql);
 				$lineid = $line->rowid;
+				$doneids[] = (int) $lineid;	// PROTO-INV
 
 				$result = 0;
 				$resultupdate = 0;
@@ -353,6 +359,30 @@ if (empty($reshook)) {
 				}
 
 				$i++;
+			}
+
+			// PROTO-INV: also save quantities posted for lines OUTSIDE the current page (added by the barcode scanner tool),
+			// otherwise scanned values on a paginated inventory are silently lost
+			foreach ($_POST as $postkey => $postval) {
+				if (preg_match('/^id_(\d+)$/', $postkey, $regsc)) {
+					$sclineid = (int) $regsc[1];
+					if (in_array($sclineid, $doneids)) {
+						continue;
+					}
+					if (GETPOST($postkey, 'alpha') == '') {
+						continue;
+					}
+					$qtytoupdate = (float) price2num(GETPOST($postkey, 'alpha'), 'MS');
+					if ($qtytoupdate < 0) {
+						continue;
+					}
+					if ($inventoryline->fetch($sclineid) > 0 && $inventoryline->fk_inventory == $object->id) {
+						$inventoryline->qty_view = $qtytoupdate;
+						if ($inventoryline->update($user) < 0) {
+							$error++;
+						}
+					}
+				}
 			}
 		}
 
@@ -673,6 +703,20 @@ if ($object->status == Inventory::STATUS_VALIDATED) {
 			// Link to launch scan tool
 			if (isModEnabled('barcode') || isModEnabled('productbatch')) {
 				print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=updatebyscaning&token='.currentToken().'" class="marginrightonly paddingright marginleftonly paddingleft">'.img_picto('', 'barcode', 'class="paddingrightonly"').$langs->trans("UpdateByScaning").'</a>';
+				// PROTO-INV: toggle "only filled lines" + counter
+				$resnb = $db->query('SELECT COUNT(*) as nb, SUM('.$db->ifsql('id.qty_view IS NOT NULL', 1, 0).') as nbfilled FROM '.MAIN_DB_PREFIX.'inventorydet as id WHERE id.fk_inventory = '.((int) $object->id));
+				$nbtot = 0;
+				$nbfilled = 0;
+				if ($resnb) {
+					$objnb = $db->fetch_object($resnb);
+					$nbtot = (int) $objnb->nb;
+					$nbfilled = (int) $objnb->nbfilled;
+				}
+				if (GETPOSTINT('onlyfilled')) {
+					print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'" class="marginrightonly paddingright marginleftonly paddingleft">'.img_picto('', 'stock', 'class="paddingrightonly"').'Toutes les lignes ('.$nbtot.')</a>';
+				} else {
+					print '<a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&onlyfilled=1" class="marginrightonly paddingright marginleftonly paddingleft">'.img_picto('', 'stock', 'class="paddingrightonly"').'Lignes saisies uniquement ('.$nbfilled.'/'.$nbtot.')</a>';
+				}
 			}
 
 			// Link to autofill
@@ -808,7 +852,7 @@ if ($action == 'updatebyscaning') {
 									type: \'POST\',
 									async: false,
 									success: function(response) {
-										response = JSON.parse(response);
+										if (typeof response === "string") { response = JSON.parse(response); }
 										if(response.status == "success"){
 											console.log(response.message);
 											$("<input type=\'text\' value=\'"+product.Qty+"\' />")
@@ -829,7 +873,7 @@ if ($action == 'updatebyscaning') {
 						}
 					});
 					jQuery("#scantoolmessage").text("'.dol_escape_js($langs->transnoentities("QtyWasAddedToTheScannedBarcode")).'\n");
-					/* document.forms["formrecord"].submit(); */
+					document.forms["formrecord"].submit();	/* PROTO-INV: persist scanned quantities immediately */
 				} else {
 					let stringerror = "";
 					if (Object.keys(errortab1).length > 0) {
@@ -873,13 +917,17 @@ if ($action == 'updatebyscaning') {
 			BarcodeIsInProduct=0;
 			newproductrow=0
 			result=false;
+			if (tabproduct.length == 0) {
+				tabproduct.push({\'Id\':\'\',\'Warehouse\':\'\',\'Barcode\':\'\',\'Batch\':\'\',\'Qty\':0,\'fetched\':true});
+			}
 			tabproduct.forEach(product => {
+				if (product === tabproduct[0]) {
 				$.ajax({ url: \''.DOL_URL_ROOT.'/product/inventory/ajax/searchfrombarcode.php\',
 					data: { "token":"'.newToken().'", "action":"existbarcode", '.(!empty($object->fk_warehouse) ? '"fk_entrepot":'.$object->fk_warehouse.', ' : '').(!empty($object->fk_product) ? '"fk_product":'.$object->fk_product.', ' : '').'"barcode":element, "product":product, "mode":mode},
 					type: \'POST\',
 					async: false,
 					success: function(response) {
-						response = JSON.parse(response);
+						if (typeof response === "string") { response = JSON.parse(response); }
 						if (response.status == "success"){
 							console.log(response.message);
 							if(!newproductrow){
@@ -896,6 +944,7 @@ if ($action == 'updatebyscaning') {
 					   console.error("Error on barcodeserialforproduct function");
 					},
 			    });
+				}
 				console.log("Product "+(index+=1)+": "+element);
 				if(mode == "barcode"){
 					testonproduct = product.Barcode
@@ -1059,7 +1108,12 @@ $sql .= ' FROM ' . $db->prefix() . 'inventorydet as id';
 $sql .= ' LEFT JOIN ' . $db->prefix() . 'product as p ON id.fk_product = p.rowid';
 $sql .= ' LEFT JOIN ' . $db->prefix() . 'entrepot as e ON id.fk_warehouse = e.rowid';
 $sql .= ' WHERE id.fk_inventory = ' . ((int) $object->id);
-$sql .= $db->order($sortfield, $sortorder);
+if (!empty($onlyfilled)) {	// PROTO-INV
+	$sql .= ' AND id.qty_view IS NOT NULL';
+	$sql .= $db->order('id.tms', 'DESC');
+} else {
+	$sql .= $db->order($sortfield, $sortorder);
+}
 $sql .= $db->plimit($limit, $offset);
 
 $cacheOfProducts = array();

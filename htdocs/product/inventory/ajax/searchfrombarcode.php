@@ -101,8 +101,10 @@ if ($action == "existbarcode" && !empty($barcode) && $user->hasRight('stock', 'l
 		for ($i = 0; $i < $nbline; $i++) {
 			$object = $db->fetch_object($result);
 			if (($mode == "barcode" && $barcode == $object->barcode) || ($mode == "lotserial" && $barcode == $object->batch)) {
-				$warehouse->fetch(0, $product["Warehouse"]);
-				if (!empty($object->fk_entrepot) && $warehouse->id == $object->fk_entrepot) {
+				if (!empty($product["Warehouse"])) {
+					$warehouse->fetch(0, $product["Warehouse"]);
+				}
+				if (!empty($object->fk_entrepot) && ((!empty($fk_entrepot) && $fk_entrepot == $object->fk_entrepot) || $warehouse->id == $object->fk_entrepot)) {
 					$warehousefound++;
 					$warehouseid = $object->fk_entrepot;
 					$fk_product = $object->fk_product;
@@ -139,6 +141,19 @@ if ($action == "addnewlineproduct" && $user->hasRight('stock', 'creer')) {
 			$inventoryline->batch = $batch;
 		}
 		$inventoryline->datec = dol_now();
+
+		// PROTO-INV: do not create a duplicate line for the same product/warehouse/batch
+		$sqldup = "SELECT rowid FROM ".MAIN_DB_PREFIX."inventorydet";
+		$sqldup .= " WHERE fk_inventory = ".((int) $fk_inventory)." AND fk_product = ".((int) $fk_product);
+		$sqldup .= " AND fk_warehouse = ".((int) $fk_entrepot);
+		$sqldup .= " AND ".(empty($batch) ? "(batch IS NULL OR batch = '')" : "batch = '".$db->escape($batch)."'");
+		$resdup = $db->query($sqldup);
+		if ($resdup && $db->num_rows($resdup) > 0) {
+			$objdup = $db->fetch_object($resdup);
+			print json_encode(array('status' => 'success', 'message' => 'Line already exists, reusing it', 'id_line' => $objdup->rowid));
+			$db->close();
+			exit;
+		}
 
 		$result = $inventoryline->create($user);
 		if ($result > 0) {

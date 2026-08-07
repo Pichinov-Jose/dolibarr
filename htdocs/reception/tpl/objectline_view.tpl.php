@@ -53,7 +53,7 @@
 @phan-var-force int $num
 @phan-var-force int $i
 @phan-var-force CommonObject $this
-@phan-var-force CommonObject $object
+@phan-var-force Reception $object
 ';
 
 // Protection to avoid direct call of template
@@ -102,7 +102,9 @@ print '<td class="linecoldescription line minwidth300imp tdoverflowmax300">';
 print '<div id="line_'.$line->id.'"></div>';
 $coldisplay++;
 $tmpproduct = new Product($object->db);
-$tmpproduct->fetch($line->fk_product);
+if (!empty($line->fk_product)) {
+	$tmpproduct->fetch($line->fk_product);
+}
 $tmprecep = new Reception($object->db);
 if ($line->fk_product > 0) {
 	print $tmpproduct->getNomUrl(1);
@@ -113,6 +115,15 @@ if ($line->fk_product > 0) {
 print '</td>';
 
 // Qty
+print '<td class="linecolrefsupplier">';
+print dol_escape_htmltag((string) (!empty($line->ref_fourn) ? $line->ref_fourn : ''));
+if (!empty($line->fk_product) && !empty($object->socid) && getDolGlobalString('RECEPTION_MANAGE_SUPPLIER_PRICES')) {
+	// Button to manage the buying prices of the product, using the standard core popup
+	$urlpfp = DOL_URL_ROOT.'/product/price_suppliers.php?id='.((int) $line->fk_product).'&socid='.((int) $object->socid);
+	print ' '.dolButtonToOpenUrlInDialogPopup('pfpline'.$line->id, $langs->transnoentitiesnoconv('BuyingPrices'), img_picto('', 'edit', 'class="paddingleft"'), $urlpfp, '', 'classlink reposition', '', 'location.reload();');
+}
+print '</td>';
+print '<td class="linecolcostprice nowrap right">'.(!empty($line->cost_price) ? price($line->cost_price) : '').'</td>';
 print '<td class="linecolqty nowrap right">';
 $coldisplay++;
 echo price($line->qty, 0, '', 0, 0); // Yes, it is a quantity, not a price, but we just want the formatting role of function price
@@ -127,6 +138,18 @@ if (getDolGlobalInt('PRODUCT_USE_UNITS')) {		// For product, unit is shown only 
 		print $langs->trans($label);
 	}
 	print '</td>';
+}
+print '<td class="linecolwarehouse nowrap right">';
+if (!empty($line->fk_entrepot)) {
+	require_once DOL_DOCUMENT_ROOT.'/product/stock/class/entrepot.class.php';
+	$tmpwarehouse = new Entrepot($object->db);
+	if ($tmpwarehouse->fetch($line->fk_entrepot) > 0) {
+		print $tmpwarehouse->getNomUrl(1);
+	}
+}
+print '</td>';
+if (isModEnabled('productbatch')) {
+	print '<td class="linecolbatch">'.dol_escape_htmltag((string) (!empty($line->batch) ? $line->batch : '')).'</td>';
 }
 
 if ($this->status == 0 && $user->hasRight('reception', 'write') && $action != 'selectlines') {
