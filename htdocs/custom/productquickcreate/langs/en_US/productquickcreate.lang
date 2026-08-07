@@ -1,0 +1,6 @@
+# Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+Module104980Name=Product quick create
+Module104980Desc=Product creation form: supplier/buying price block + collapsible sections
+PqcBarcodeAndBatch=Barcodes & batch
+PqcWeightAndDimensions=Weight & dimensions
+PqcDescriptionAndNotes=Description & notes

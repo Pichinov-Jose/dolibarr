@@ -1,0 +1,6 @@
+# Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+Module104980Name=Création rapide de produit
+Module104980Desc=Formulaire de création produit : bloc fournisseur/prix d'achat + sections repliables
+PqcBarcodeAndBatch=Codes-barres & lots
+PqcWeightAndDimensions=Poids & dimensions
+PqcDescriptionAndNotes=Description & notes
