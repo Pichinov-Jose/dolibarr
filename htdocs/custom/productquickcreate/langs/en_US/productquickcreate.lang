@@ -1,6 +1,15 @@
 # Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
-Module104980Name=Product quick create
+Module104980Name=Pichinov — Product quick create
 Module104980Desc=Product creation form: supplier/buying price block + collapsible sections
+PqcModuleName=Pichinov — Product quick create
+PqcSetupTitle=Product quick create setup
+PqcSetupDesc=Options of the product creation form.
+PqcSupplierBlock=Supplier / Buying price block
+PqcSupplierBlockDesc=Shows an optional block on the creation form to enter supplier, supplier ref, buying price and min quantity.
+PqcCollapseSections=Collapsible sections
+PqcCollapseSectionsDesc=Collapses optional sections (barcodes, dimensions, description, accountancy) to shorten the form, especially on mobile.
+PqcChangelog=Changelog
+PqcRepository=Repository
 PqcBarcodeAndBatch=Barcodes & batch
 PqcWeightAndDimensions=Weight & dimensions
 PqcDescriptionAndNotes=Description & notes

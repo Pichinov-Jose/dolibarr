@@ -1,6 +1,15 @@
 # Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
-Module104980Name=Création rapide de produit
+Module104980Name=Pichinov — Création rapide de produit
 Module104980Desc=Formulaire de création produit : bloc fournisseur/prix d'achat + sections repliables
+PqcModuleName=Pichinov — Création rapide de produit
+PqcSetupTitle=Configuration du module Création rapide de produit
+PqcSetupDesc=Options du formulaire de création de produit.
+PqcSupplierBlock=Bloc Fournisseur / Prix d'achat
+PqcSupplierBlockDesc=Affiche un bloc optionnel sur le formulaire de création pour saisir fournisseur, réf. fournisseur, prix d'achat et quantité min.
+PqcCollapseSections=Sections repliables
+PqcCollapseSectionsDesc=Replie les sections optionnelles (codes-barres, dimensions, description, comptabilité) pour raccourcir le formulaire, notamment sur mobile.
+PqcChangelog=Changelog
+PqcRepository=Dépôt
 PqcBarcodeAndBatch=Codes-barres & lots
 PqcWeightAndDimensions=Poids & dimensions
 PqcDescriptionAndNotes=Description & notes

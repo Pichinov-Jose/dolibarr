@@ -44,7 +44,7 @@ class ActionsProductQuickCreate
 		$out = '';
 
 		// Optional block: supplier & buying price (created with the product)
-		if (isModEnabled('fournisseur') || isModEnabled('supplier_order')) {
+		if ((isModEnabled('fournisseur') || isModEnabled('supplier_order')) && getDolGlobalString('PRODUCTQUICKCREATE_SUPPLIER_BLOCK')) {
 			$out .= '<tr class="trsupplierblocktitle"><td colspan="2" class="cursorpointer" id="supplierblocktoggle">';
 			$out .= img_picto('', 'company', 'class="pictofixedwidth"').'<strong>'.$langs->trans("Supplier").' / '.$langs->trans("BuyingPrice").'</strong> <span id="supplierblockchevron" class="fa fa-chevron-down paddingleft"></span>';
 			$out .= '</td></tr>';
