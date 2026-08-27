@@ -30,6 +30,15 @@
  */
 class ActionsAdvancedTakepos
 {
+	/**
+	 * @var string Error message
+	 */
+	public $error = '';
+	/**
+	 * @var string[] Warning messages
+	 */
+	public $warnings = array();
+
 	/** @var DoliDB */
 	public $db;
 	/** @var string Lu par HookManager::executeHooks() (hooks 'output') */
