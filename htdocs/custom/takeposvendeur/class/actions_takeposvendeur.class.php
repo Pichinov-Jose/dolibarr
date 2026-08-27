@@ -184,8 +184,13 @@ class ActionsTakeposvendeur
 				foreach ($object->lines as $l) {
 					if (!empty($l->fk_parent_line)) continue;
 					$m = $this->tpvLineMarge($l);
-					$g_pv += $m['pv_ht'];
-					if ($m['connu']) { $g_cout += $m['cout']; $g_connu = true; }
+					// N'agréger QUE les lignes dont le coût est connu : sinon une ligne
+					// sans coût compterait comme 100 % de marge et gonflerait le global.
+					if ($m['connu']) {
+						$g_pv += $m['pv_ht'];
+						$g_cout += $m['cout'];
+						$g_connu = true;
+					}
 				}
 			}
 			$g_marge = $g_pv - $g_cout;

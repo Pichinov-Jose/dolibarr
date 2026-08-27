@@ -53,7 +53,7 @@ class modTakeposvendeur extends DolibarrModules
 		$this->descriptionlong = "Ajoute sur TakePOS la selection du vendeur pour chaque vente (popup a l'ouverture, obligatoire tant qu'aucun vendeur n'est choisi), enregistre le vendeur sur la facture (extrafield fk_vendeur, filtrable en liste) et l'imprime sur le ticket. Les vendeurs sont les utilisateurs actifs coches \"Vendeur (caisse)\".";
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.0.0';
+		$this->version = '1.0.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'user';
 
