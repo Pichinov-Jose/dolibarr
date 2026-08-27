@@ -49,7 +49,7 @@ class ActionsProductQuickCreate
 			$out .= img_picto('', 'company', 'class="pictofixedwidth"').'<strong>'.$langs->trans("Supplier").' / '.$langs->trans("BuyingPrice").'</strong> <span id="supplierblockchevron" class="fa fa-chevron-down paddingleft"></span>';
 			$out .= '</td></tr>';
 			// Dolibarr >= 24 requires the universal search filter syntax; older versions accept raw SQL
-		$filterfourn = (versioncompare(versiondolibarrarray(), array(24, 0, -5)) >= 0) ? '(s.fournisseur:=:1)' : 's.fournisseur = 1';
+		$filterfourn = version_compare(DOL_VERSION, '24.0', '>=') ? '(s.fournisseur:=:1)' : 's.fournisseur = 1';
 		$out .= '<tr class="trsupplierblock hideobject"><td class="titlefieldcreate">'.$langs->trans("Supplier").'</td><td>';
 			$out .= img_picto('', 'company', 'class="pictofixedwidth"').$form->select_company(GETPOSTINT('fourn_socid'), 'fourn_socid', $filterfourn, 'SelectThirdParty', 0, 0, array(), 0, 'minwidth200');
 			$out .= '</td></tr>';
