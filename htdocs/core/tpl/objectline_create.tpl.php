@@ -374,8 +374,8 @@ if ($nolinesbefore) {
 					echo '<div class="dropdown-menu" aria-labelledby="dropdownAddProductAndServiceLink" style="top:auto; left:auto;">';
 					if ($object->element == 'reception') {
 						// PROTO: open the product/service creation in the core dialog popup; on success product/card.php reloads the parent with idprod___ID__ (autoselect)
-						$urlnewp = '/product/card.php?action=create&type=0&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id.'&idprodfournprice=idprod___ID__');
-						$urlnews = '/product/card.php?action=create&type=1&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id.'&idprodfournprice=idprod___ID__');
+						$urlnewp = '/product/card.php?action=create&type=0&fourn_socid='.((int) $object->socid).'&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id.'&idprodfournprice=idprod___ID__');
+						$urlnews = '/product/card.php?action=create&type=1&fourn_socid='.((int) $object->socid).'&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id.'&idprodfournprice=idprod___ID__');
 						echo '<span class="dropdown-item">'.dolButtonToOpenUrlInDialogPopup('addproduct', $langs->transnoentitiesnoconv('NewProduct'), $langs->trans("NewProduct"), $urlnewp, '', 'classlink').'</span>';
 						echo '<span class="dropdown-item">'.dolButtonToOpenUrlInDialogPopup('addservice', $langs->transnoentitiesnoconv('NewService'), $langs->trans("NewService"), $urlnews, '', 'classlink').'</span>';
 					} else {
