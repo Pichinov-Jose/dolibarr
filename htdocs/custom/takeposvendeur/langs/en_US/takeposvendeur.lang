@@ -24,7 +24,13 @@ TpvCostBasis=Cost basis
 TpvCostBasisHelp=Cost source used for the margin computation
 TpvCostPmp=WAP (weighted average price)
 TpvCostCostPrice=Cost price
-TpvCostSupplier=Best supplier buying price
+TpvCostSupplier=Supplier buying price (min)
+TpvCostSources=Cost sources (cascade)
+TpvCostSourcesHelp=The margin uses the first source with a value > 0, in priority order (1 = tried first). Set 0 to disable a source.
+TpvCostSource=Cost source
+TpvPriority=Priority
+TpvCostExtrafield=Product extrafield
+TpvCostExtrafieldHelp=Technical name of a product extra field holding a cost (e.g. kezia_cump).
 TpvDisplayOptions=Display options
 TpvOptHideMargin=Hide the margin on lines
 TpvOptHideMarginHelp=If enabled, only the vendor selection remains (no margin/colour)

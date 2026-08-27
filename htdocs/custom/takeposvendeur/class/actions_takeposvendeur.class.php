@@ -43,13 +43,34 @@ class ActionsTakeposvendeur
 	private function vendeurObligatoire() { return !getDolGlobalString('TAKEPOSVENDEUR_VENDOR_OPTIONAL'); }
 	/** Imprimer le vendeur sur le ticket ? (par défaut oui). */
 	private function vendeurSurTicket()   { return !getDolGlobalString('TAKEPOSVENDEUR_HIDE_ON_RECEIPT'); }
-	/** Base de coût : 'pmp' (défaut), 'cost' (cost_price), 'supplier'. */
-	private function baseCout()    { return getDolGlobalString('TAKEPOSVENDEUR_COST_BASIS', 'pmp'); }
+	/**
+	 * Cascade ordonnée de sources de coût (priorité = ordre).
+	 * Jetons : 'pmp', 'cost_price', 'supplier_min', 'ef:<nom_champ>' (extrafield produit).
+	 * Défaut = ordre historique. Rétrocompat avec l'ancienne TAKEPOSVENDEUR_COST_BASIS.
+	 * @return string[] liste ordonnée de jetons
+	 */
+	private function costSources()
+	{
+		$csv = getDolGlobalString('TAKEPOSVENDEUR_COST_SOURCES', '');
+		if ($csv !== '') {
+			$list = array();
+			foreach (explode(',', $csv) as $s) {
+				$s = trim($s);
+				if ($s !== '') $list[] = $s;
+			}
+			if (!empty($list)) return $list;
+		}
+		// Rétrocompat : ancienne base unique
+		$base = getDolGlobalString('TAKEPOSVENDEUR_COST_BASIS', '');
+		if ($base == 'cost')     return array('cost_price', 'pmp', 'supplier_min');
+		if ($base == 'supplier') return array('supplier_min', 'pmp', 'cost_price');
+		return array('pmp', 'cost_price', 'supplier_min'); // ordre historique
+	}
 
 	/**
-	 * Coût unitaire HT d'un produit selon la base configurée.
+	 * Coût unitaire HT d'un produit : 1re source > 0 dans l'ordre configuré.
 	 * @param  int   $fk_product
-	 * @return float coût unitaire HT (0 si inconnu)
+	 * @return float coût unitaire HT (0 si aucune source connue)
 	 */
 	private function tpvCost($fk_product)
 	{
@@ -61,30 +82,45 @@ class ActionsTakeposvendeur
 		if (isset(self::$costcache[$fk_product])) {
 			return self::$costcache[$fk_product];
 		}
-		$base = $this->baseCout();
-		$cost = 0.0;
 
-		if ($base != 'supplier') {
-			$sql = "SELECT pmp, cost_price FROM ".MAIN_DB_PREFIX."product WHERE rowid = ".$fk_product;
-			$res = $db->query($sql);
-			if ($res && ($o = $db->fetch_object($res))) {
-				if ($base == 'cost') {
-					if (!empty($o->cost_price) && (float) $o->cost_price > 0) $cost = (float) $o->cost_price;
-					elseif (!empty($o->pmp) && (float) $o->pmp > 0) $cost = (float) $o->pmp;
-				} else { // pmp
-					if (!empty($o->pmp) && (float) $o->pmp > 0) $cost = (float) $o->pmp;
-					elseif (!empty($o->cost_price) && (float) $o->cost_price > 0) $cost = (float) $o->cost_price;
-				}
-			}
+		$sources = $this->costSources();
+
+		// Précharge produit (pmp/cost_price) si nécessaire
+		$prow = null;
+		$needProduct = false;
+		$needEf = false;
+		foreach ($sources as $s) {
+			if ($s === 'pmp' || $s === 'cost_price') $needProduct = true;
+			if (strncmp($s, 'ef:', 3) === 0) $needEf = true;
 		}
-		if ($cost <= 0) {
-			// repli : plus petit prix d'achat fournisseur connu
-			$sql = "SELECT MIN(price) AS p FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE fk_product = ".$fk_product." AND price > 0";
-			$res = $db->query($sql);
-			if ($res && ($o = $db->fetch_object($res)) && !empty($o->p)) {
-				$cost = (float) $o->p;
-			}
+		if ($needProduct) {
+			$res = $db->query("SELECT pmp, cost_price FROM ".MAIN_DB_PREFIX."product WHERE rowid = ".$fk_product);
+			if ($res) $prow = $db->fetch_object($res);
 		}
+		// Précharge extrafields produit si une source ef: est demandée
+		$efrow = null;
+		if ($needEf) {
+			$res = $db->query("SELECT * FROM ".MAIN_DB_PREFIX."product_extrafields WHERE fk_object = ".$fk_product);
+			if ($res) $efrow = $db->fetch_object($res);
+		}
+
+		$cost = 0.0;
+		foreach ($sources as $s) {
+			$v = 0.0;
+			if ($s === 'pmp') {
+				$v = ($prow && !empty($prow->pmp)) ? (float) $prow->pmp : 0.0;
+			} elseif ($s === 'cost_price') {
+				$v = ($prow && !empty($prow->cost_price)) ? (float) $prow->cost_price : 0.0;
+			} elseif ($s === 'supplier_min') {
+				$r = $db->query("SELECT MIN(price) AS p FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE fk_product = ".$fk_product." AND price > 0");
+				if ($r && ($o = $db->fetch_object($r)) && !empty($o->p)) $v = (float) $o->p;
+			} elseif (strncmp($s, 'ef:', 3) === 0) {
+				$field = preg_replace('/[^a-zA-Z0-9_]/', '', substr($s, 3));
+				if ($field !== '' && $efrow && isset($efrow->$field)) $v = (float) $efrow->$field;
+			}
+			if ($v > 0) { $cost = $v; break; }
+		}
+
 		self::$costcache[$fk_product] = $cost;
 		return $cost;
 	}

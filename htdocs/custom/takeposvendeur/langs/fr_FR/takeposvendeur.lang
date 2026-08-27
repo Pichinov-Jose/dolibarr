@@ -24,7 +24,13 @@ TpvCostBasis=Base de coût
 TpvCostBasisHelp=Source du coût pour le calcul de marge
 TpvCostPmp=PMP (prix moyen pondéré)
 TpvCostCostPrice=Coût de revient (cost_price)
-TpvCostSupplier=Meilleur prix d'achat fournisseur
+TpvCostSupplier=Prix d'achat fournisseur (min)
+TpvCostSources=Sources de coût (cascade)
+TpvCostSourcesHelp=Le calcul de marge prend la première source dont la valeur est > 0, dans l'ordre de priorité (1 = essayée en premier). Mettez 0 pour désactiver une source.
+TpvCostSource=Source de coût
+TpvPriority=Priorité
+TpvCostExtrafield=Extrafield produit
+TpvCostExtrafieldHelp=Nom technique d'un champ complémentaire produit contenant un coût (ex. kezia_cump).
 TpvDisplayOptions=Options d'affichage
 TpvOptHideMargin=Masquer la marge sur les lignes
 TpvOptHideMarginHelp=Si activé, seul le choix du vendeur reste (aucune marge/couleur affichée)
