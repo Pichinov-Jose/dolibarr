@@ -69,3 +69,7 @@ AdvTakeposGridMobile = Product grid slots — mobile
 AdvTakeposGridTablet = Product grid slots — tablet (768-1024)
 AdvTakeposGridDesktop = Product grid slots — desktop/tablet
 AdvTakeposGridHelp = Grid slot count (N-2 products + 2 arrows), applied per device by adjusting TAKEPOS_NB_MAXPRODUCT at load. 0 = do not manage. Warning: the core constant is global — simultaneous mobile+desktop use with two different values will make the grid flip.
+AdvTakeposProductCardPopup = Product card popup (tile, line, F2)
+AdvTakeposProductCardPopupHelp = Adds an info icon on each product tile and after each ticket line description: it opens the full product card in a popup (no menus). The F2 key opens the card of the selected line's product.
+AdvTakeposThirdpartyCardPopup = Customer card popup
+AdvTakeposThirdpartyCardPopupHelp = Adds an icon after the customer name in the title bar: it opens the third-party card in a popup. Only shown when a real customer is selected (never for the terminal's default customer).

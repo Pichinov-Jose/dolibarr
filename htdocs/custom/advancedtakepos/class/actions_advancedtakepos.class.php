@@ -30,15 +30,10 @@
  */
 class ActionsAdvancedTakepos
 {
-	/**
-	 * @var string Error message
-	 */
+	/** @var string Lu par le HookManager (PHP 8.2 : plus de propriete dynamique) */
 	public $error = '';
-	/**
-	 * @var string[] Warning messages
-	 */
+	/** @var string[] Idem */
 	public $warnings = array();
-
 	/** @var DoliDB */
 	public $db;
 	/** @var string Lu par HookManager::executeHooks() (hooks 'output') */
@@ -291,6 +286,17 @@ class ActionsAdvancedTakepos
 			$js .= "})();\n";
 		}
 
+		// --- Fiche produit en popup : icone (i) sur chaque vignette, ouvre product/card.php en modale ---
+		if (getDolGlobalInt('ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP') == 1) {
+			$cardurl = DOL_URL_ROOT.'/product/card.php?id=';
+			$js .= "(function(){var d=data[$dx],pos=$el;var pd=\$('#prodiv'+pos);if(!pd.length)return;";
+			$js .= " if(!d||!d.rowid||pd.attr('data-iscat')=='1'){pd.find('.advtp-pinfo').remove();return;}";
+			$js .= " var ic=pd.find('.advtp-pinfo');";
+			$js .= " if(ic.length===0){pd.append('<span class=\"advtp-pinfo advtp-cardlink fa fa-info-circle\"></span>');ic=pd.find('.advtp-pinfo');}";
+			$js .= " ic.attr('data-advtp-url','".$cardurl."'+d.rowid).attr('data-advtp-title',d.label||'');";
+			$js .= "})();\n";
+		}
+
 		// (Le niveau de prix est mis a jour cote invoice.php via completeTakePosInvoiceHeader, qui se recharge
 		//  a chaque Refresh() — donc a chaque changement de panier/client. Rien a faire par vignette ici.)
 
@@ -305,6 +311,11 @@ class ActionsAdvancedTakepos
 			// Point deterministe : ajaxComplete se declenche APRES les callbacks de rendu de la recherche
 			// et du chargement de categorie - plus aucune course avec des minuteries.
 			$once .= "jQuery(document).ajaxComplete(function(e,x,st){if(st&&st.url&&(st.url.indexOf('action=search')>=0||st.url.indexOf('action=getProducts')>=0)){window.advtpCleanBadges();}});\n";
+		}
+		// Meme principe pour les icones fiche produit : retirees des vignettes qui ne montrent plus un produit.
+		if (getDolGlobalInt('ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP') == 1) {
+			$once .= "window.advtpCleanPinfo=function(){\$('.advtp-pinfo').each(function(){var pd=\$(this).closest('[id^=prodiv]');if(!pd.length)return;if(pd.attr('data-iscat')=='1'||!pd.attr('data-rowid')){\$(this).remove();}});};\n";
+			$once .= "jQuery(document).ajaxComplete(function(e,x,st){if(st&&st.url&&(st.url.indexOf('action=search')>=0||st.url.indexOf('action=getProducts')>=0)){window.advtpCleanPinfo();}});\n";
 		}
 		// (Masquage date + Devise + nom client agrandi + badge niveau : geres cote invoice.php par
 		//  completeTakePosInvoiceHeader, qui tourne DES LE CHARGEMENT et a chaque changement de panier.)
@@ -435,6 +446,13 @@ class ActionsAdvancedTakepos
 			$js .= $this->cartCustomerJs();
 		}
 
+		// Fiche produit / fiche tiers en popup (pattern quicklistobjectview, en autonome).
+		$prodpopup = (getDolGlobalInt('ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP') == 1);
+		$socpopup  = (getDolGlobalInt('ADVANCEDTAKEPOS_THIRDPARTY_CARD_POPUP') == 1);
+		if ($prodpopup || $socpopup) {
+			$js .= $this->cardPopupJs($object, $prodpopup, $socpopup);
+		}
+
 		// Lignes du panier : le stock natif "( picto N )" dans la colonne Qte wrappe sur 3 lignes quand la
 		// colonne est etroite. Le bloc stock devient une unite insecable (inline-block nowrap) mais la cellule
 		// reste cassable entre qty et le bloc : jamais 3 lignes, et pas d'elargissement de table (pas de scroll).
@@ -554,6 +572,88 @@ class ActionsAdvancedTakepos
 		// Nom sur l'onglet UNIQUEMENT si un vrai client est choisi (pas le client par defaut du terminal) ; sinon on garde l'heure.
 		$js .= "if(name&&!c.def){var sp=jQuery(this).find('.basketselected,.basketnotselected').first();if(sp.length){sp.contents().filter(function(){return this.nodeType===3;}).remove();var disp=name.length>16?name.slice(0,15)+'\\u2026':name;sp.append(document.createTextNode(' '+disp));}}";
 		$js .= "});},80);";
+		return $js;
+	}
+
+	/**
+	 * JS des popups fiche produit / fiche tiers : ouverture de la vraie fiche Dolibarr dans le
+	 * colorbox natif de TakePOS (celui de FreeZone), en mode popup du coeur (dol_openinpopup :
+	 * la fiche se rend sans menu haut ni menu gauche). Autonome : aucune dependance a un autre module.
+	 *
+	 * @param  CommonObject|null $object    La facture TakePOS en cours
+	 * @param  bool              $prodpopup Icones produit (vignettes + lignes + touche F2)
+	 * @param  bool              $socpopup  Icone tiers (uniquement si un vrai client est choisi)
+	 * @return string                       JS
+	 */
+	private function cardPopupJs($object, $prodpopup, $socpopup)
+	{
+		$js = '';
+
+		// Bloc une fois : ouverture + ecouteur de clic + touche F2.
+		$js .= "if(!window.advtpOpenCard){window.advtpOpenCard=function(u,t){";
+		$js .= "u+=(u.indexOf('?')>=0?'&':'?')+'dol_hide_topmenu=1&dol_hide_leftmenu=1&dol_openinpopup=advtpcard';";
+		$js .= "if(window.jQuery&&jQuery.colorbox){jQuery.colorbox({href:u,width:'92%',height:'94%',transition:'none',iframe:true,title:t||''});}";
+		$js .= "else{window.open(u,'_blank');}};";
+		// Ecouteur en phase CAPTURE : il court AVANT les onclick natifs (ClickProduct de la vignette,
+		// selection de la ligne) ; un delegue classique arriverait apres et le produit serait ajoute.
+		$js .= "document.addEventListener('click',function(e){var t=e.target;";
+		$js .= "while(t&&t!==document){if(t.classList&&t.classList.contains('advtp-cardlink'))break;t=t.parentNode;}";
+		$js .= "if(!t||t===document)return;e.preventDefault();e.stopPropagation();";
+		$js .= "var u=t.getAttribute('data-advtp-url');if(u){window.advtpOpenCard(u,t.getAttribute('data-advtp-title')||'');}},true);";
+		if ($prodpopup) {
+			// F2 : fiche du produit de la ligne selectionnee (selectedline est le global TakePOS).
+			$js .= "document.addEventListener('keydown',function(e){if(e.key!=='F2')return;";
+			$js .= "if(typeof selectedline==='undefined'||!selectedline)return;";
+			$js .= "var m=window.advtpLineProd&&window.advtpLineProd[selectedline];";
+			$js .= "if(m){e.preventDefault();window.advtpOpenCard(m.u,m.t);}});";
+		}
+		$js .= "window.__advtpCardReady=1;}";
+
+		// Lignes du ticket : mappe rowid de ligne -> fiche produit, puis pose l'icone dans la description.
+		// La carte sert aussi a F2 ; reconstruite a chaque Refresh (les lignes viennent d'etre re-rendues).
+		if ($prodpopup) {
+			$map = array();
+			if (is_object($object) && !empty($object->id)) {
+				$sql = "SELECT d.rowid, d.fk_product, p.label FROM ".MAIN_DB_PREFIX."facturedet as d";
+				$sql .= " INNER JOIN ".MAIN_DB_PREFIX."product as p ON p.rowid = d.fk_product";
+				$sql .= " WHERE d.fk_facture = ".((int) $object->id)." AND d.fk_product > 0";
+				$resql = $this->db->query($sql);
+				if ($resql) {
+					while ($o = $this->db->fetch_object($resql)) {
+						$map[(int) $o->rowid] = array(
+							'u' => DOL_URL_ROOT.'/product/card.php?id='.(int) $o->fk_product,
+							't' => (string) $o->label,
+						);
+					}
+				}
+			}
+			$js .= "window.advtpLineProd=".json_encode($map, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP).";";
+			$js .= "setTimeout(function(){for(var id in window.advtpLineProd){var tr=document.getElementById(id);if(!tr)continue;";
+			$js .= "var td=jQuery(tr).find('td.linecoldescription').first();if(!td.length||td.find('.advtp-linfo').length)continue;";
+			$js .= "var m=window.advtpLineProd[id];";
+			$js .= "jQuery('<span class=\"advtp-linfo advtp-cardlink fa fa-info-circle\"></span>').attr('data-advtp-url',m.u).attr('data-advtp-title',m.t||'').appendTo(td);}},60);";
+		}
+
+		// Tiers : icone apres la zone client, UNIQUEMENT si un vrai client est choisi (pas le client
+		// par defaut du terminal). Retiree puis re-posee a chaque Refresh : elle disparait d'elle-meme
+		// quand la vente revient au client par defaut.
+		if ($socpopup) {
+			$js .= "jQuery('#advtp-sinfo').remove();";
+			$realsoc = (is_object($object) && !empty($object->socid)) ? (int) $object->socid : 0;
+			if ($realsoc > 0 && $realsoc != $this->terminalDefaultSocid()) {
+				$sname = '';
+				$resql = $this->db->query("SELECT nom FROM ".MAIN_DB_PREFIX."societe WHERE rowid = ".((int) $realsoc));
+				if ($resql && ($o = $this->db->fetch_object($resql))) {
+					$sname = (string) $o->nom;
+				}
+				$surl = dol_escape_js(DOL_URL_ROOT.'/societe/card.php?socid='.$realsoc);
+				$snamejs = dol_escape_js($sname);
+				$js .= "setTimeout(function(){if(jQuery('#advtp-sinfo').length===0){";
+				$js .= "jQuery('#customerandsales').after('<span id=\"advtp-sinfo\" class=\"advtp-sinfo advtp-cardlink fa fa-address-card\"></span>');";
+				$js .= "jQuery('#advtp-sinfo').attr('data-advtp-url','".$surl."').attr('data-advtp-title','".$snamejs."').attr('title','".$snamejs."');}},80);";
+			}
+		}
+
 		return $js;
 	}
 
@@ -683,6 +783,13 @@ class ActionsAdvancedTakepos
 		// Pleine largeur des produits quand les categories sont masquees (bug CSS v24).
 		if (getDolGlobalInt('ADVANCEDTAKEPOS_FULLWIDTH_NO_CAT') == 1 && getDolGlobalInt('TAKEPOS_HIDE_CATEGORIES') == 1) {
 			$css .= '.div5.centpercent{width:100% !important;}';
+		}
+		// Icones fiche produit / fiche tiers (popups) : vignette (coin bas-droit, sous le prix),
+		// ligne du ticket (apres la description) et barre de titre (apres la zone client).
+		if (getDolGlobalInt('ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP') == 1 || getDolGlobalInt('ADVANCEDTAKEPOS_THIRDPARTY_CARD_POPUP') == 1) {
+			$css .= '.advtp-pinfo{position:absolute;bottom:4px;right:4px;z-index:6;font-size:1.5em;line-height:1;color:var(--colorbackhmenu1);background:rgba(255,255,255,.85);border-radius:50%;cursor:pointer;}';
+			$css .= '.advtp-linfo{cursor:pointer;color:var(--colorbackhmenu1);opacity:.65;margin-left:4px;}';
+			$css .= '.advtp-sinfo{display:inline-block;vertical-align:middle;cursor:pointer;color:var(--colortextbackhmenu);opacity:.9;padding:0 5px;font-size:1.1em;}';
 		}
 		return $css;
 	}

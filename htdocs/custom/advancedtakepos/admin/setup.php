@@ -140,6 +140,8 @@ $toggles = array(
 	'ADVANCEDTAKEPOS_COMPACT_ACTIONS'     => array('AdvTakeposCompactActions', 'AdvTakeposCompactActionsHelp'),
 	'ADVANCEDTAKEPOS_LIGHT_HEADER'        => array('AdvTakeposLightHeader', 'AdvTakeposLightHeaderHelp'),
 	'ADVANCEDTAKEPOS_PAGER'               => array('AdvTakeposPager', 'AdvTakeposPagerHelp'),
+	'ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP'  => array('AdvTakeposProductCardPopup', 'AdvTakeposProductCardPopupHelp'),
+	'ADVANCEDTAKEPOS_THIRDPARTY_CARD_POPUP' => array('AdvTakeposThirdpartyCardPopup', 'AdvTakeposThirdpartyCardPopupHelp'),
 );
 
 // --- Parametres (valeurs) ---
