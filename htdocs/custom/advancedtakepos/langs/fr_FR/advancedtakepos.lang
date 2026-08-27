@@ -1,0 +1,71 @@
+# Copyright (C) 2026 Jose Martinez <jose.martinez@pichinov.com>
+#
+# Module advancedtakepos - langue fr_FR
+#
+Module500124Name = TakePOS avancé
+Module500124Desc = Personnalisations TakePOS par hooks (stock, prix public + %, niveau de prix, police)
+AdvancedTakeposSetup = Configuration TakePOS avancé
+AdvancedTakeposSetupPage = Chaque option ci-dessous active une personnalisation portée par hooks, sans modifier le cœur.
+#
+# Options
+#
+AdvTakeposShowStock = Afficher le stock des produits
+AdvTakeposShowStockHelp = Affiche le stock de l'entrepôt du terminal, et le stock total tous entrepôts quand les deux diffèrent, sur un badge dédié.
+AdvTakeposShowPublicPrice = Afficher le prix public des produits
+AdvTakeposShowPublicPriceHelp = Quand le client est sur un niveau de prix autre que public, affiche le prix public à côté du prix appliqué.
+AdvTakeposShowPriceDiff = Afficher le % d'écart vente/public
+AdvTakeposShowPriceDiffHelp = Ajoute le pourcentage d'écart entre le prix appliqué et le prix public.
+AdvTakeposShowLevelInTitle = Afficher le niveau de prix dans la barre de titre
+AdvTakeposShowLevelInTitleHelp = Affiche le niveau de prix du terminal et son libellé dans la barre du haut.
+AdvTakeposFullwidthNoCat = Produits en pleine largeur quand les catégories sont masquées
+AdvTakeposFullwidthNoCatHelp = Corrige l'affichage v24 : quand les catégories sont masquées, les produits occupent toute la largeur.
+AdvTakeposSmallerFont = Réduire la police des produits
+AdvTakeposSmallerFontHelp = Réduit la taille des caractères sur les vignettes produit pour tout afficher.
+AdvTakeposHideTerminalDate = Masquer la date du terminal
+AdvTakeposHideTerminalDateHelp = Masque la date affichée après le nom du terminal dans la barre de titre.
+AdvTakeposHideCurrency = Masquer le sélecteur de Devise
+AdvTakeposHideCurrencyHelp = Masque le bouton « Devise » de la barre de titre (sans désactiver le module multidevise).
+AdvTakeposCartCustomer = Nom du client dans l'info-bulle des paniers
+AdvTakeposCartCustomerHelp = Ajoute le nom du client à l'info-bulle (survol) de chaque panier ouvert dans la barre de titre.
+AdvTakeposDeleteSale = Supprimer la vente
+AdvTakeposDeleteSaleOpt = Bouton « Supprimer la vente »
+AdvTakeposDeleteSaleOptHelp = Ajoute un bouton dans la barre d'actions pour supprimer (avec confirmation) le panier en cours.
+AdvTakeposCompactActions = Boutons d'action compacts
+AdvTakeposCompactActionsHelp = Réduit la largeur des boutons d'action à celle des touches du pavé numérique (4 par rangée).
+AdvTakeposLightHeader = Barre de titre allégée
+AdvTakeposLightHeaderHelp = Masque l'entrepôt et étire la barre de recherche au maximum (icônes poussées à droite).
+AdvTakeposEditPopup = Popup de saisie Qté / Prix / Remise
+AdvTakeposEditPopupHelp = Remplace la saisie native (écrite sous la ligne sélectionnée) par une popup avec pavé numérique, sur le modèle de la popup vendeur.
+AdvTakeposPager = Pagination produits ‹ ›
+AdvTakeposPagerHelp = Boutons flottants pour tourner les pages de produits (catégories et résultats de recherche). Le nombre par page suit TAKEPOS_NB_MAXPRODUCT (N-2 produits).
+#
+# Divers (rendu)
+#
+AdvTakeposStockHelp = Stock de l'entrepôt du terminal, et stock total tous entrepôts quand les deux diffèrent.
+AdvTakeposLevel = Niveau
+AdvTakeposParams = Paramètres
+AdvTakeposInputMode = Mode de saisie Qté / Prix / Remise
+AdvTakeposInputModeHelp = Natif : la valeur s'écrit en texte brut sous la ligne. Natif + perspective : clavier de l'écran conservé, la valeur s'affiche dans un badge net ancré sur la ligne. Popup : modale avec pavé intégré. Popup seule : la modale gère tout, le clavier de l'écran est réduit aux boutons Qté / Prix / Remise ligne / C / corbeille.
+AdvTakeposIMNative = Natif
+AdvTakeposIMInline = Clavier natif + perspective
+AdvTakeposIMPopup = Popup + clavier complet
+AdvTakeposIMPopupOnly = Popup seule (clavier réduit)
+AdvTakeposPriceDiscountMode = Saisie d'un prix : sort de la remise ?
+AdvTakeposPriceDiscountModeHelp = Que faire de la remise existante quand un nouveau prix est saisi dans la popup : la garder (elle s'applique par-dessus, natif), la remettre à zéro (le prix saisi est le prix payé), ou convertir le prix saisi en pourcentage de remise (le prix catalogue reste, les statistiques de remise sont conservées).
+AdvTakeposPDModeNative = Garder la remise (natif)
+AdvTakeposPDModeReset = Remise à zéro (prix saisi = prix payé)
+AdvTakeposPDModeConvert = Convertir en remise (prix catalogue conservé)
+AdvTakeposDesktopPreset = Grille desktop (preset)
+AdvTakeposDesktopPresetHelp = A : 24 produits en 3×8, flèches natives remplacées par le pager. B : 30 produits en 3×10 (vignettes plus étroites). C : natif pur, 22 produits + 2 flèches. Manuel : utiliser les champs ci-dessous.
+AdvTakeposPresetManual = Manuel
+AdvTakeposPresetA = A — 24 produits (3×8 + pager)
+AdvTakeposPresetB = B — 30 produits (3×10 + pager)
+AdvTakeposPresetC = C — 22 produits (natif)
+AdvTakeposPagerPos = Position du pager ‹ ›
+AdvTakeposPagerPosHelp = Flottant : boutons ronds en bas-droite de la zone produits. Sous les boutons d'action : intégré dans la colonne des actions (visible sur tous les écrans).
+AdvTakeposPagerFloat = Flottant sur les produits
+AdvTakeposPagerUnderActions = Sous les boutons d'action
+AdvTakeposGridMobile = Cases de grille produits — mobile
+AdvTakeposGridTablet = Cases de grille produits — tablette (768-1024)
+AdvTakeposGridDesktop = Cases de grille produits — desktop/tablette
+AdvTakeposGridHelp = Nombre de cases de la grille (N-2 produits + 2 flèches), appliqué selon l'appareil en ajustant TAKEPOS_NB_MAXPRODUCT au chargement. 0 = ne pas gérer. Attention : la constante du cœur est globale — un usage simultané mobile+desktop avec deux valeurs différentes fera alterner la grille.

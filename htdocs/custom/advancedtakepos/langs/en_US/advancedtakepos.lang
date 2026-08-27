@@ -1,0 +1,71 @@
+# Copyright (C) 2026 Jose Martinez <jose.martinez@pichinov.com>
+#
+# Module advancedtakepos - language en_US
+#
+Module500124Name = Advanced TakePOS
+Module500124Desc = TakePOS customizations via hooks (stock, public price + %, price level, font)
+AdvancedTakeposSetup = Advanced TakePOS setup
+AdvancedTakeposSetupPage = Each option below turns on a customization carried by hooks, without modifying the core.
+#
+# Options
+#
+AdvTakeposShowStock = Show stock of products
+AdvTakeposShowStockHelp = Shows the stock held by the warehouse of the terminal, and the stock of all warehouses when the two differ, on a dedicated badge.
+AdvTakeposShowPublicPrice = Show public price of products
+AdvTakeposShowPublicPriceHelp = When the customer is on a price level other than the public one, shows the public price next to the price charged.
+AdvTakeposShowPriceDiff = Show sale/public price difference %
+AdvTakeposShowPriceDiffHelp = Appends the percentage difference between the price charged and the public price.
+AdvTakeposShowLevelInTitle = Show price level in the title bar
+AdvTakeposShowLevelInTitleHelp = Shows the terminal price level and its label in the top bar.
+AdvTakeposFullwidthNoCat = Full-width products when categories are hidden
+AdvTakeposFullwidthNoCatHelp = Fixes the v24 display: when categories are hidden, products take the whole width.
+AdvTakeposSmallerFont = Reduce product font size
+AdvTakeposSmallerFontHelp = Reduces the character size on product tiles to fit everything.
+AdvTakeposHideTerminalDate = Hide terminal date
+AdvTakeposHideTerminalDateHelp = Hides the date shown after the terminal name in the title bar.
+AdvTakeposHideCurrency = Hide currency selector
+AdvTakeposHideCurrencyHelp = Hides the "Currency" button in the title bar (without disabling the multicurrency module).
+AdvTakeposCartCustomer = Customer name in cart tooltips
+AdvTakeposCartCustomerHelp = Adds the customer name to the tooltip (hover) of each open cart in the title bar.
+AdvTakeposDeleteSale = Delete sale
+AdvTakeposDeleteSaleOpt = "Delete sale" button
+AdvTakeposDeleteSaleOptHelp = Adds a button to the action bar to delete (with confirmation) the current cart.
+AdvTakeposCompactActions = Compact action buttons
+AdvTakeposCompactActionsHelp = Reduces the action buttons width to the numpad keys width (4 per row).
+AdvTakeposLightHeader = Light title bar
+AdvTakeposLightHeaderHelp = Hides the warehouse and stretches the search bar to the maximum (icons pushed to the right).
+AdvTakeposEditPopup = Qty / Price / Discount input popup
+AdvTakeposEditPopupHelp = Replaces the native input (written under the selected line) with a numeric-pad popup, modeled on the vendor popup.
+AdvTakeposPager = Products pager
+AdvTakeposPagerHelp = Floating buttons to turn product pages (categories and search results). Page size follows TAKEPOS_NB_MAXPRODUCT (N-2 products).
+#
+# Misc (rendering)
+#
+AdvTakeposStockHelp = Stock held by the warehouse of the terminal, and total stock across all warehouses when the two differ.
+AdvTakeposLevel = Level
+AdvTakeposParams = Parameters
+AdvTakeposInputMode = Qty / Price / Discount input mode
+AdvTakeposInputModeHelp = Native: raw text under the line. Native + focus: on-screen keypad kept, the value shows in a clean badge anchored on the line. Popup: modal with its own pad. Popup only: the modal handles everything, the on-screen keypad shrinks to Qty / Price / Line discount / C / trash.
+AdvTakeposIMNative = Native
+AdvTakeposIMInline = Native keypad + focus badge
+AdvTakeposIMPopup = Popup + full keypad
+AdvTakeposIMPopupOnly = Popup only (reduced keypad)
+AdvTakeposPriceDiscountMode = Entering a price: what about the discount?
+AdvTakeposPriceDiscountModeHelp = What to do with the existing discount when a new price is entered in the popup: keep it (applied on top, native), reset it to zero (entered price = paid price), or convert the entered price into a discount percent (catalog price kept, discount statistics preserved).
+AdvTakeposPDModeNative = Keep discount (native)
+AdvTakeposPDModeReset = Reset discount (entered price = paid price)
+AdvTakeposPDModeConvert = Convert to discount (catalog price kept)
+AdvTakeposDesktopPreset = Desktop grid (preset)
+AdvTakeposDesktopPresetHelp = A: 24 products in 3×8, native arrows replaced by the pager. B: 30 products in 3×10 (narrower tiles). C: pure native, 22 products + 2 arrows. Manual: use the fields below.
+AdvTakeposPresetManual = Manual
+AdvTakeposPresetA = A — 24 products (3×8 + pager)
+AdvTakeposPresetB = B — 30 products (3×10 + pager)
+AdvTakeposPresetC = C — 22 products (native)
+AdvTakeposPagerPos = Pager position
+AdvTakeposPagerPosHelp = Floating: round buttons at the bottom-right of the products area. Under action buttons: embedded in the actions column (visible on all screens).
+AdvTakeposPagerFloat = Floating on products
+AdvTakeposPagerUnderActions = Under the action buttons
+AdvTakeposGridMobile = Product grid slots — mobile
+AdvTakeposGridTablet = Product grid slots — tablet (768-1024)
+AdvTakeposGridDesktop = Product grid slots — desktop/tablet
+AdvTakeposGridHelp = Grid slot count (N-2 products + 2 arrows), applied per device by adjusting TAKEPOS_NB_MAXPRODUCT at load. 0 = do not manage. Warning: the core constant is global — simultaneous mobile+desktop use with two different values will make the grid flip.
