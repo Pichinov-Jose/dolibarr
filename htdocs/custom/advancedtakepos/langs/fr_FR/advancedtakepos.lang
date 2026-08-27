@@ -70,6 +70,6 @@ AdvTakeposGridTablet = Cases de grille produits — tablette (768-1024)
 AdvTakeposGridDesktop = Cases de grille produits — desktop/tablette
 AdvTakeposGridHelp = Nombre de cases de la grille (N-2 produits + 2 flèches), appliqué selon l'appareil en ajustant TAKEPOS_NB_MAXPRODUCT au chargement. 0 = ne pas gérer. Attention : la constante du cœur est globale — un usage simultané mobile+desktop avec deux valeurs différentes fera alterner la grille.
 AdvTakeposProductCardPopup = Fiche produit en popup (vignette, ligne, F2)
-AdvTakeposProductCardPopupHelp = Ajoute une icône ⓘ sur chaque vignette produit et après la description de chaque ligne du ticket : elle ouvre la fiche produit complète dans une popup (sans menus). La touche F2 ouvre la fiche du produit de la ligne sélectionnée.
+AdvTakeposProductCardPopupHelp = Icône ⓘ sur chaque vignette produit, et sur les lignes du ticket : clic sur la référence ou sur le picto info natif (dont l'info-bulle de survol est conservée) pour ouvrir la fiche produit complète en popup. La touche F2 ouvre la fiche du produit de la ligne sélectionnée.
 AdvTakeposThirdpartyCardPopup = Fiche client en popup
 AdvTakeposThirdpartyCardPopupHelp = Ajoute une icône après le nom du client dans la barre de titre : elle ouvre la fiche du tiers dans une popup. Visible uniquement quand un vrai client est sélectionné (jamais pour le client par défaut du terminal).

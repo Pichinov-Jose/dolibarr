@@ -628,10 +628,15 @@ class ActionsAdvancedTakepos
 				}
 			}
 			$js .= "window.advtpLineProd=".json_encode($map, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP).";";
+			// Pas d'icone ajoutee : la REFERENCE (le <b> de la cellule description) devient cliquable, et le
+			// picto info NATIF (classfortooltip) ouvre la popup au clic — son info-bulle de survol est conservee.
+			// Le reste de la ligne garde son role natif : selectionner.
 			$js .= "setTimeout(function(){for(var id in window.advtpLineProd){var tr=document.getElementById(id);if(!tr)continue;";
-			$js .= "var td=jQuery(tr).find('td.linecoldescription').first();if(!td.length||td.find('.advtp-linfo').length)continue;";
+			$js .= "var td=jQuery(tr).find('td').first();if(!td.length||td.find('.advtp-cardlink').length)continue;";
 			$js .= "var m=window.advtpLineProd[id];";
-			$js .= "jQuery('<span class=\"advtp-linfo advtp-cardlink fa fa-info-circle\"></span>').attr('data-advtp-url',m.u).attr('data-advtp-title',m.t||'').appendTo(td);}},60);";
+			$js .= "var ref=td.find('b').first();if(ref.length){ref.addClass('advtp-cardlink advtp-ref').attr('data-advtp-url',m.u).attr('data-advtp-title',m.t||'');}";
+			$js .= "var ni=td.find('.classfortooltip').first();if(ni.length){ni.addClass('advtp-cardlink advtp-natinfo').attr('data-advtp-url',m.u).attr('data-advtp-title',m.t||'');}";
+			$js .= "}},60);";
 		}
 
 		// Tiers : icone apres la zone client, UNIQUEMENT si un vrai client est choisi (pas le client
@@ -788,7 +793,8 @@ class ActionsAdvancedTakepos
 		// ligne du ticket (apres la description) et barre de titre (apres la zone client).
 		if (getDolGlobalInt('ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP') == 1 || getDolGlobalInt('ADVANCEDTAKEPOS_THIRDPARTY_CARD_POPUP') == 1) {
 			$css .= '.advtp-pinfo{position:absolute;bottom:4px;right:4px;z-index:6;font-size:1.5em;line-height:1;color:var(--colorbackhmenu1);background:rgba(255,255,255,.85);border-radius:50%;cursor:pointer;}';
-			$css .= '.advtp-linfo{cursor:pointer;color:var(--colorbackhmenu1);opacity:.65;margin-left:4px;}';
+			$css .= '.advtp-ref{cursor:pointer;}.advtp-ref:hover{text-decoration:underline;}';
+			$css .= '.advtp-natinfo,.advtp-natinfo span{cursor:pointer !important;}';
 			$css .= '.advtp-sinfo{display:inline-block;vertical-align:middle;cursor:pointer;color:var(--colortextbackhmenu);opacity:.9;padding:0 5px;font-size:1.1em;}';
 		}
 		return $css;
