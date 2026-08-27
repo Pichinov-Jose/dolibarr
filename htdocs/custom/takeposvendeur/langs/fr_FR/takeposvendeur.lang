@@ -1,0 +1,68 @@
+# Copyright (C) 2026 Jose Martinez <jose.martinez@pichinov.com>
+# Module Takeposvendeur - fr_FR
+
+ModuleTakeposvendeurName=Takeposvendeur
+ModuleTakeposvendeurDesc=Choix du vendeur par vente sur TakePOS, marge et code couleur des lignes
+
+# Hooks TakePOS
+TpvVendor=Vendeur
+TpvMargin=Marge
+TpvChoose=Choisir
+TpvNoVendor=Aucun utilisateur actif coché « Vendeur »
+TpvVendorMandatory=Sélection du vendeur obligatoire
+
+# Réglages - marge
+TpvMarginParams=Paramètres de marge
+TpvThresholdGreen=Seuil vert
+TpvThresholdGreenHelp=Marge (taux de marque) au-dessus de laquelle la ligne est verte
+TpvThresholdOrange=Seuil orange
+TpvThresholdOrangeHelp=Marge à partir de laquelle la ligne est orange (en dessous : rouge)
+TpvColorGreen=Couleur « bonne marge »
+TpvColorOrange=Couleur « marge moyenne »
+TpvColorRed=Couleur « faible marge »
+TpvCostBasis=Base de coût
+TpvCostBasisHelp=Source du coût pour le calcul de marge
+TpvCostPmp=PMP (prix moyen pondéré)
+TpvCostCostPrice=Coût de revient (cost_price)
+TpvCostSupplier=Meilleur prix d'achat fournisseur
+TpvDisplayOptions=Options d'affichage
+TpvOptHideMargin=Masquer la marge sur les lignes
+TpvOptHideMarginHelp=Si activé, seul le choix du vendeur reste (aucune marge/couleur affichée)
+TpvOptVendorOptional=Sélection du vendeur facultative
+TpvOptVendorOptionalHelp=Si activé, le vendeur n'est plus obligatoire en début de vente
+TpvOptHideOnReceipt=Ne pas imprimer le vendeur sur le ticket
+TpvOptHideOnReceiptHelp=Si activé, le nom du vendeur n'apparaît pas sur le ticket de caisse
+
+# À propos / updater
+TpvRepo=Dépôt
+TpvUpdateCheck=Mise à jour
+TpvUpdateCheckHelp=Vérifie si une version plus récente est publiée sur le dépôt GitHub.
+TpvCheckNow=Vérifier maintenant
+TpvInstalledVersion=Version installée
+TpvLatestVersion=Dernière version publiée
+TpvUpdateAvailable=Une nouvelle version %s est disponible.
+TpvOpenRepo=Ouvrir le dépôt
+TpvUpToDate=Le module est à jour.
+TpvUpdErrUnreachable=Dépôt GitHub injoignable
+TpvUpdErrNoRelease=Aucune version publiée trouvée sur le dépôt
+
+# Support
+TpvSupportTab=Support
+TpvSupportIntro=Décrivez votre demande : le module envoie un e-mail à l'assistance Pichinov (%s) avec, si vous le souhaitez, les informations techniques ci-dessous.
+TpvSupportType=Type
+TpvSupportTypeIssue=Anomalie
+TpvSupportTypeRequest=Demande / évolution
+TpvSupportSeverity=Gravité
+TpvSeverityLow=Faible
+TpvSeverityNormal=Normale
+TpvSeverityHigh=Élevée
+TpvSupportSubject=Sujet
+TpvSupportMessage=Message
+TpvSupportEmail=E-mail de réponse
+TpvSupportDiag=Diagnostics
+TpvSupportAttachDiag=Joindre les informations techniques
+TpvSupportSend=Envoyer la demande
+TpvSupportSent=Demande envoyée à %s.
+TpvSupportMissing=Sujet et message obligatoires
+TpvSupportSendFailed=Échec de l'envoi de l'e-mail
+Parameter=Paramètre

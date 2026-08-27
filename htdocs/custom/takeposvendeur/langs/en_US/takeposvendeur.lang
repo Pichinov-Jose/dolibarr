@@ -1,0 +1,68 @@
+# Copyright (C) 2026 Jose Martinez <jose.martinez@pichinov.com>
+# Module Takeposvendeur - en_US
+
+ModuleTakeposvendeurName=Takeposvendeur
+ModuleTakeposvendeurDesc=Per-sale vendor selection on TakePOS, line margin and colour coding
+
+# TakePOS hooks
+TpvVendor=Vendor
+TpvMargin=Margin
+TpvChoose=Choose
+TpvNoVendor=No active user flagged "Vendor"
+TpvVendorMandatory=Vendor selection is mandatory
+
+# Settings - margin
+TpvMarginParams=Margin settings
+TpvThresholdGreen=Green threshold
+TpvThresholdGreenHelp=Margin (markup) above which the line is green
+TpvThresholdOrange=Orange threshold
+TpvThresholdOrangeHelp=Margin from which the line is orange (below: red)
+TpvColorGreen=Colour "good margin"
+TpvColorOrange=Colour "average margin"
+TpvColorRed=Colour "low margin"
+TpvCostBasis=Cost basis
+TpvCostBasisHelp=Cost source used for the margin computation
+TpvCostPmp=WAP (weighted average price)
+TpvCostCostPrice=Cost price
+TpvCostSupplier=Best supplier buying price
+TpvDisplayOptions=Display options
+TpvOptHideMargin=Hide the margin on lines
+TpvOptHideMarginHelp=If enabled, only the vendor selection remains (no margin/colour)
+TpvOptVendorOptional=Vendor selection optional
+TpvOptVendorOptionalHelp=If enabled, the vendor is no longer mandatory at sale start
+TpvOptHideOnReceipt=Do not print the vendor on the receipt
+TpvOptHideOnReceiptHelp=If enabled, the vendor name is not printed on the receipt
+
+# About / updater
+TpvRepo=Repository
+TpvUpdateCheck=Update
+TpvUpdateCheckHelp=Checks whether a newer version is published on the GitHub repository.
+TpvCheckNow=Check now
+TpvInstalledVersion=Installed version
+TpvLatestVersion=Latest published version
+TpvUpdateAvailable=A new version %s is available.
+TpvOpenRepo=Open repository
+TpvUpToDate=The module is up to date.
+TpvUpdErrUnreachable=GitHub repository unreachable
+TpvUpdErrNoRelease=No published version found on the repository
+
+# Support
+TpvSupportTab=Support
+TpvSupportIntro=Describe your request: the module emails Pichinov support (%s) with, if you wish, the technical information below.
+TpvSupportType=Type
+TpvSupportTypeIssue=Issue
+TpvSupportTypeRequest=Request / enhancement
+TpvSupportSeverity=Severity
+TpvSeverityLow=Low
+TpvSeverityNormal=Normal
+TpvSeverityHigh=High
+TpvSupportSubject=Subject
+TpvSupportMessage=Message
+TpvSupportEmail=Reply-to email
+TpvSupportDiag=Diagnostics
+TpvSupportAttachDiag=Attach technical information
+TpvSupportSend=Send request
+TpvSupportSent=Request sent to %s.
+TpvSupportMissing=Subject and message are required
+TpvSupportSendFailed=Email sending failed
+Parameter=Parameter
