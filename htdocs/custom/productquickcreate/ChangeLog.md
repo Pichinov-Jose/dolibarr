@@ -1,5 +1,8 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.1.1 (2026-08-27)
+- Compatibilité Dolibarr 24 : filtre fournisseur du select_company en syntaxe universelle ((s.fournisseur:=:1))
+
 ## 1.1 (2026-08-07)
 - Module rattaché au groupe Pichinov dans la liste des modules
 - Page de configuration avec interrupteurs (bloc fournisseur, sections repliables)
