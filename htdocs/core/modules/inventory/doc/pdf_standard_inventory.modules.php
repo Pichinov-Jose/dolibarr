@@ -251,7 +251,7 @@ class pdf_standard_inventory extends ModelePDFInventory
 		// New page
 		$pdf->AddPage();
 		$pagenb++;
-		$top_shift = $this->_pagehead($pdf, $object, 1, $outputlangs, $recorded, $isspecimen);
+		$top_shift = $this->pageHead($pdf, $object, 1, $outputlangs, $recorded, $isspecimen);
 		$pdf->SetFont('', '', $default_font_size - 1);
 		$pdf->MultiCell(0, 3, ''); // Set interline to 3
 		$pdf->SetTextColor(0, 0, 0);
@@ -260,7 +260,7 @@ class pdf_standard_inventory extends ModelePDFInventory
 		$tab_top_newpage = 10;
 
 		// Table header
-		$this->_tableau($pdf, $tab_top, $outputlangs, $recorded);
+		$this->tableHeader($pdf, $tab_top, $outputlangs, $recorded);
 		$nexY = $tab_top + 7;
 
 		$nblines = count($lines);
@@ -275,10 +275,10 @@ class pdf_standard_inventory extends ModelePDFInventory
 
 			// Page break management
 			if ($curY > ($this->page_hauteur - ($heightforfooter + $heightforfreetext + $heightforinfotot + $heightforsignature))) {
-				$this->_pagefoot($pdf, $object, $outputlangs, 1);
+				$this->pageFoot($pdf, $object, $outputlangs, 1);
 				$pdf->AddPage();
 				$pagenb++;
-				$this->_tableau($pdf, $tab_top_newpage, $outputlangs, $recorded);
+				$this->tableHeader($pdf, $tab_top_newpage, $outputlangs, $recorded);
 				$curY = $tab_top_newpage + 7;
 				$pdf->SetFont('', '', $default_font_size - 2);
 				$pdf->SetTextColor(0, 0, 0);
@@ -330,7 +330,7 @@ class pdf_standard_inventory extends ModelePDFInventory
 		$pdf->SetFont('', 'B', $default_font_size - 1);
 		$curY = $nexY + 4;
 		if ($curY > ($this->page_hauteur - ($heightforfooter + $heightforinfotot + $heightforsignature))) {
-			$this->_pagefoot($pdf, $object, $outputlangs, 1);
+			$this->pageFoot($pdf, $object, $outputlangs, 1);
 			$pdf->AddPage();
 			$pagenb++;
 			$curY = $tab_top_newpage;
@@ -356,7 +356,7 @@ class pdf_standard_inventory extends ModelePDFInventory
 		}
 
 		// Page foot
-		$this->_pagefoot($pdf, $object, $outputlangs, 0);
+		$this->pageFoot($pdf, $object, $outputlangs, 0);
 		if (method_exists($pdf, 'AliasNbPages')) {
 			$pdf->AliasNbPages();  // @phan-suppress-current-line PhanUndeclaredMethod
 		}
@@ -391,7 +391,7 @@ class pdf_standard_inventory extends ModelePDFInventory
 	 *  @param	bool		$recorded		Inventory is recorded (gap columns filled)
 	 *  @return	void
 	 */
-	protected function _tableau(&$pdf, $tab_top, $outputlangs, $recorded)
+	protected function tableHeader(&$pdf, $tab_top, $outputlangs, $recorded)
 	{
 		global $conf;
 
@@ -431,13 +431,13 @@ class pdf_standard_inventory extends ModelePDFInventory
 	 *  @param	bool		$isspecimen		Specimen mode
 	 *  @return	float|int					Top shift of linked object lines
 	 */
-	protected function _pagehead(&$pdf, $object, $showaddress, $outputlangs, $recorded, $isspecimen)
+	protected function pageHead(&$pdf, $object, $showaddress, $outputlangs, $recorded, $isspecimen)
 	{
 		global $conf, $langs, $mysoc;
 
 		$default_font_size = pdf_getPDFFontSize($outputlangs);
 
-		pdf_pagehead($pdf, $outputlangs, $this->page_hauteur);
+		pdfpageHead($pdf, $outputlangs, $this->page_hauteur);
 
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->SetFont('', 'B', $default_font_size + 3);
@@ -507,9 +507,9 @@ class pdf_standard_inventory extends ModelePDFInventory
 	 *  @param	int<0,1>	$hidefreetext		1=Hide free text
 	 *  @return	int								Return height of bottom margin including footer text
 	 */
-	protected function _pagefoot(&$pdf, $object, $outputlangs, $hidefreetext = 0)
+	protected function pageFoot(&$pdf, $object, $outputlangs, $hidefreetext = 0)
 	{
 		$showdetails = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS', 0);
-		return pdf_pagefoot($pdf, $outputlangs, 'INVENTORY_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, $showdetails, $hidefreetext);
+		return pdfpageFoot($pdf, $outputlangs, 'INVENTORY_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, $showdetails, $hidefreetext);
 	}
 }

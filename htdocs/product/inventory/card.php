@@ -65,7 +65,6 @@ if (!getDolGlobalString('MAIN_USE_ADVANCED_PERMS')) {
 $object = new Inventory($db);
 $extrafields = new ExtraFields($db);
 // no inventory docs yet
-$includedocgeneration = true;
 $diroutputmassaction = null;
 // $diroutputmassaction = $conf->stock->dir_output.'/temp/massgeneration/'.$user->id;
 
@@ -472,15 +471,13 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 		print '<a name="builddoc"></a>'; // ancre
 
 		// Documents
-		if ($includedocgeneration) {
-			$objref = dol_sanitizeFileName($object->ref);
-			$relativepath = $objref.'/'.$objref.'.pdf';
-			$filedir = $conf->stock->multidir_output[$conf->entity].'/inventory/'.$objref;
-			$urlsource = $_SERVER["PHP_SELF"]."?id=".$object->id;
-			$genallowed = $user->hasRight('stock', 'lire'); // If you can read, you can build the PDF to read content
-			$delallowed = $user->hasRight('stock', 'creer'); // If you can create/edit, you can remove a file on card
-			print $formfile->showdocuments('inventory:Inventory', $objref, $filedir, $urlsource, $genallowed, $delallowed, $object->model_pdf, 1, 0, 0, 28, 0, '', '', '', $langs->defaultlang, '', $object);
-		}
+		$objref = dol_sanitizeFileName($object->ref);
+		$relativepath = $objref.'/'.$objref.'.pdf';
+		$filedir = $conf->stock->multidir_output[$conf->entity].'/inventory/'.$objref;
+		$urlsource = $_SERVER["PHP_SELF"]."?id=".$object->id;
+		$genallowed = $user->hasRight('stock', 'lire'); // If you can read, you can build the PDF to read content
+		$delallowed = $user->hasRight('stock', 'creer'); // If you can create/edit, you can remove a file on card
+		print $formfile->showdocuments('inventory:Inventory', $objref, $filedir, $urlsource, $genallowed, $delallowed, $object->model_pdf, 1, 0, 0, 28, 0, '', '', '', $langs->defaultlang, '', $object);
 
 		// Show links to link elements
 		$tmparray = $form->showLinkToObjectBlock($object, array(), array('inventory'), 1);

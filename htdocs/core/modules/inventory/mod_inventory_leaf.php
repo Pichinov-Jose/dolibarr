@@ -72,7 +72,7 @@ class mod_inventory_leaf extends ModeleNumRefInventory
 	public function getExample()
 	{
 		global $langs;
-		return $langs->trans("Free3Char");
+		return $langs->trans("InventoryRefTypedManually");
 	}
 
 

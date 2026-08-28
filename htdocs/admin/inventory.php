@@ -241,7 +241,7 @@ foreach ($dirmodels as $reldir) {
 								}
 								$htmltooltip .= $nextval.'<br>';
 							} else {
-								$htmltooltip .= $langs->trans("Free3Char").'<br>';
+								$htmltooltip .= $langs->trans("InventoryRefTypedManually").'<br>';
 							}
 						}
 
