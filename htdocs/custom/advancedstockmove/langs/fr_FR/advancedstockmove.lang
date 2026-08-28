@@ -11,3 +11,7 @@ BatchCodePrefixes=Préfixes des codes de lot
 CorrectionPrefix=Préfixe des corrections
 TransferPrefix=Préfixe des transferts (fiche produit)
 MassTransferPrefix=Préfixe des transferts de masse
+CorrectionRefMask=Masque de numérotation des corrections
+CorrectionRefMaskHelp=Vide : la référence du document Inventaire reste le code de lot (COR-horodatage). Renseigné (ex. COR{yy}{mm}-{0000}) : référence numérotée façon Mercure, le code de lot est conservé dans le titre.
+TransferRefMask=Masque de numérotation des transferts manuels
+TransferRefMaskHelp=Vide : la référence du document Transfert de stock reste le code de lot. Renseigné (ex. TRF{yy}{mm}-{0000}) : référence numérotée, le code de lot est conservé dans le libellé.

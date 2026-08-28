@@ -45,7 +45,7 @@ class modAdvancedstockmove extends DolibarrModules
 		$this->descriptionlong = 'AdvancedStockMoveDescriptionLong';
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.0.0';
+		$this->version = '1.1.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'stock';
 

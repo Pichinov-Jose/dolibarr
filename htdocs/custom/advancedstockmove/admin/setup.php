@@ -34,6 +34,8 @@ if ($action == 'setprefixes') {
 	$ok = $ok && dolibarr_set_const($db, 'STOCK_CORRECTION_CODE_PREFIX', GETPOST('corprefix', 'alphanohtml'), 'chaine', 0, '', $conf->entity) > 0;
 	$ok = $ok && dolibarr_set_const($db, 'STOCK_TRANSFER_CODE_PREFIX', GETPOST('traprefix', 'alphanohtml'), 'chaine', 0, '', $conf->entity) > 0;
 	$ok = $ok && dolibarr_set_const($db, 'STOCK_MASSSTOCKMOVE_CODE_PREFIX', GETPOST('msmprefix', 'alphanohtml'), 'chaine', 0, '', $conf->entity) > 0;
+	$ok = $ok && dolibarr_set_const($db, 'ADVANCEDSTOCKMOVE_CORRECTION_MASK', GETPOST('cormask', 'alphanohtml'), 'chaine', 0, '', $conf->entity) > 0;
+	$ok = $ok && dolibarr_set_const($db, 'ADVANCEDSTOCKMOVE_TRANSFER_MASK', GETPOST('tramask', 'alphanohtml'), 'chaine', 0, '', $conf->entity) > 0;
 	if ($ok) {
 		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
 	} else {
@@ -76,6 +78,8 @@ print '<tr class="liste_titre"><td>'.$langs->trans('BatchCodePrefixes').'</td><t
 print '<tr class="oddeven"><td>'.$langs->trans('CorrectionPrefix').'</td><td><input name="corprefix" class="maxwidth100" value="'.dol_escape_htmltag(getDolGlobalString('STOCK_CORRECTION_CODE_PREFIX', 'COR-')).'"></td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('TransferPrefix').'</td><td><input name="traprefix" class="maxwidth100" value="'.dol_escape_htmltag(getDolGlobalString('STOCK_TRANSFER_CODE_PREFIX', 'TRA-')).'"></td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('MassTransferPrefix').'</td><td><input name="msmprefix" class="maxwidth100" value="'.dol_escape_htmltag(getDolGlobalString('STOCK_MASSSTOCKMOVE_CODE_PREFIX', 'MSM-')).'"></td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('CorrectionRefMask').'<br><span class="opacitymedium small">'.$langs->trans('CorrectionRefMaskHelp').'</span></td><td><input name="cormask" class="maxwidth150" value="'.dol_escape_htmltag(getDolGlobalString('ADVANCEDSTOCKMOVE_CORRECTION_MASK')).'" placeholder="COR{yy}{mm}-{0000}"></td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('TransferRefMask').'<br><span class="opacitymedium small">'.$langs->trans('TransferRefMaskHelp').'</span></td><td><input name="tramask" class="maxwidth150" value="'.dol_escape_htmltag(getDolGlobalString('ADVANCEDSTOCKMOVE_TRANSFER_MASK')).'" placeholder="TRF{yy}{mm}-{0000}"></td></tr>';
 print '</table>';
 print '<div class="center"><input type="submit" class="button" value="'.$langs->trans('Save').'"></div>';
 print '</form>';

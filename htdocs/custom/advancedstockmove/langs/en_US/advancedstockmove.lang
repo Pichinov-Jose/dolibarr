@@ -11,3 +11,7 @@ BatchCodePrefixes=Batch code prefixes
 CorrectionPrefix=Correction prefix
 TransferPrefix=Transfer prefix (product card)
 MassTransferPrefix=Mass transfer prefix
+CorrectionRefMask=Correction numbering mask
+CorrectionRefMaskHelp=Empty: the Inventory document keeps the batch code as reference (COR-timestamp). Set (e.g. COR{yy}{mm}-{0000}): Mercure-like numbered reference, the batch code is kept in the title.
+TransferRefMask=Manual transfer numbering mask
+TransferRefMaskHelp=Empty: the StockTransfer document keeps the batch code as reference. Set (e.g. TRF{yy}{mm}-{0000}): numbered reference, the batch code is kept in the label.

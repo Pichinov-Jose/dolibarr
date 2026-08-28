@@ -96,13 +96,25 @@ class InterfaceAdvancedstockmoveTriggers extends DolibarrTriggers
 		$px = $this->db->prefix();
 		$invid = 0;
 
-		$res = $this->db->query("SELECT rowid FROM ".$px."inventory WHERE ref = '".$this->db->escape($code)."' AND entity = ".((int) $conf->entity));
+		$res = $this->db->query("SELECT rowid FROM ".$px."inventory WHERE (ref = '".$this->db->escape($code)."' OR title = '".$this->db->escape($code)."') AND entity = ".((int) $conf->entity));
 		if ($res && ($o = $this->db->fetch_object($res))) {
 			$invid = (int) $o->rowid;
 		}
 		if (!$invid) {
+			// Reference : le code de lot par defaut ; un numero type Mercure si un masque est configure
+			// (ex. COR{yy}{mm}-{0000}). Le code de lot est alors conserve dans le titre pour regrouper
+			// les mouvements suivants du meme lot.
+			$ref = $code;
+			$mask = getDolGlobalString('ADVANCEDSTOCKMOVE_CORRECTION_MASK');
+			if ($mask) {
+				require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+				$next = get_next_value($this->db, $mask, 'inventory', 'ref', '', null, dol_now());
+				if (is_string($next) && $next !== '' && !preg_match('/^Error/i', $next)) {
+					$ref = $next;
+				}
+			}
 			$sql = "INSERT INTO ".$px."inventory (entity, ref, title, date_creation, date_inventory, date_validation, fk_user_creat, fk_user_valid, fk_warehouse, status)";
-			$sql .= " VALUES (".((int) $conf->entity).", '".$this->db->escape($code)."', 'Correction de stock', '".$this->db->idate(dol_now())."',";
+			$sql .= " VALUES (".((int) $conf->entity).", '".$this->db->escape($ref)."', '".$this->db->escape($code)."', '".$this->db->idate(dol_now())."',";
 			$sql .= " '".$this->db->idate(dol_now())."', '".$this->db->idate(dol_now())."', ".((int) $user->id).", ".((int) $user->id).", ".((int) $mv->entrepot_id).", 2)";
 			if (!$this->db->query($sql)) {
 				dol_syslog(get_class($this).'::wrapIntoInventory header KO '.$this->db->lasterror(), LOG_WARNING);
@@ -138,15 +150,24 @@ class InterfaceAdvancedstockmoveTriggers extends DolibarrTriggers
 		$isout = ((float) $mv->qty < 0);
 		$wh = (int) $mv->entrepot_id;
 
-		$res = $this->db->query("SELECT rowid FROM ".$px."stocktransfer_stocktransfer WHERE ref = '".$this->db->escape($code)."' AND entity = ".((int) $conf->entity));
+		$res = $this->db->query("SELECT rowid FROM ".$px."stocktransfer_stocktransfer WHERE (ref = '".$this->db->escape($code)."' OR label = '".$this->db->escape($code)."') AND entity = ".((int) $conf->entity));
 		if ($res && ($o = $this->db->fetch_object($res))) {
 			$stid = (int) $o->rowid;
 		}
 		if (!$stid) {
 			dol_include_once('/product/stock/stocktransfer/class/stocktransfer.class.php');
+			$ref = $code;
+			$mask = getDolGlobalString('ADVANCEDSTOCKMOVE_TRANSFER_MASK');
+			if ($mask) {
+				require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+				$next = get_next_value($this->db, $mask, 'stocktransfer_stocktransfer', 'ref', '', null, dol_now());
+				if (is_string($next) && $next !== '' && !preg_match('/^Error/i', $next)) {
+					$ref = $next;
+				}
+			}
 			$st = new StockTransfer($this->db);
-			$st->ref = $code;
-			$st->label = 'Transfert manuel '.dol_print_date(dol_now(), 'day');
+			$st->ref = $ref;
+			$st->label = $code;
 			$st->date_creation = dol_now();
 			$st->fk_warehouse_source = $isout ? $wh : 0;
 			$st->fk_warehouse_destination = $isout ? 0 : $wh;
