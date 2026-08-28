@@ -1,0 +1,13 @@
+# AdvancedStockMove en_US
+AdvancedStockMove=Advanced stock moves
+AdvancedStockMoveSetup=Advanced stock moves setup
+AdvancedStockMoveDescription=Wraps manual stock corrections and transfers into origin documents
+AdvancedStockMoveDescriptionLong=Each manual correction becomes an Inventory document and each manual transfer a StockTransfer document: movements then carry a clickable, filterable origin in the movement list.
+AdvancedStockMoveSetupHelp=Detection relies on the batch code prefix (inventory code) prefilled by the correction and transfer screens. A code typed without the prefix creates no document.
+WrapCorrectionsIntoInventory=Create an Inventory document for each manual correction (COR- code)
+WrapTransfersIntoStockTransfer=Create a StockTransfer document for each manual transfer (TRA-/MSM- codes)
+WarningModuleStockTransferDisabled=the Stock Transfer module is disabled
+BatchCodePrefixes=Batch code prefixes
+CorrectionPrefix=Correction prefix
+TransferPrefix=Transfer prefix (product card)
+MassTransferPrefix=Mass transfer prefix

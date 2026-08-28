@@ -1,0 +1,13 @@
+# AdvancedStockMove fr_FR
+AdvancedStockMove=Mouvements de stock avancés
+AdvancedStockMoveSetup=Réglages du module Mouvements de stock avancés
+AdvancedStockMoveDescription=Habille les corrections et transferts de stock manuels d'un document d'origine
+AdvancedStockMoveDescriptionLong=Chaque correction manuelle devient un document Inventaire et chaque transfert manuel un document Transfert de stock : les mouvements portent alors une origine cliquable et filtrable dans la liste des mouvements.
+AdvancedStockMoveSetupHelp=La détection se fait par le préfixe du code de lot (code inventaire) prérempli par les écrans de correction et de transfert. Un code saisi sans préfixe ne crée aucun document.
+WrapCorrectionsIntoInventory=Créer un document Inventaire pour chaque correction manuelle (code COR-)
+WrapTransfersIntoStockTransfer=Créer un document Transfert de stock pour chaque transfert manuel (codes TRA-/MSM-)
+WarningModuleStockTransferDisabled=le module Transfert de stock avancé est désactivé
+BatchCodePrefixes=Préfixes des codes de lot
+CorrectionPrefix=Préfixe des corrections
+TransferPrefix=Préfixe des transferts (fiche produit)
+MassTransferPrefix=Préfixe des transferts de masse
