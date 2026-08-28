@@ -1303,6 +1303,8 @@ if (!empty($arrayfields['m.label']['checked'])) {
 if (!empty($arrayfields['origin']['checked'])) {
 	// Origin of movement. The origin is a polymorphic couple (origintype, fk_origin) resolved in PHP,
 	// so it cannot be joined in SQL: we filter on the origin type, using the types get_origin() handles.
+	// Note: 'project' is not offered because _create() moves it to fk_projet and clears origintype,
+	// so no movement can ever carry origintype='project'.
 	print '<td class="liste_titre left">';
 	$arrayoforigintypes = array(
 		'commande' => $langs->trans('Order'),
@@ -1313,7 +1315,6 @@ if (!empty($arrayfields['origin']['checked'])) {
 		'reception' => $langs->trans('Reception'),
 		'inventory' => $langs->trans('Inventory'),
 		'mo' => $langs->trans('ManufacturingOrder'),
-		'project' => $langs->trans('Project'),
 		'user' => $langs->trans('User'),
 		'none' => $langs->trans('None'),
 	);
