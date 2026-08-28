@@ -1317,7 +1317,13 @@ if (!empty($arrayfields['origin']['checked'])) {
 		'user' => $langs->trans('User'),
 		'none' => $langs->trans('None'),
 	);
-	print $form->selectarray('search_origintype', $arrayoforigintypes, $search_origintype, 1, 0, 0, '', 0, 0, 0, '', 'maxwidth150', 1);
+	print '<select id="search_origintype" name="search_origintype" class="maxwidth150">';
+	print '<option value=""'.(($search_origintype == '') ? ' selected="selected"' : '').'>&nbsp;</option>';
+	foreach ($arrayoforigintypes as $keyorigintype => $valorigintype) {
+		print '<option value="'.$keyorigintype.'"'.(($search_origintype == $keyorigintype) ? ' selected="selected"' : '').'>'.dol_escape_htmltag($valorigintype).'</option>';
+	}
+	print '</select>';
+	print ajax_combobox('search_origintype');
 	print '</td>';
 }
 if (!empty($arrayfields['m.fk_projet']['checked'])) {
