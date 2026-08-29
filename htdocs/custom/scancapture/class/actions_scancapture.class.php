@@ -33,7 +33,8 @@ class ActionsScanCapture
 		}
 		$langs->load('scancapture@scancapture');
 		if (!empty($object->id) && $object->status == 1) {
-			$this->resprints = '<a class="butAction" href="'.dol_buildpath('/scancapture/capture.php', 1).'?fk_inventory='.((int) $object->id).'">'.$langs->trans('ScanCaptureMenu').'</a>';
+			// product/inventory/card.php executes this hook but never prints resPrint: print directly
+			print '<a class="butAction" href="'.dol_buildpath('/scancapture/capture.php', 1).'?fk_inventory='.((int) $object->id).'">'.$langs->trans('ScanCaptureMenu').'</a>';
 		}
 		return 0;
 	}

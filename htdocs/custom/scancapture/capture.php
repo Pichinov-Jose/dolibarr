@@ -46,6 +46,12 @@ div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
 #sc_actions { position: sticky; bottom: 0; z-index: 100; background: #fff; padding: 8px 0; border-top: 2px solid #ccc; max-width: 1100px; }
 #sc_actions .sc_btnrow { display: flex; gap: 8px; }
 #sc_actions .sc_btn { flex: 1; width: auto; }
+#sc_numpad { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; }
+#sc_numpad .pad { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 10px; padding: 14px; width: 290px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+#sc_numpad .val { font-size: 2em; text-align: right; border: 1px solid #ccc; border-radius: 6px; padding: 8px; margin-bottom: 10px; min-height: 1.2em; }
+#sc_numpad .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+#sc_numpad .keys button { font-size: 1.6em; padding: 16px 0; border: 1px solid #bbb; border-radius: 8px; background: #f5f5f5; }
+#sc_numpad .ok { grid-column: span 2; background: #2e7d32 !important; color: #fff; }
 </style>
 <div id="sc_zone">
 	<div class="sc_field"><label><?php print $langs->trans('TargetInventory'); ?></label>
@@ -66,6 +72,16 @@ div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
 	<input type="number" id="sc_qty" step="any" inputmode="decimal" value="1"></div>
 	</div>
 </div>
+<div id="sc_numpad"><div class="pad">
+	<div class="val" id="sc_np_val"></div>
+	<div class="keys">
+		<button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+		<button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+		<button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+		<button type="button" data-k=".">.</button><button type="button" data-k="0">0</button><button type="button" data-k="C">C</button>
+		<button type="button" class="ok" data-k="OK">OK</button><button type="button" data-k="X">&#10006;</button>
+	</div>
+</div></div>
 <div id="sc_actions">
 	<span id="sc_live"><?php print $langs->trans('ScanHint'); ?></span>
 	<div class="sc_btnrow">
@@ -136,6 +152,17 @@ jQuery(function() {
 		});
 	}
 	jQuery(document).on('click', '.sc_pick', function() { submitRow(jQuery(this).data('id')); });
+	var npTarget = null; var npCb = null;
+	function openPad(initial, cb) { npCb = cb; jQuery('#sc_np_val').text(initial || ''); jQuery('#sc_numpad').show(); }
+	jQuery('#sc_numpad .keys button').on('click', function() {
+		var k = jQuery(this).data('k') + ''; var v = jQuery('#sc_np_val').text();
+		if (k == 'C') { jQuery('#sc_np_val').text(''); return; }
+		if (k == 'X') { jQuery('#sc_numpad').hide(); return; }
+		if (k == 'OK') { jQuery('#sc_numpad').hide(); if (npCb && v !== '') npCb(v); return; }
+		if (k == '.' && v.indexOf('.') !== -1) return;
+		jQuery('#sc_np_val').text(v + k);
+	});
+	jQuery('#sc_qty').on('click', function() { var me = jQuery(this); openPad('', function(v) { me.val(v); }); });
 	var scFilterText = ''; var scFilterStat = '';
 	function applyFilter() {
 		jQuery('#sc_rows tr').not('.liste_titre').each(function() {
@@ -156,10 +183,10 @@ jQuery(function() {
 	jQuery(document).on('click', '.sc_edit', function(ev) {
 		ev.preventDefault();
 		var a = jQuery(this); var row = a.data('row'); var tr = a.closest('tr');
-		var nq = prompt('<?php print dol_escape_js($langs->trans('NewQty')); ?>', a.data('qty'));
-		if (nq === null || nq === '') return;
-		jQuery.getJSON(base + 'updaterow.php', {what: 'qty', rowid: row, qty: nq, token: token}, function(r) {
-			if (r.ok) { tr.find('td').eq(4).text(r.qty); a.data('qty', r.qty); }
+		openPad(a.data('qty') + '', function(nq) {
+			jQuery.getJSON(base + 'updaterow.php', {what: 'qty', rowid: row, qty: nq, token: token}, function(r) {
+				if (r.ok) { tr.find('td').eq(4).text(r.qty); a.data('qty', r.qty); }
+			});
 		});
 	});
 	jQuery('#sc_submit').on('click', function() { submitRow(0); });
