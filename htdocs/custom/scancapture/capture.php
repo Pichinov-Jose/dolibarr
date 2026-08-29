@@ -248,7 +248,9 @@ jQuery(function() {
 		if (!params.code_kezia.trim() && !params.ean.trim()) return;
 		if (forced) params.fk_product = forced;
 		if (replaceRow) params.replace_row = replaceRow;
-		jQuery.getJSON(base + 'saverow.php', params, function(r) {
+		jQuery.getJSON(base + 'saverow.php', params).fail(function() {
+			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
+		}).done(function(r) {
 			if (!r.ok) { setLive('multi', 'Erreur'); return; }
 			if (r.status == 'ambiguous' && !forced) {
 				setLive('multi', '<b><?php print dol_escape_js($langs->trans('PickProduct')); ?></b><br>' + pickBtns(r.candidates, r.rowid));
@@ -265,6 +267,7 @@ jQuery(function() {
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : (r.variant_of ? '<span class="fa fa-code-fork"></span> <?php print dol_escape_js($langs->trans('VariantCandidate')); ?> ' + r.variant_of : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>'));
 			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'fa fa-clock-o\' style=\'color:#b26a00\'></span>' : '') + '</td><td class="right nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
 			bumpCount(r.status == 'unknown');
+			if (scFilterStat && scFilterStat !== r.status) { scFilterStat = ''; jQuery('.sc_fstat').removeClass('butActionRefused'); jQuery('.sc_fstat[data-st=""]').addClass('butActionRefused'); }
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }
 			if (r.status == 'unknown' && params.ean.trim() !== '') { jQuery.getJSON(base + 'enrich.php', {rowid: r.rowid, token: token}); }
 			applyFilter();
@@ -279,7 +282,9 @@ jQuery(function() {
 		if (!(inv > 0)) { jQuery('#sc_settings').show(); setLive('multi', '<?php print dol_escape_js($langs->trans('PickInventoryFirst')); ?>'); return; }
 		var n = jQuery('#sc_pending').text();
 		if (!confirm('<?php print dol_escape_js($langs->trans('ConfirmSendToInv')); ?>'.replace('%s', n).replace('%i', jQuery('#sc_inv option:selected').text()))) return;
-		jQuery.getJSON(base + 'sendtoinv.php', {fk_inventory: inv, autocreate: (jQuery('#sc_autocreate').is(':checked') ? 1 : 0), token: token}, function(r) {
+		jQuery.getJSON(base + 'sendtoinv.php', {fk_inventory: inv, autocreate: (jQuery('#sc_autocreate').is(':checked') ? 1 : 0), token: token}).fail(function() {
+			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
+		}).done(function(r) {
 			if (!r.ok) { setLive('multi', 'Erreur : ' + (r.error || '')); return; }
 			r.ids.forEach(function(id) {
 				var tr = jQuery('#sc_rows tr[data-id="' + id + '"]');
