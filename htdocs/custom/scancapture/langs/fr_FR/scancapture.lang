@@ -45,3 +45,7 @@ SendToInventory=Envoyer vers l'inventaire
 PickInventoryFirst=Choisissez d'abord l'inventaire cible (roue crantée)
 ConfirmSendToInv=Envoyer %s ligne(s) comptée(s) vers %i ?
 LinesSent=ligne(s) envoyée(s) vers l'inventaire
+SendShort=Envoyer
+ReviewShort=Revue
+CantDeleteSent=Ligne déjà envoyée dans l'inventaire : suppression impossible. Corrigez la quantité (crayon) ou la ligne d'inventaire.
+ScCloseSettings=Fermer

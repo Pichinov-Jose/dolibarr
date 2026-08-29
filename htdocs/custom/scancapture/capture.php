@@ -40,9 +40,17 @@ div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
 #sc_live.ok { background: #c8e6c9; }
 #sc_live.unknown { background: #ffe0b2; }
 #sc_live.multi { background: #ffebee; }
-#sc_actions { position: sticky; bottom: 0; z-index: 100; background: #fff; padding: 10px 0; border-top: 2px solid #e0e0e0; max-width: 1100px; }
-#sc_actions .sc_btnrow { display: flex; gap: 10px; }
-.sc_btn { font-size: 1.25em !important; padding: 15px 10px !important; flex: 1; border-radius: 8px !important; }
+#sc_livewrap { position: sticky; bottom: 64px; z-index: 99; max-width: 1100px; }
+#sc_bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 110; background: #263238; display: flex; justify-content: space-around; padding: 4px 0 max(4px, env(safe-area-inset-bottom)); box-shadow: 0 -2px 8px rgba(0,0,0,0.25); }
+#sc_bar a { flex: 1; text-align: center; color: #b0bec5; text-decoration: none; font-size: 0.72em; padding: 4px 0; position: relative; }
+#sc_bar a .fa { display: block; font-size: 1.9em; margin-bottom: 2px; }
+#sc_bar a.primary { color: #fff; }
+#sc_bar a.primary .fa { color: #4fc3f7; }
+#sc_bar a:active { color: #fff; }
+#sc_bar .badge { position: absolute; top: -2px; right: 18%; background: #e53935; color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 0.85em; font-weight: bold; }
+#sc_bar .badge.zero { display: none; }
+body { padding-bottom: 76px !important; }
+.sc_btn { font-size: 1.25em !important; padding: 15px 10px !important; border-radius: 8px !important; }
 #sc_filter { max-width: 1100px; margin: 10px 0 6px; display: flex; gap: 8px; }
 #sc_search { flex: 1; font-size: 1.05em; padding: 9px; border: 1.5px solid #ccc; border-radius: 8px; box-sizing: border-box; }
 .sc_edit, .sc_del { font-size: 1.25em; text-decoration: none; padding: 6px; }
@@ -65,8 +73,11 @@ body.scfs #id-container { width: 100% !important; }
 @media (max-width: 768px) {
 	#sc_fields { display: block; }
 	#sc_rows .sc_hidemobile { display: none; }
-	.sc_field input { font-size: 1.5em; }
+	.sc_field { margin-bottom: 12px; }
+	.sc_field label { font-size: 1.1em; }
+	.sc_field input { font-size: 1.8em; padding: 14px; }
 	#sc_head h2 { font-size: 1.05em; }
+	#sc_live { font-size: 1.25em; }
 }
 </style>
 <div id="sc_app">
@@ -99,7 +110,7 @@ body.scfs #id-container { width: 100% !important; }
 	<input type="number" id="sc_defqty" value="1" step="any"></div>
 	<div class="row"><label style="display:inline"><input type="checkbox" id="sc_auto" checked> <?php print $langs->trans('AutoSubmitAfterEan'); ?></label></div>
 	<div class="row"><label style="display:inline"><input type="checkbox" id="sc_kbdchk"> <?php print $langs->trans('ManualKeyboardHelp'); ?></label></div>
-	<div class="center"><button type="button" class="button sc_btn" id="sc_set_ok" style="width:100%"><?php print $langs->trans('Close'); ?></button></div>
+	<div class="center"><button type="button" class="button sc_btn" id="sc_set_ok" style="width:100%"><?php print $langs->trans('ScCloseSettings'); ?></button></div>
 </div></div>
 
 <div id="sc_numpad" class="sc_modal"><div class="box" style="width:290px">
@@ -113,13 +124,14 @@ body.scfs #id-container { width: 100% !important; }
 	</div>
 </div></div>
 
-<div id="sc_actions">
-	<span id="sc_live"><?php print $langs->trans('ScanHint'); ?></span>
-	<div class="sc_btnrow">
-	<button type="button" id="sc_submit" class="button sc_btn"><span class="fa fa-check paddingright"></span><?php print $langs->trans('ValidateLine'); ?></button>
-	<button type="button" id="sc_clear" class="button button-cancel sc_btn"><?php print $langs->trans('ClearLine'); ?></button>
-	</div>
-	<button type="button" id="sc_send" class="button sc_btn" style="width:100%;margin-top:8px;background:#1565c0;color:#fff"><span class="fa fa-upload paddingright"></span><?php print $langs->trans('SendToInventory'); ?> (<span id="sc_pending"><?php print $nbPending; ?></span>)</button>
+<div id="sc_livewrap"><span id="sc_live"><?php print $langs->trans('ScanHint'); ?></span></div>
+
+<div id="sc_bar">
+	<a href="#" id="sc_submit" class="primary"><span class="fa fa-check"></span><?php print $langs->trans('ValidateLine'); ?></a>
+	<a href="#" id="sc_clear"><span class="fa fa-eraser"></span><?php print $langs->trans('ClearLine'); ?></a>
+	<a href="#" id="sc_send" class="primary"><span class="fa fa-upload"></span><?php print $langs->trans('SendShort'); ?><span class="badge<?php print $nbPending ? '' : ' zero'; ?>" id="sc_pending"><?php print $nbPending; ?></span></a>
+	<a href="<?php print dol_buildpath('/scancapture/review.php', 1); ?>"><span class="fa fa-list-alt"></span><?php print $langs->trans('ReviewShort'); ?><span class="badge<?php print $nbUnknown ? '' : ' zero'; ?>" id="sc_unkbadge"><?php print $nbUnknown; ?></span></a>
+	<a href="#" id="sc_gear2"><span class="fa fa-cog"></span><?php print $langs->trans('Settings'); ?></a>
 </div>
 
 <div id="sc_filter">
@@ -134,7 +146,7 @@ body.scfs #id-container { width: 100% !important; }
 $resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
-		print '<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td></tr>';
+		print '<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>'.($o->sent_to_inv ? '' : '&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td></tr>';
 	}
 }
 ?>
@@ -164,6 +176,7 @@ jQuery(function() {
 	try { if (localStorage.getItem('sc_fs') == '1') setFs(true); } catch (err) {}
 	// settings modal
 	jQuery('#sc_gear').on('click', function(e) { e.preventDefault(); jQuery('#sc_settings').show(); });
+	jQuery('#sc_gear2').on('click', function(e) { e.preventDefault(); jQuery('#sc_settings').show(); });
 	jQuery('#sc_set_close, #sc_set_ok').on('click', function(e) { e.preventDefault(); jQuery('#sc_settings').hide(); refreshChips(); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_inv').on('change', refreshChips);
 	jQuery('#sc_defqty').on('change', function() { jQuery('#sc_qty').val(jQuery(this).val() || 1); });
@@ -227,7 +240,7 @@ jQuery(function() {
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>');
 			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\"fa fa-clock-o\" style=\"color:#b26a00\"></span>' : '') + '</td></tr>');
 			bumpCount(r.status == 'unknown');
-			if (r.status == 'matched') { jQuery('#sc_pending').text(parseInt(jQuery('#sc_pending').text()) + 1); }
+			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); }
 			if (r.status == 'unknown' && params.ean.trim() !== '') { jQuery.getJSON(base + 'enrich.php', {rowid: r.rowid, token: token}); }
 			applyFilter();
 			jQuery('#sc_codek').val(''); jQuery('#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1);
@@ -235,8 +248,8 @@ jQuery(function() {
 		});
 	}
 	jQuery(document).on('click', '.sc_pick', function() { submitRow(jQuery(this).data('id'), jQuery(this).data('stub') || 0); });
-	jQuery('#sc_submit').on('click', function() { submitRow(0); });
-	jQuery('#sc_send').on('click', function() {
+	jQuery('#sc_submit').on('click', function(e) { e.preventDefault(); submitRow(0); });
+	jQuery('#sc_send').on('click', function(e) { e.preventDefault();
 		var inv = jQuery('#sc_inv').val();
 		if (!(inv > 0)) { jQuery('#sc_settings').show(); setLive('multi', '<?php print dol_escape_js($langs->trans('PickInventoryFirst')); ?>'); return; }
 		var n = jQuery('#sc_pending').text();
@@ -246,14 +259,14 @@ jQuery(function() {
 			r.ids.forEach(function(id) {
 				jQuery('#sc_rows tr').each(function() {
 					var tr = jQuery(this);
-					if (tr.find('a.sc_del').data('row') == id) { tr.find('td').last().find('.fa-clock-o').attr('class', 'fa fa-check-circle').css('color', '#2e7d32'); }
+					if (tr.find('a.sc_edit').data('row') == id) { tr.find('td').last().find('.fa-clock-o').attr('class', 'fa fa-check-circle').css('color', '#2e7d32'); tr.find('a.sc_del').remove(); }
 				});
 			});
-			jQuery('#sc_pending').text('0');
+			jQuery('#sc_pending').text('0').addClass('zero');
 			setLive('ok', '<span class="fa fa-check"></span> ' + r.sent + ' <?php print dol_escape_js($langs->trans('LinesSent')); ?>');
 		});
 	});
-	jQuery('#sc_clear').on('click', function() { jQuery('#sc_codek,#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1); setLive('', ''); jQuery('#sc_codek').focus(); });
+	jQuery('#sc_clear').on('click', function(e) { e.preventDefault(); jQuery('#sc_codek,#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1); setLive('', ''); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_codek').on('keydown', function(e) { if (e.key == 'Enter') { e.preventDefault(); liveLookup(); jQuery('#sc_ean').focus(); } });
 	jQuery('#sc_ean').on('keydown', function(e) {
 		if (e.key == 'Enter') {
@@ -267,7 +280,7 @@ jQuery(function() {
 		ev.preventDefault();
 		var row = jQuery(this).data('row'); var tr = jQuery(this).closest('tr');
 		if (!confirm('<?php print dol_escape_js($langs->trans('ConfirmDeleteLine')); ?>')) return;
-		jQuery.getJSON(base + 'updaterow.php', {what: 'del', rowid: row, token: token}, function(r) { if (r.ok) tr.remove(); });
+		jQuery.getJSON(base + 'updaterow.php', {what: 'del', rowid: row, token: token}, function(r) { if (r.ok) { tr.remove(); } else if (r.error == 'sent') { setLive('multi', '<?php print dol_escape_js($langs->trans('CantDeleteSent')); ?>'); } });
 	});
 	jQuery(document).on('click', '.sc_edit', function(ev) {
 		ev.preventDefault();

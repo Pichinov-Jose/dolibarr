@@ -16,9 +16,11 @@ if (!$row) { print json_encode(array('ok' => false, 'error' => 'row not found'))
 
 $db->begin();
 if ($what == 'del') {
-	// reverse the inventory feed if any, then remove the row
-	if ($row->sent_to_inv && $row->fk_inventory && $row->fk_product && $row->status == 'matched') {
-		scFeedInventory($db, (int) $row->fk_inventory, (int) $row->fk_product, -((float) $row->qty));
+	// a line already sent to the inventory must not be deleted (fix it via qty edit or in the inventory)
+	if ($row->sent_to_inv) {
+		$db->rollback();
+		print json_encode(array('ok' => false, 'error' => 'sent'));
+		exit;
 	}
 	$db->query("DELETE FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 	$db->commit();
