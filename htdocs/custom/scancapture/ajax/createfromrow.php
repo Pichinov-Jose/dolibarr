@@ -41,11 +41,8 @@ if (!$eanOk && !empty($row->ean)) {
 }
 if ($parentref !== '') {
 	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, variant_parent_ref) VALUES (".((int) $pid).", '".$db->escape($parentref)."') ON DUPLICATE KEY UPDATE variant_parent_ref = VALUES(variant_parent_ref)");
-	// inherit the family's supplier buying price (technical supplier ref = new product ref, unique)
 	if ($parent) {
-		$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_fournisseur_price (datec, tms, fk_product, fk_soc, ref_fourn, price, quantity, unitprice, tva_tx, entity, fk_user, multicurrency_price, multicurrency_unitprice, multicurrency_tx, multicurrency_code)".
-			" SELECT NOW(), NOW(), ".((int) $pid).", pfp.fk_soc, '".$db->escape($ref)."', pfp.price, pfp.quantity, pfp.unitprice, pfp.tva_tx, 1, ".((int) $user->id).", pfp.multicurrency_price, pfp.multicurrency_unitprice, pfp.multicurrency_tx, pfp.multicurrency_code".
-			" FROM ".MAIN_DB_PREFIX."product_fournisseur_price pfp WHERE pfp.fk_product = ".((int) $parent->rowid)." ORDER BY pfp.quantity ASC, pfp.rowid ASC LIMIT 1");
+		scInheritFromParent($db, $user, (int) $pid, (int) $parent->rowid, $ref);
 	}
 }
 $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid).", status = 'created', product_label = '".$db->escape($label)."' WHERE rowid = ".((int) $rowid));

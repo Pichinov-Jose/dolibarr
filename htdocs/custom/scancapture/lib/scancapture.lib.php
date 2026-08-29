@@ -216,3 +216,50 @@ function scProductHasEan($db, $pid)
 	}
 	return false;
 }
+
+/**
+ * Copy "everything" from the family product onto a freshly created variant:
+ * categories, weight/dimensions/units, description, accountancy codes, default warehouse,
+ * cost price and the kezia_cump extrafield (margin cascade), plus the first supplier price.
+ * Selling price/VAT are handled by the caller (may be overridden by the operator).
+ *
+ * @param DoliDB $db DB
+ * @param User $user User
+ * @param int $pid New product id
+ * @param int $parent_id Family product id
+ * @param string $newref New product ref (used as unique supplier ref)
+ * @return void
+ */
+function scInheritFromParent($db, $user, $pid, $parent_id, $newref)
+{
+	// physical + accounting + misc columns
+	$db->query("UPDATE ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product par ON par.rowid = ".((int) $parent_id)."
+		SET p.weight = par.weight, p.weight_units = par.weight_units,
+			p.length = par.length, p.length_units = par.length_units,
+			p.width = par.width, p.width_units = par.width_units,
+			p.height = par.height, p.height_units = par.height_units,
+			p.surface = par.surface, p.surface_units = par.surface_units,
+			p.volume = par.volume, p.volume_units = par.volume_units,
+			p.description = par.description,
+			p.accountancy_code_sell = par.accountancy_code_sell,
+			p.accountancy_code_sell_intra = par.accountancy_code_sell_intra,
+			p.accountancy_code_sell_export = par.accountancy_code_sell_export,
+			p.accountancy_code_buy = par.accountancy_code_buy,
+			p.accountancy_code_buy_intra = par.accountancy_code_buy_intra,
+			p.accountancy_code_buy_export = par.accountancy_code_buy_export,
+			p.fk_default_warehouse = par.fk_default_warehouse,
+			p.cost_price = par.cost_price,
+			p.fk_unit = par.fk_unit
+		WHERE p.rowid = ".((int) $pid));
+	// categories
+	$db->query("INSERT IGNORE INTO ".MAIN_DB_PREFIX."categorie_product (fk_categorie, fk_product)
+		SELECT cp.fk_categorie, ".((int) $pid)." FROM ".MAIN_DB_PREFIX."categorie_product cp WHERE cp.fk_product = ".((int) $parent_id));
+	// kezia_cump extrafield (margin cascade source)
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, kezia_cump)
+		SELECT ".((int) $pid).", pe.kezia_cump FROM ".MAIN_DB_PREFIX."product_extrafields pe WHERE pe.fk_object = ".((int) $parent_id)." AND pe.kezia_cump IS NOT NULL
+		ON DUPLICATE KEY UPDATE kezia_cump = VALUES(kezia_cump)");
+	// first supplier price, technical unique supplier ref = new product ref
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_fournisseur_price (datec, tms, fk_product, fk_soc, ref_fourn, price, quantity, unitprice, tva_tx, entity, fk_user, multicurrency_price, multicurrency_unitprice, multicurrency_tx, multicurrency_code)
+		SELECT NOW(), NOW(), ".((int) $pid).", pfp.fk_soc, '".$db->escape($newref)."', pfp.price, pfp.quantity, pfp.unitprice, pfp.tva_tx, 1, ".((int) $user->id).", pfp.multicurrency_price, pfp.multicurrency_unitprice, pfp.multicurrency_tx, pfp.multicurrency_code
+		FROM ".MAIN_DB_PREFIX."product_fournisseur_price pfp WHERE pfp.fk_product = ".((int) $parent_id)." ORDER BY pfp.quantity ASC, pfp.rowid ASC LIMIT 1");
+}
