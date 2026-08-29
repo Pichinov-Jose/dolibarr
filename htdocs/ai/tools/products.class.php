@@ -279,6 +279,11 @@ class ToolProducts extends McpTool
 		}
 
 		$result = $product->create($this->user);
+		if ($result > 0) {
+			// Product::create() does not persist import_key: set it with a
+			// targeted UPDATE right after creation.
+			$this->db->query("UPDATE ".MAIN_DB_PREFIX."product SET import_key='".$this->db->escape($product->import_key)."' WHERE rowid=".(int) $product->id);
+		}
 		if ($result <= 0) {
 			return [
 				"success" => false,
