@@ -15,7 +15,9 @@ $resql = $db->query("SELECT i.rowid, i.ref, e.ref AS wh FROM ".MAIN_DB_PREFIX."i
 if ($resql) { while ($o = $db->fetch_object($resql)) { $invs[] = $o; } }
 $preinv = GETPOSTINT('fk_inventory');
 
-$nbToday = $nbUnknown = 0;
+$nbToday = $nbUnknown = 0; $nbPending = 0;
+$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created')");
+if ($resql && ($o = $db->fetch_object($resql))) { $nbPending = (int) $o->n; }
 $resql = $db->query("SELECT COUNT(*) AS n, SUM(status = 'unknown') AS u FROM ".MAIN_DB_PREFIX."scan_capture WHERE datec >= CURDATE()");
 if ($resql && ($o = $db->fetch_object($resql))) { $nbToday = (int) $o->n; $nbUnknown = (int) $o->u; }
 ?>
@@ -117,6 +119,7 @@ body.scfs #id-container { width: 100% !important; }
 	<button type="button" id="sc_submit" class="button sc_btn"><span class="fa fa-check paddingright"></span><?php print $langs->trans('ValidateLine'); ?></button>
 	<button type="button" id="sc_clear" class="button button-cancel sc_btn"><?php print $langs->trans('ClearLine'); ?></button>
 	</div>
+	<button type="button" id="sc_send" class="button sc_btn" style="width:100%;margin-top:8px;background:#1565c0;color:#fff"><span class="fa fa-upload paddingright"></span><?php print $langs->trans('SendToInventory'); ?> (<span id="sc_pending"><?php print $nbPending; ?></span>)</button>
 </div>
 
 <div id="sc_filter">
@@ -128,10 +131,10 @@ body.scfs #id-container { width: 100% !important; }
 <div class="div-table-responsive-no-min"><table class="noborder centpercent" id="sc_rows">
 <tr class="liste_titre"><td></td><td class="sc_hidemobile">#</td><td><?php print $langs->trans('KeziaCode'); ?></td><td><?php print $langs->trans('ProductEan'); ?></td><td class="right"><?php print $langs->trans('Qty'); ?></td><td><?php print $langs->trans('Product'); ?></td><td><?php print $langs->trans('Status'); ?></td></tr>
 <?php
-$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() ORDER BY sc.rowid DESC LIMIT 200");
+$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
-		print '<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).'</td></tr>';
+		print '<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td></tr>';
 	}
 }
 ?>
@@ -220,10 +223,11 @@ jQuery(function() {
 				setLive('multi', h);
 				return;
 			}
-			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.fed ? ' &middot; inventaire +' + q : '');
+			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '');
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>');
-			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + '</td></tr>');
+			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\"fa fa-clock-o\" style=\"color:#b26a00\"></span>' : '') + '</td></tr>');
 			bumpCount(r.status == 'unknown');
+			if (r.status == 'matched') { jQuery('#sc_pending').text(parseInt(jQuery('#sc_pending').text()) + 1); }
 			if (r.status == 'unknown' && params.ean.trim() !== '') { jQuery.getJSON(base + 'enrich.php', {rowid: r.rowid, token: token}); }
 			applyFilter();
 			jQuery('#sc_codek').val(''); jQuery('#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1);
@@ -232,6 +236,23 @@ jQuery(function() {
 	}
 	jQuery(document).on('click', '.sc_pick', function() { submitRow(jQuery(this).data('id'), jQuery(this).data('stub') || 0); });
 	jQuery('#sc_submit').on('click', function() { submitRow(0); });
+	jQuery('#sc_send').on('click', function() {
+		var inv = jQuery('#sc_inv').val();
+		if (!(inv > 0)) { jQuery('#sc_settings').show(); setLive('multi', '<?php print dol_escape_js($langs->trans('PickInventoryFirst')); ?>'); return; }
+		var n = jQuery('#sc_pending').text();
+		if (!confirm('<?php print dol_escape_js($langs->trans('ConfirmSendToInv')); ?>'.replace('%s', n).replace('%i', jQuery('#sc_inv option:selected').text()))) return;
+		jQuery.getJSON(base + 'sendtoinv.php', {fk_inventory: inv, token: token}, function(r) {
+			if (!r.ok) { setLive('multi', 'Erreur : ' + (r.error || '')); return; }
+			r.ids.forEach(function(id) {
+				jQuery('#sc_rows tr').each(function() {
+					var tr = jQuery(this);
+					if (tr.find('a.sc_del').data('row') == id) { tr.find('td').last().find('.fa-clock-o').attr('class', 'fa fa-check-circle').css('color', '#2e7d32'); }
+				});
+			});
+			jQuery('#sc_pending').text('0');
+			setLive('ok', '<span class="fa fa-check"></span> ' + r.sent + ' <?php print dol_escape_js($langs->trans('LinesSent')); ?>');
+		});
+	});
 	jQuery('#sc_clear').on('click', function() { jQuery('#sc_codek,#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1); setLive('', ''); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_codek').on('keydown', function(e) { if (e.key == 'Enter') { e.preventDefault(); liveLookup(); jQuery('#sc_ean').focus(); } });
 	jQuery('#sc_ean').on('keydown', function(e) {

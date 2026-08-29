@@ -62,10 +62,7 @@ if ($replace_row > 0 && $forced_product > 0) {
 if ($status == 'matched' && $ean !== '' && $fk_product > 0 && !$eanIsKnown) {
 	$assoc = scAssocEan($db, $user, $fk_product, $ean);
 }
-$fed = 0;
-if ($status == 'matched' && $fk_inventory > 0 && $fk_product > 0) {
-	$fed = scFeedInventory($db, $fk_inventory, $fk_product, $qty);
-}
+$fed = 0; // inventory is now fed in one shot by ajax/sendtoinv.php after the operator validates the list
 $sql = "INSERT INTO ".MAIN_DB_PREFIX."scan_capture (datec, fk_user, code_kezia, ean, qty, fk_product, match_source, product_label, candidates, status, fk_inventory, import_key) VALUES (";
 $sql .= "NOW(), ".((int) $user->id).", ".($codek !== '' ? "'".$db->escape($codek)."'" : "NULL").", ".($ean !== '' ? "'".$db->escape($ean)."'" : "NULL").", ".((float) $qty).", ";
 $sql .= ($fk_product > 0 ? (int) $fk_product : "NULL").", ".($source !== '' ? "'".$db->escape($source)."'" : "NULL").", ".($label !== '' ? "'".$db->escape($label)."'" : "NULL").", ";

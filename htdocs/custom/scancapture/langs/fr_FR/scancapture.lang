@@ -41,3 +41,7 @@ UnknownShort=inconnus
 ManualKeyboardHelp=Clavier tactile sur les champs code (saisie manuelle)
 Close=Fermer
 FullScreen=Plein écran (mode scan)
+SendToInventory=Envoyer vers l'inventaire
+PickInventoryFirst=Choisissez d'abord l'inventaire cible (roue crantée)
+ConfirmSendToInv=Envoyer %s ligne(s) comptée(s) vers %i ?
+LinesSent=ligne(s) envoyée(s) vers l'inventaire

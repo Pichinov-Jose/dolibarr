@@ -10,14 +10,14 @@ top_httphead('application/json');
 
 $rowid = GETPOSTINT('rowid');
 $what = GETPOST('what', 'aZ09');
-$resql = $db->query("SELECT rowid, qty, fk_product, fk_inventory, status FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
+$resql = $db->query("SELECT rowid, qty, fk_product, fk_inventory, status, sent_to_inv FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row) { print json_encode(array('ok' => false, 'error' => 'row not found')); exit; }
 
 $db->begin();
 if ($what == 'del') {
 	// reverse the inventory feed if any, then remove the row
-	if ($row->fk_inventory && $row->fk_product && $row->status == 'matched') {
+	if ($row->sent_to_inv && $row->fk_inventory && $row->fk_product && $row->status == 'matched') {
 		scFeedInventory($db, (int) $row->fk_inventory, (int) $row->fk_product, -((float) $row->qty));
 	}
 	$db->query("DELETE FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
@@ -28,7 +28,7 @@ if ($what == 'del') {
 if ($what == 'qty') {
 	$newqty = (float) price2num(GETPOST('qty', 'alpha'), 'MS');
 	$delta = $newqty - (float) $row->qty;
-	if ($row->fk_inventory && $row->fk_product && $row->status == 'matched' && $delta != 0) {
+	if ($row->sent_to_inv && $row->fk_inventory && $row->fk_product && $row->status == 'matched' && $delta != 0) {
 		scFeedInventory($db, (int) $row->fk_inventory, (int) $row->fk_product, $delta);
 	}
 	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET qty = ".((float) $newqty)." WHERE rowid = ".((int) $rowid));
