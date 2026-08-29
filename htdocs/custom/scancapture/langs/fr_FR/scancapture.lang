@@ -30,3 +30,6 @@ ClearLine=Vider
 UnknownWillCapture=inconnu — sera capturé
 PickProduct=Plusieurs produits — touchez le bon :
 CapturedUnknown=Capturé (inconnu — création plus tard)
+ConfirmDeleteLine=Supprimer cette ligne ? (l'inventaire cible sera corrigé)
+NewQty=Nouvelle quantité :
+FilterRows=Filtrer (code, EAN, produit)…
