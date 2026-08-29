@@ -21,6 +21,7 @@ if ($resql && ($o = $db->fetch_object($resql))) { $nbPending = (int) $o->n; }
 $resql = $db->query("SELECT COUNT(*) AS n, SUM(status = 'unknown') AS u FROM ".MAIN_DB_PREFIX."scan_capture WHERE datec >= CURDATE()");
 if ($resql && ($o = $db->fetch_object($resql))) { $nbToday = (int) $o->n; $nbUnknown = (int) $o->u; }
 ?>
+<script>document.documentElement.classList.add('scfs');</script>
 <style>
 div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
 #sc_app { max-width: 1100px; }
@@ -66,10 +67,16 @@ body { padding-bottom: 76px !important; }
 #sc_numpad .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 #sc_numpad .keys button { font-size: 1.6em; padding: 16px 0; border: 1px solid #bbb; border-radius: 8px; background: #f5f5f5; }
 #sc_numpad .ok { grid-column: span 2; background: #2e7d32 !important; color: #fff; }
-body.scfs #id-top, body.scfs #id-left, body.scfs .side-nav, body.scfs #tmenu_tooltip, body.scfs .tmenudiv { display: none !important; }
-body.scfs #id-right, body.scfs .fiche { padding: 6px !important; margin: 0 !important; width: auto !important; }
-body.scfs #id-container { width: 100% !important; }
-@media (min-width: 769px) { #sc_actions { position: static; border-top: none; } #sc_actions .sc_btnrow { max-width: 460px; } }
+html.scfs #id-top, html.scfs #id-left, html.scfs .side-nav, html.scfs #tmenu_tooltip, html.scfs .tmenudiv { display: none !important; }
+html.scfs #id-right, html.scfs .fiche { padding: 10px !important; margin: 0 !important; width: auto !important; }
+html.scfs #id-container { width: 100% !important; }
+#sc_deskactions { display: none; }
+@media (min-width: 769px) {
+	#sc_bar { display: none; }
+	#sc_deskactions { display: block; }
+	#sc_livewrap { position: static; }
+	body { padding-bottom: 10px !important; }
+}
 @media (max-width: 768px) {
 	#sc_fields { display: block; }
 	#sc_rows .sc_hidemobile { display: none; }
@@ -86,6 +93,7 @@ body.scfs #id-container { width: 100% !important; }
 	<span class="sc_chip inv" id="sc_invchip"></span>
 	<span class="sc_chip" id="sc_count"><?php print $nbToday; ?> scans</span>
 	<span class="sc_chip warn" id="sc_unknowncount" <?php print $nbUnknown ? '' : 'style="display:none"'; ?>><a href="<?php print dol_buildpath('/scancapture/review.php', 1); ?>" style="text-decoration:none"><?php print $nbUnknown; ?> <?php print $langs->trans('UnknownShort'); ?></a></span>
+	<a href="<?php print DOL_URL_ROOT; ?>/index.php?mainmenu=home" id="sc_home" title="Dolibarr" style="font-size:1.7em;color:#555;text-decoration:none;padding:6px 4px"><span class="fa fa-home"></span></a>
 	<a href="#" id="sc_fs" title="<?php print $langs->trans('FullScreen'); ?>" style="font-size:1.7em;color:#555;text-decoration:none;padding:6px 4px"><span class="fa fa-expand"></span></a>
 	<a href="#" id="sc_gear" title="<?php print $langs->trans('Settings'); ?>"><span class="fa fa-cog"></span></a>
 </div>
@@ -126,6 +134,12 @@ body.scfs #id-container { width: 100% !important; }
 
 <div id="sc_livewrap"><span id="sc_live"><?php print $langs->trans('ScanHint'); ?></span></div>
 
+<div id="sc_deskactions" class="tabsAction">
+	<a href="#" class="butAction sc_a_submit"><?php print $langs->trans('ValidateLine'); ?></a>
+	<a href="#" class="butAction sc_a_clear"><?php print $langs->trans('ClearLine'); ?></a>
+	<a href="#" class="butAction sc_a_send"><?php print $langs->trans('SendToInventory'); ?> (<span class="sc_pending_mirror"><?php print $nbPending; ?></span>)</a>
+</div>
+
 <div id="sc_bar">
 	<a href="#" id="sc_submit" class="primary"><span class="fa fa-check"></span><?php print $langs->trans('ValidateLine'); ?></a>
 	<a href="#" id="sc_clear"><span class="fa fa-eraser"></span><?php print $langs->trans('ClearLine'); ?></a>
@@ -164,16 +178,16 @@ jQuery(function() {
 		var c = jQuery('#sc_count'); c.text((parseInt(c.text()) + 1) + ' scans');
 		if (unknown) { var u = jQuery('#sc_unknowncount'); var a = u.find('a'); var n = (parseInt(a.text()) || 0) + 1; a.text(n + ' <?php print dol_escape_js($langs->trans('UnknownShort')); ?>'); u.show(); }
 	}
-	// fullscreen scan mode (TakePOS-like): hide all Dolibarr chrome
-	function setFs(on) {
-		jQuery('body').toggleClass('scfs', on);
-		jQuery('#sc_fs span').attr('class', on ? 'fa fa-compress' : 'fa fa-expand');
-		try { if (on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); else if (!on && document.fullscreenElement) document.exitFullscreen(); } catch (err) {}
-		try { localStorage.setItem('sc_fs', on ? '1' : '0'); } catch (err) {}
+	// browser fullscreen only (the Dolibarr chrome is always hidden: terminal mode)
+	jQuery('#sc_fs').on('click', function(ev) {
+		ev.preventDefault();
+		try {
+			if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); jQuery('#sc_fs span').attr('class', 'fa fa-compress'); }
+			else { document.exitFullscreen(); jQuery('#sc_fs span').attr('class', 'fa fa-expand'); }
+		} catch (err) {}
 		jQuery('#sc_codek').focus();
-	}
-	jQuery('#sc_fs').on('click', function(ev) { ev.preventDefault(); setFs(!jQuery('body').hasClass('scfs')); });
-	try { if (localStorage.getItem('sc_fs') == '1') setFs(true); } catch (err) {}
+	});
+	document.addEventListener('fullscreenchange', function() { jQuery('#sc_fs span').attr('class', document.fullscreenElement ? 'fa fa-compress' : 'fa fa-expand'); });
 	// settings modal
 	jQuery('#sc_gear').on('click', function(e) { e.preventDefault(); jQuery('#sc_settings').show(); });
 	jQuery('#sc_gear2').on('click', function(e) { e.preventDefault(); jQuery('#sc_settings').show(); });
@@ -240,7 +254,7 @@ jQuery(function() {
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>');
 			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\"fa fa-clock-o\" style=\"color:#b26a00\"></span>' : '') + '</td></tr>');
 			bumpCount(r.status == 'unknown');
-			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); }
+			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }
 			if (r.status == 'unknown' && params.ean.trim() !== '') { jQuery.getJSON(base + 'enrich.php', {rowid: r.rowid, token: token}); }
 			applyFilter();
 			jQuery('#sc_codek').val(''); jQuery('#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1);
@@ -248,8 +262,8 @@ jQuery(function() {
 		});
 	}
 	jQuery(document).on('click', '.sc_pick', function() { submitRow(jQuery(this).data('id'), jQuery(this).data('stub') || 0); });
-	jQuery('#sc_submit').on('click', function(e) { e.preventDefault(); submitRow(0); });
-	jQuery('#sc_send').on('click', function(e) { e.preventDefault();
+	jQuery('#sc_submit, .sc_a_submit').on('click', function(e) { e.preventDefault(); submitRow(0); });
+	jQuery('#sc_send, .sc_a_send').on('click', function(e) { e.preventDefault();
 		var inv = jQuery('#sc_inv').val();
 		if (!(inv > 0)) { jQuery('#sc_settings').show(); setLive('multi', '<?php print dol_escape_js($langs->trans('PickInventoryFirst')); ?>'); return; }
 		var n = jQuery('#sc_pending').text();
@@ -262,11 +276,11 @@ jQuery(function() {
 					if (tr.find('a.sc_edit').data('row') == id) { tr.find('td').last().find('.fa-clock-o').attr('class', 'fa fa-check-circle').css('color', '#2e7d32'); tr.find('a.sc_del').remove(); }
 				});
 			});
-			jQuery('#sc_pending').text('0').addClass('zero');
+			jQuery('#sc_pending').text('0').addClass('zero'); jQuery('.sc_pending_mirror').text('0');
 			setLive('ok', '<span class="fa fa-check"></span> ' + r.sent + ' <?php print dol_escape_js($langs->trans('LinesSent')); ?>');
 		});
 	});
-	jQuery('#sc_clear').on('click', function(e) { e.preventDefault(); jQuery('#sc_codek,#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1); setLive('', ''); jQuery('#sc_codek').focus(); });
+	jQuery('#sc_clear, .sc_a_clear').on('click', function(e) { e.preventDefault(); jQuery('#sc_codek,#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1); setLive('', ''); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_codek').on('keydown', function(e) { if (e.key == 'Enter') { e.preventDefault(); liveLookup(); jQuery('#sc_ean').focus(); } });
 	jQuery('#sc_ean').on('keydown', function(e) {
 		if (e.key == 'Enter') {
