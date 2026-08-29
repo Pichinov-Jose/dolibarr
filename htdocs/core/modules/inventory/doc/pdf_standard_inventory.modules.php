@@ -471,7 +471,7 @@ class pdf_standard_inventory extends ModelePDFInventory
 
 		$default_font_size = pdf_getPDFFontSize($outputlangs);
 
-		pdfpageHead($pdf, $outputlangs, $this->page_hauteur);
+		pdf_pagehead($pdf, $outputlangs, $this->page_hauteur);
 
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->SetFont('', 'B', $default_font_size + 3);
@@ -544,6 +544,6 @@ class pdf_standard_inventory extends ModelePDFInventory
 	protected function pageFoot(&$pdf, $object, $outputlangs, $hidefreetext = 0)
 	{
 		$showdetails = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS', 0);
-		return pdfpageFoot($pdf, $outputlangs, 'INVENTORY_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, $showdetails, $hidefreetext);
+		return pdf_pagefoot($pdf, $outputlangs, 'INVENTORY_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, $showdetails, $hidefreetext);
 	}
 }
