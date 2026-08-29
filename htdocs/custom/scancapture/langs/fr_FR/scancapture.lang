@@ -20,3 +20,13 @@ PriceTTC=Prix TTC
 MassCreateSelected=Créer les produits sélectionnés
 ProductsCreated=produit(s) créé(s)
 NoUnknownRows=Aucun code inconnu en attente.
+AutoSubmitAfterEan=Validation auto après scan EAN (qté par défaut)
+ManualKeyboard=Clavier
+ScanHere=Scannez ici…
+ScanOrSkip=Scannez l'EAN (ou Valider si absent)
+DefaultQtyPh=vide = qté par défaut
+ValidateLine=Valider
+ClearLine=Vider
+UnknownWillCapture=inconnu — sera capturé
+PickProduct=Plusieurs produits — touchez le bon :
+CapturedUnknown=Capturé (inconnu — création plus tard)
