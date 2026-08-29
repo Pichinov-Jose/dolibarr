@@ -259,6 +259,8 @@ If user says 'order' without any qualifier, they mean a SALES ORDER - use this t
 								"socid" => ["type" => "integer", "description" => "Thirdparty ID (Customer for proposal, Supplier for supplier_*)"],
 								"date" => ["type" => "string", "description" => "Document date (YYYY-MM-DD)"],
 								"duree_validite" => ["type" => "integer", "description" => "Validity in days (proposal only)"],
+								"ref_supplier" => ["type" => "string", "description" => "Supplier's own document reference (delivery note number, supplier order number...) as written on the source document"],
+								"create_missing_products" => ["type" => "boolean", "default" => false, "description" => "When a line's product_ref does not match any catalog product, create the product on the fly (ref=product_ref, label=description, buying price=unit_price) instead of adding a free-text line"],
 								"note_public" => ["type" => "string", "description" => "Public note"],
 								"note_private" => ["type" => "string", "description" => "Private note"]
 							],
@@ -442,8 +444,14 @@ If user says 'order' without any qualifier, they mean a SALES ORDER - use this t
 		$obj = $this->instantiate($type);
 
 		// Process Header with Field Mapping
+		$createMissingProducts = ! empty($args['header']['create_missing_products']);
 		foreach ($args['header'] as $k => $v) {
 			$key = (string) $k;
+
+			// Behavior flag, not an object property
+			if ($key === 'create_missing_products') {
+				continue;
+			}
 
 			// Map 'date' to specific date field (e.g., date_commande)
 			if ($key === 'date' && isset($confMap['date_field'])) {
@@ -501,6 +509,9 @@ If user says 'order' without any qualifier, they mean a SALES ORDER - use this t
 			foreach ($args['lines'] as $line) {
 				$line['object_type'] = $type;
 				$line['parent_id'] = $id;
+				if ($createMissingProducts) {
+					$line['create_missing_products'] = true;
+				}
 
 				// Process line addition
 				// Assumes processAddLine returns array{success: bool, error?: string}
@@ -601,6 +612,27 @@ If user says 'order' without any qualifier, they mean a SALES ORDER - use this t
 			}
 		}
 
+		// Create the product on the fly when explicitly asked to (document-driven
+		// creation, create_missing_products flag): the ref comes from the source
+		// document. Without this, unknown refs end up as free-text lines, which
+		// move no stock on receptions.
+		if ($prod === null && ! empty($args['create_missing_products']) && ! empty($args['product_ref'])
+			&& $this->user && $this->user->hasRight('produit', 'creer')) {
+			$newprod = new Product($this->db);
+			$newprod->ref = trim((string) $args['product_ref']);
+			$newprod->label = ! empty($args['description']) ? (string) $args['description'] : $newprod->ref;
+			$newprod->type = Product::TYPE_PRODUCT;
+			$newprod->status = 1;
+			$newprod->status_buy = 1;
+			if ($price !== null) {
+				$newprod->cost_price = (float) $price;
+			}
+			if ($newprod->create($this->user) > 0) {
+				$prod = $newprod;
+			}
+			// On failure (duplicate ref, numbering rule...): fall through to a free-text line
+		}
+
 		// Set values based on product or user input
 		if ($price === null) {
 			$price = ($prod && isset($prod->price)) ? (float) $prod->price : 0.0;
@@ -610,8 +642,11 @@ If user says 'order' without any qualifier, they mean a SALES ORDER - use this t
 			$vat = ($prod && isset($prod->tva_tx) && $prod->tva_tx !== '') ? (float) $prod->tva_tx : $companyDefaultVAT;
 		}
 
-		// Description
-		$userDesc = isset($args['description']) ? (string) $args['description'] : '';
+		// Description — collapse any line breaks / repeated whitespace the LLM may
+		// have carried over from the source document: a multi-line description
+		// renders as extra lines glued to the product name (getNomUrl) in the
+		// object line templates.
+		$userDesc = isset($args['description']) ? trim(preg_replace('/\s+/', ' ', (string) $args['description'])) : '';
 		$desc = '';
 
 		if ($userDesc !== '') {
@@ -692,10 +727,31 @@ If user says 'order' without any qualifier, they mean a SALES ORDER - use this t
 				return ["success" => false, "error" => "Reception standalone mode required to add lines manually."];
 			}
 			require_once DOL_DOCUMENT_ROOT . '/reception/class/receptionlinebatch.class.php';
-			// Reception::addlinefree(qty, element_type, fk_product, fk_unit, rang, description, array_options)
-			// The last argument is the extrafields array; passing 0 (int) breaks under PHP 8.
+			// Reception::addlinefree(qty, element_type, fk_product, fk_unit, rang, description, array_options, cost_price, ref_fourn, fk_entrepot, batch)
+			// A reception line WITHOUT a destination warehouse generates no stock movement on
+			// validation, so pass the reception's default warehouse (falling back to the company
+			// default warehouse). array_options must be an array ([]) — passing 0 breaks under PHP 8.
 			/** @var Reception $object */
-			$res = $object->addlinefree($qty, 'reception', $fkProduct, $fk_unit, 0, $desc, []);
+			// Resolve a destination warehouse: explicit arg, then the reception's default,
+			// then the global default, then the first active warehouse.
+			$recWarehouse = (int) ($args['warehouse_id'] ?? 0);
+			if ($recWarehouse <= 0) {
+				// Reception::$fk_warehouse (default warehouse on the reception header) is
+				// introduced by #39294; until that lands it is an undeclared/dynamic
+				// property that simply resolves to null here, so we fall through to the
+				// global default warehouse.
+				// @phan-suppress-next-line PhanUndeclaredProperty
+				$recWarehouse = (int) (!empty($object->fk_warehouse) ? $object->fk_warehouse : getDolGlobalInt('MAIN_DEFAULT_WAREHOUSE'));
+			}
+			if ($recWarehouse <= 0) {
+				$resqlw = $this->db->query("SELECT rowid FROM " . MAIN_DB_PREFIX . "entrepot WHERE entity IN (" . getEntity('stock') . ") AND statut = 1 ORDER BY rowid ASC");
+				if ($resqlw && ($objw = $this->db->fetch_object($resqlw))) {
+					$recWarehouse = (int) $objw->rowid;
+				}
+			}
+			// Also carry the buying price and the supplier's line reference (both
+			// introduced on reception lines by #39294; silently ignored before).
+			$res = $object->addlinefree($qty, 'reception', $fkProduct, $fk_unit, 0, $desc, [], (float) $price, (string) ($args['product_ref'] ?? ''), $recWarehouse);
 		} else {
 			return ["success" => false, "error" => "Type $docType not supported for lines"];
 		}
