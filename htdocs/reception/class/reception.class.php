@@ -1051,9 +1051,13 @@ class Reception extends CommonObject
 	 * @param   int			$rang             				Position of line
 	 * @param 	string		$description					Description of line product
 	 * @param	array<string,mixed>		$array_options		extrafields array
+	 * @param	float		$cost_price		Buying price of the line (used by stock movement at validation)
+	 * @param	string		$ref_fourn		Supplier ref of the product for this line
+	 * @param	int			$fk_entrepot	Id of destination warehouse (0 = not set)
+	 * @param	string		$batch			Batch/serial number
 	 * @return	int											Return integer <0 if KO, >0 if OK
 	 */
-	public function addlinefree($qty, $element_type, $fk_product, $fk_unit, $rang, $description, $array_options = [])
+	public function addlinefree($qty, $element_type, $fk_product, $fk_unit, $rang, $description, $array_options = [], $cost_price = 0, $ref_fourn = '', $fk_entrepot = 0, $batch = '')
 	{
 		global $mysoc, $langs, $user;
 
@@ -1083,6 +1087,14 @@ class Reception extends CommonObject
 			$this->line->qty = (float) $qty;
 			$this->line->fk_unit = $fk_unit;
 			$this->line->rang = $ranktouse;
+			$this->line->cost_price = (float) $cost_price;
+			$this->line->ref_fourn = trim((string) $ref_fourn);
+			if ((int) $fk_entrepot > 0) {
+				$this->line->fk_entrepot = (int) $fk_entrepot;
+			}
+			if ((string) $batch !== '') {
+				$this->line->batch = trim((string) $batch);
+			}
 
 			if (is_array($array_options) && count($array_options) > 0) {
 				$this->line->array_options = $array_options;
