@@ -1,0 +1,21 @@
+# Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+Module104986Name=Pichinov — Familles de produits
+Module104986Desc=Stock total par famille (variantes natives + rattachement par réf famille)
+PfMenu=Stock familles
+PfListTitle=Stock total par famille de produits
+PfFamilyTab=Famille
+PfFamilyRef=Réf famille
+PfMembers=membres
+PfStockParent=Stock parent
+PfStockFamily=Stock famille
+PfValue=Valeur (PMP)
+PfSearch=Réf ou libellé…
+PfNoFamily=Aucune famille (aucun lien variante ni réf famille renseignée).
+PfBackToList=Retour à la liste des familles
+PfFamilyOf=Famille de
+PfLinkType=Lien
+PfNative=Variante native
+PfByExtrafield=Réf famille
+PfPseudoParent=Pseudo-parent
+PfQtySold=Qté vendue
+PfRevenue=CA HT
