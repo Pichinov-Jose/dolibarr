@@ -16,7 +16,10 @@ $resql = $db->query("SELECT i.rowid, i.ref, e.ref AS wh FROM ".MAIN_DB_PREFIX."i
 if ($resql) { while ($o = $db->fetch_object($resql)) { $invs[] = $o; } }
 ?>
 <style>
-#sc_zone { max-width: 700px; }
+#sc_zone { max-width: 1100px; }
+#sc_fields { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+#sc_fields .sc_field { flex: 1 1 260px; margin-bottom: 8px; }
+#sc_fields .sc_field.sc_qtyf { flex: 0 1 130px; }
 #sc_zone .sc_field { margin-bottom: 8px; }
 #sc_zone label { display: block; font-weight: bold; margin-bottom: 2px; }
 #sc_zone input[type=text], #sc_zone input[type=number], #sc_zone select { width: 100%; box-sizing: border-box; font-size: 1.25em; padding: 10px; }
@@ -27,7 +30,12 @@ if ($resql) { while ($o = $db->fetch_object($resql)) { $invs[] = $o; } }
 .sc_btn { font-size: 1.2em !important; padding: 14px 10px !important; width: 49%; box-sizing: border-box; }
 #sc_opts { margin: 6px 0; font-size: 0.95em; }
 #sc_rows td { padding: 6px 8px; }
+@media (min-width: 769px) {
+	#sc_actions { position: static; border-top: none; }
+	#sc_actions .sc_btnrow { max-width: 420px; }
+}
 @media (max-width: 768px) {
+	#sc_fields { display: block; }
 	#sc_rows .sc_hidemobile { display: none; }
 	#sc_zone input[type=text], #sc_zone input[type=number] { font-size: 1.5em; }
 	.sc_btn { font-size: 1.35em !important; }
@@ -35,26 +43,28 @@ if ($resql) { while ($o = $db->fetch_object($resql)) { $invs[] = $o; } }
 .sc_edit, .sc_del { font-size: 1.5em; text-decoration: none; padding: 6px; }
 .sc_pick { font-size: 1.15em !important; padding: 10px !important; margin: 4px 4px 0 0; display: inline-block; }
 div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
-#sc_actions { position: sticky; bottom: 0; z-index: 100; background: #fff; padding: 8px 0; border-top: 2px solid #ccc; max-width: 700px; }
+#sc_actions { position: sticky; bottom: 0; z-index: 100; background: #fff; padding: 8px 0; border-top: 2px solid #ccc; max-width: 1100px; }
 #sc_actions .sc_btnrow { display: flex; gap: 8px; }
 #sc_actions .sc_btn { flex: 1; width: auto; }
 </style>
 <div id="sc_zone">
 	<div class="sc_field"><label><?php print $langs->trans('TargetInventory'); ?></label>
-	<select id="sc_inv"><option value="0"><?php print $langs->trans('CaptureOnly'); ?></option>
-	<?php foreach ($invs as $i) { print '<option value="'.$i->rowid.'">'.dol_escape_htmltag($i->ref.' ('.$i->wh.')').'</option>'; } ?>
+	<?php $preinv = GETPOSTINT('fk_inventory'); ?><select id="sc_inv"><option value="0"><?php print $langs->trans('CaptureOnly'); ?></option>
+	<?php foreach ($invs as $i) { print '<option value="'.$i->rowid.'"'.($preinv == $i->rowid ? ' selected' : '').'>'.dol_escape_htmltag($i->ref.' ('.$i->wh.')').'</option>'; } ?>
 	</select></div>
 	<div id="sc_opts">
 		<div style="margin-bottom:6px"><label style="display:inline"><input type="checkbox" id="sc_auto" checked> <?php print $langs->trans('AutoSubmitAfterEan'); ?></label></div>
 		<div><b><?php print $langs->trans('DefaultQty'); ?></b> <input type="number" id="sc_defqty" value="1" style="width:80px;font-size:1.2em;padding:6px" step="any">
 		&nbsp; <a href="#" id="sc_kbd" class="button smallpaddingimp">&#128290; <?php print $langs->trans('ManualKeyboard'); ?></a></div>
 	</div>
+	<div id="sc_fields">
 	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?></label>
 	<input type="text" id="sc_codek" autocomplete="off" inputmode="none" autofocus placeholder="<?php print $langs->trans('ScanHere'); ?>"></div>
 	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?></label>
 	<input type="text" id="sc_ean" autocomplete="off" inputmode="none" placeholder="<?php print $langs->trans('ScanOrSkip'); ?>"></div>
-	<div class="sc_field"><label><?php print $langs->trans('Qty'); ?></label>
+	<div class="sc_field sc_qtyf"><label><?php print $langs->trans('Qty'); ?></label>
 	<input type="number" id="sc_qty" step="any" inputmode="decimal" value="1"></div>
+	</div>
 </div>
 <div id="sc_actions">
 	<span id="sc_live"><?php print $langs->trans('ScanHint'); ?></span>
@@ -64,7 +74,7 @@ div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
 	</div>
 </div>
 <br>
-<div id="sc_filter" style="max-width:700px;margin-bottom:6px">
+<div id="sc_filter" style="max-width:1100px;margin-bottom:6px">
 	<input type="text" id="sc_search" placeholder="<?php print $langs->trans('FilterRows'); ?>" style="width:55%;font-size:1.1em;padding:8px;box-sizing:border-box">
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="">Tous</button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="matched">&#10004;</button>

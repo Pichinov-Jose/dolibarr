@@ -28,7 +28,7 @@ class modScanCapture extends DolibarrModules
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'barcode';
 		$this->langfiles = array('scancapture@scancapture');
-		$this->module_parts = array();
+		$this->module_parts = array('hooks' => array('inventorycard'));
 		$this->rights = array();
 		$this->menu = array();
 		$r = 0;
