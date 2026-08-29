@@ -115,6 +115,8 @@ html.scfs #id-container { width: 100% !important; }
 	<select id="sc_inv"><option value="0"><?php print $langs->trans('CaptureOnly'); ?></option>
 	<?php foreach ($invs as $i) { print '<option value="'.$i->rowid.'"'.($preinv == $i->rowid ? ' selected' : '').'>'.dol_escape_htmltag($i->ref.' ('.$i->wh.')').'</option>'; } ?>
 	</select></div>
+	<div class="row"><button type="button" class="button smallpaddingimp" id="sc_newinv" style="width:100%"><span class="fa fa-plus paddingright"></span><?php print $langs->trans('CreateInventory'); ?></button></div>
+	<div class="row"><label style="display:inline"><input type="checkbox" id="sc_autocreate"> <?php print $langs->trans('AutoCreateUnknown'); ?></label></div>
 	<div class="row"><label><?php print $langs->trans('DefaultQty'); ?></label>
 	<input type="number" id="sc_defqty" value="1" step="any"></div>
 	<div class="row"><label style="display:inline"><input type="checkbox" id="sc_auto" checked> <?php print $langs->trans('AutoSubmitAfterEan'); ?></label></div>
@@ -194,6 +196,14 @@ jQuery(function() {
 	jQuery('#sc_gear2').on('click', function(e) { e.preventDefault(); jQuery('#sc_settings').show(); });
 	jQuery('#sc_set_close, #sc_set_ok').on('click', function(e) { e.preventDefault(); jQuery('#sc_settings').hide(); refreshChips(); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_inv').on('change', refreshChips);
+	jQuery('#sc_newinv').on('click', function(e) {
+		e.preventDefault();
+		if (!confirm('<?php print dol_escape_js($langs->trans('ConfirmCreateInv')); ?>')) return;
+		jQuery.getJSON(base + 'createinv.php', {token: token}, function(r) {
+			if (!r.ok) { alert('Erreur : ' + (r.error || '')); return; }
+			jQuery('#sc_inv').append(new Option(r.label, r.id, true, true)).trigger('change');
+		});
+	});
 	jQuery('#sc_defqty').on('change', function() { jQuery('#sc_qty').val(jQuery(this).val() || 1); });
 	jQuery('#sc_kbdchk').on('change', function() { jQuery('#sc_codek,#sc_ean').attr('inputmode', this.checked ? 'text' : 'none'); });
 	refreshChips();
@@ -269,7 +279,7 @@ jQuery(function() {
 		if (!(inv > 0)) { jQuery('#sc_settings').show(); setLive('multi', '<?php print dol_escape_js($langs->trans('PickInventoryFirst')); ?>'); return; }
 		var n = jQuery('#sc_pending').text();
 		if (!confirm('<?php print dol_escape_js($langs->trans('ConfirmSendToInv')); ?>'.replace('%s', n).replace('%i', jQuery('#sc_inv option:selected').text()))) return;
-		jQuery.getJSON(base + 'sendtoinv.php', {fk_inventory: inv, token: token}, function(r) {
+		jQuery.getJSON(base + 'sendtoinv.php', {fk_inventory: inv, autocreate: (jQuery('#sc_autocreate').is(':checked') ? 1 : 0), token: token}, function(r) {
 			if (!r.ok) { setLive('multi', 'Erreur : ' + (r.error || '')); return; }
 			r.ids.forEach(function(id) {
 				var tr = jQuery('#sc_rows tr[data-id="' + id + '"]');
@@ -277,7 +287,7 @@ jQuery(function() {
 				tr.find('td').last().html('<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>');
 			});
 			jQuery('#sc_pending').text('0').addClass('zero'); jQuery('.sc_pending_mirror').text('0');
-			setLive('ok', '<span class="fa fa-check"></span> ' + r.sent + ' <?php print dol_escape_js($langs->trans('LinesSent')); ?>');
+			setLive('ok', '<span class="fa fa-check"></span> ' + r.sent + ' <?php print dol_escape_js($langs->trans('LinesSent')); ?>' + (r.created ? ' &middot; ' + r.created + ' <?php print dol_escape_js($langs->trans('ProductsAutoCreated')); ?>' : ''));
 		});
 	});
 	jQuery('#sc_clear, .sc_a_clear').on('click', function(e) { e.preventDefault(); jQuery('#sc_codek,#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1); setLive('', ''); jQuery('#sc_codek').focus(); });

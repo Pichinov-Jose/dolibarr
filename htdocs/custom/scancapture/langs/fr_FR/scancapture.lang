@@ -49,3 +49,7 @@ SendShort=Envoyer
 ReviewShort=Revue
 CantDeleteSent=Ligne déjà envoyée dans l'inventaire : suppression impossible. Corrigez la quantité (crayon) ou la ligne d'inventaire.
 ScCloseSettings=Fermer
+CreateInventory=Nouvel inventaire
+ConfirmCreateInv=Créer un nouvel inventaire (démarré) sur l'entrepôt principal et le sélectionner ?
+AutoCreateUnknown=Créer automatiquement les produits inconnus lors de l'envoi (réf auto, à compléter ensuite)
+ProductsAutoCreated=produit(s) créé(s) automatiquement
