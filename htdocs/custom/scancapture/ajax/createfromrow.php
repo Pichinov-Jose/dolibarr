@@ -28,7 +28,9 @@ $db->begin();
 $ref = scMakeRef($db, $label);
 $eanOk = (!empty($row->ean) && scIsValidEan13($row->ean) && count(scLookupCode($db, $row->ean)) == 0);
 $p = new Product($db);
+$info = $row->ean_info ? json_decode($row->ean_info, true) : array();
 $p->ref = $ref; $p->label = $label; $p->type = 0; $p->status = 1; $p->status_buy = 1;
+if (!empty($info['desc_longue'])) { $p->description = $info['desc_longue']; } elseif (!empty($info['desc_courte'])) { $p->description = $info['desc_courte']; }
 $p->price_base_type = 'TTC';
 $p->price_ttc = ($price > 0 ? $price : ($parent ? (float) $parent->price_ttc : 0));
 $p->tva_tx = ($parent ? (float) $parent->tva_tx : 20);
@@ -48,4 +50,6 @@ if ($parentref !== '') {
 }
 $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid).", status = 'created', product_label = '".$db->escape($label)."' WHERE rowid = ".((int) $rowid));
 $db->commit();
-print json_encode(array('ok' => true, 'fk_product' => $pid, 'ref' => $ref, 'label' => $label, 'family' => $parentref));
+$nbimg = 0;
+if (!empty($info['images'])) { $nbimg = scAttachImages($conf, $ref, $info['images']); }
+print json_encode(array('ok' => true, 'fk_product' => $pid, 'ref' => $ref, 'label' => $label, 'family' => $parentref, 'images' => $nbimg));

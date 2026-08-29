@@ -29,14 +29,22 @@ function scLookupCode($db, $code)
 	if ($code === '') {
 		return array();
 	}
+	// UPC-A handling: a 12-digit scan may be stored as 0-prefixed EAN13 and vice versa
+	$codes = array($code);
+	if (preg_match('/^\d{12}$/', $code)) {
+		$codes[] = '0'.$code;
+	} elseif (preg_match('/^0\d{12}$/', $code)) {
+		$codes[] = substr($code, 1);
+	}
+	$in = "'".implode("','", array_map(array($db, 'escape'), $codes))."'";
 	$e = $db->escape($code);
 	$out = array();
 	$queries = array(
-		'barcode' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p WHERE p.barcode = '".$e."' AND p.entity IN (1)",
-		'ean_kezia' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE pe.ean_kezia = '".$e."'",
-		'multicode' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."stg_multicode mc ON mc.fk_product = p.rowid WHERE mc.code = '".$e."'",
-		'assoc' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."scan_assoc sa ON sa.fk_product = p.rowid WHERE sa.code = '".$e."'",
-		'pfp' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_fournisseur_price pfp ON pfp.fk_product = p.rowid WHERE pfp.barcode = '".$e."'",
+		'barcode' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p WHERE p.barcode IN (".$in.") AND p.entity IN (1)",
+		'ean_kezia' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE pe.ean_kezia IN (".$in.")",
+		'multicode' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."stg_multicode mc ON mc.fk_product = p.rowid WHERE mc.code IN (".$in.")",
+		'assoc' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."scan_assoc sa ON sa.fk_product = p.rowid WHERE sa.code IN (".$in.")",
+		'pfp' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_fournisseur_price pfp ON pfp.fk_product = p.rowid WHERE pfp.barcode IN (".$in.")",
 	);
 	foreach ($queries as $source => $sql) {
 		$resql = $db->query($sql);
@@ -286,4 +294,38 @@ function scTagToUpdate($db, $user, $pid)
 	if ($catid > 0) {
 		$db->query("INSERT IGNORE INTO ".MAIN_DB_PREFIX."categorie_product (fk_categorie, fk_product) VALUES (".$catid.", ".((int) $pid).")");
 	}
+}
+
+/**
+ * Download up to 3 remote images into the product photo directory.
+ *
+ * @param Conf $conf Conf
+ * @param string $ref Product ref
+ * @param string[] $urls Image URLs
+ * @return int Number of images attached
+ */
+function scAttachImages($conf, $ref, $urls)
+{
+	require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+	require_once DOL_DOCUMENT_ROOT.'/core/lib/images.lib.php';
+	$dir = $conf->product->multidir_output[1].'/'.dol_sanitizeFileName($ref);
+	dol_mkdir($dir);
+	$n = 0;
+	foreach (array_slice((array) $urls, 0, 3) as $u) {
+		if (!preg_match('/^https:\/\//', $u)) continue;
+		$ext = strtolower(pathinfo(parse_url($u, PHP_URL_PATH), PATHINFO_EXTENSION));
+		if (!in_array($ext, array('jpg', 'jpeg', 'png', 'webp'))) $ext = 'jpg';
+		$ch = curl_init($u);
+		curl_setopt_array($ch, array(CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3, CURLOPT_USERAGENT => 'Mozilla/5.0'));
+		$data = curl_exec($ch);
+		$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+		if (!$data || $code >= 400 || strlen($data) < 2000 || strlen($data) > 8000000) continue;
+		$fn = $dir.'/'.dol_sanitizeFileName($ref.'-scan-'.($n + 1).'.'.$ext);
+		if (file_put_contents($fn, $data)) {
+			@chmod($fn, 0664);
+			$n++;
+		}
+	}
+	return $n;
 }
