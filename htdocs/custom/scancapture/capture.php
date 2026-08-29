@@ -35,7 +35,7 @@ div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
 #sc_fields .sc_field { flex: 1 1 260px; margin-bottom: 8px; }
 #sc_fields .sc_field.sc_qtyf { flex: 0 1 130px; }
 .sc_field label { display: block; font-weight: bold; margin-bottom: 3px; color: #444; }
-.sc_field input { width: 100%; box-sizing: border-box; font-size: 1.3em; padding: 12px; border: 1.5px solid #bbb; border-radius: 8px; }
+.sc_field input { width: 100% !important; box-sizing: border-box !important; font-size: 1.3em !important; padding: 10px 12px !important; height: 52px !important; border: 1.5px solid #bbb !important; border-radius: 8px !important; background: #fff; }
 .sc_field input:focus { border-color: #1976d2; outline: none; box-shadow: 0 0 0 2px rgba(25,118,210,0.2); }
 #sc_live { display: block; min-height: 2.2em; padding: 12px; margin: 8px 0; border-radius: 8px; background: #f4f4f4; font-size: 1.15em; }
 #sc_live.ok { background: #c8e6c9; }
@@ -82,7 +82,7 @@ html.scfs #id-container { width: 100% !important; }
 	#sc_rows .sc_hidemobile { display: none; }
 	.sc_field { margin-bottom: 12px; }
 	.sc_field label { font-size: 1.1em; }
-	.sc_field input { font-size: 1.8em; padding: 14px; }
+	.sc_field input { font-size: 1.8em !important; padding: 14px !important; height: 64px !important; }
 	#sc_head h2 { font-size: 1.05em; }
 	#sc_live { font-size: 1.25em; }
 }
