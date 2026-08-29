@@ -1,0 +1,22 @@
+# Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+Module104985Name=Pichinov — Inventaire scan double code
+Module104985Desc=Grille de scan rapide (code Kezia + EAN produit) avec capture des inconnus et création en masse
+ScanCaptureMenu=Inventaire scan
+ScanReviewMenu=Revue scans / création
+ScanCaptureTitle=Inventaire — saisie par scan (code Kezia + EAN)
+ScanReviewTitle=Codes inconnus capturés — revue et création en masse
+ScanGrid=Grille de scan
+TargetInventory=Inventaire cible
+TargetInventoryHelp=Si choisi, chaque scan reconnu alimente directement les quantités de cet inventaire (statut démarré).
+CaptureOnly=— Capture seule (sans inventaire) —
+DefaultQty=Quantité par défaut
+KeziaCode=Code Kezia (étiquette)
+ProductEan=EAN produit
+LiveResult=Résultat
+ScanHint=Scannez le code Kezia, puis l'EAN, ajustez la quantité, Entrée.
+Product=Produit
+InternetInfo=Info Internet (EAN)
+PriceTTC=Prix TTC
+MassCreateSelected=Créer les produits sélectionnés
+ProductsCreated=produit(s) créé(s)
+NoUnknownRows=Aucun code inconnu en attente.
