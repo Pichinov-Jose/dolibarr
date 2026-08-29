@@ -28,6 +28,11 @@ if ($what == 'del') {
 	exit;
 }
 if ($what == 'qty') {
+	if ($row->sent_to_inv) {
+		$db->rollback();
+		print json_encode(array('ok' => false, 'error' => 'sent'));
+		exit;
+	}
 	$newqty = (float) price2num(GETPOST('qty', 'alpha'), 'MS');
 	$delta = $newqty - (float) $row->qty;
 	if ($row->sent_to_inv && $row->fk_inventory && $row->fk_product && $row->status == 'matched' && $delta != 0) {
