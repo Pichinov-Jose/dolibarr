@@ -22,6 +22,8 @@
  * Copyright (C) 2025		Lenin Rivas					<lenin.rivas777@gmail.com>
  * Copyright (C) 2026		Vincent de Grandpré			<vincent@de-grandpre.quebec>
  * Copyright (C) 2026		Joachim Küter				<git-jk@bloxera.com>
+ * Copyright (C) 2026		Lionel Vessiller			<lvessiller@open-dsi.fr>
+ * Copyright (C) 2026		José MARTINEZ			<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -392,6 +394,10 @@ if (empty($reshook)) {
 		$result = $discount->fetch(GETPOSTINT("discountid"));
 		if ($result > 0 && $discount->fk_facture == $object->id) {	// The credit note must be linked to this invoice
 			$discount->unlink_invoice();
+			$object->fetch($id);
+			if ($object->paye == 1 && (float) $object->getRemainToPay() > 0) {
+				$object->setUnpaid($user);
+			}
 		} else {
 			setEventMessages($langs->trans("ErrorRecordNotFound"), null, 'errors');
 		}
