@@ -124,6 +124,15 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="center"><button type="button" class="button sc_btn" id="sc_set_ok" style="width:100%"><?php print $langs->trans('ScCloseSettings'); ?></button></div>
 </div></div>
 
+<div id="sc_create" class="sc_modal"><div class="box">
+	<a href="#" class="close" id="sc_cr_close"><span class="fa fa-times"></span></a>
+	<h3><span class="fa fa-plus-circle paddingright" style="color:#2e7d32"></span><?php print $langs->trans('CreateProduct'); ?></h3>
+	<div class="row"><span class="opacitymedium" id="sc_cr_ean"></span></div>
+	<div class="row"><label><?php print $langs->trans('Label'); ?></label><input type="text" id="sc_cr_label" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="row"><label><?php print $langs->trans('PriceTTC'); ?></label><input type="number" id="sc_cr_price" step="any" inputmode="decimal" placeholder="<?php print $langs->trans('PriceFromFamily'); ?>" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="center"><button type="button" class="button sc_btn" id="sc_cr_ok" style="width:100%"><?php print $langs->trans('Create'); ?></button></div>
+</div></div>
+
 <div id="sc_numpad" class="sc_modal"><div class="box" style="width:290px">
 	<div class="val" id="sc_np_val"></div>
 	<div class="keys">
@@ -163,7 +172,7 @@ html.scfs #id-container { width: 100% !important; }
 $resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
-		print '<tr class="oddeven" data-id="'.$o->rowid.'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : '<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
+		print '<tr class="oddeven" data-id="'.$o->rowid.'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
 	}
 }
 ?>
@@ -265,7 +274,7 @@ jQuery(function() {
 			}
 			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.kassoc ? ' &middot; <?php print dol_escape_js($langs->trans('KeziaCodeLearned')); ?>' : '');
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : (r.variant_of ? '<span class="fa fa-code-fork"></span> <?php print dol_escape_js($langs->trans('VariantCandidate')); ?> ' + r.variant_of : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>'));
-			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'fa fa-clock-o\' style=\'color:#b26a00\'></span>' : '') + '</td><td class="right nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
+			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'fa fa-clock-o\' style=\'color:#b26a00\'></span>' : '') + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
 			bumpCount(r.status == 'unknown');
 			if (scFilterStat && scFilterStat !== r.status) { scFilterStat = ''; jQuery('.sc_fstat').removeClass('butActionRefused'); jQuery('.sc_fstat[data-st=""]').addClass('butActionRefused'); }
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }
@@ -305,6 +314,36 @@ jQuery(function() {
 	});
 	jQuery('#sc_qty').on('keydown', function(e) { if (e.key == 'Enter') { e.preventDefault(); submitRow(0); } });
 	// row edit/delete
+	var crRow = 0;
+	jQuery(document).on('click', '.sc_create', function(ev) {
+		ev.preventDefault();
+		var a = jQuery(this); crRow = a.data('row');
+		jQuery('#sc_cr_ean').text('EAN : ' + (a.data('ean') || '&mdash;'));
+		jQuery('#sc_cr_label').val(a.data('label') || '');
+		jQuery('#sc_cr_price').val('');
+		jQuery('#sc_create').show();
+		jQuery.getJSON(base + 'enrich.php', {rowid: crRow, token: token}, function(r) {
+			if (r.ok && r.info && r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(((r.info.brand || '') + ' ' + r.info.title).trim()); }
+		});
+		jQuery('#sc_cr_label').focus();
+	});
+	jQuery('#sc_cr_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_create').hide(); jQuery('#sc_codek').focus(); });
+	jQuery('#sc_cr_ok').on('click', function() {
+		jQuery.getJSON(base + 'createfromrow.php', {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), token: token}).fail(function() {
+			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
+		}).done(function(r) {
+			jQuery('#sc_create').hide();
+			if (!r.ok) { setLive('multi', 'Erreur : ' + (r.error || '')); return; }
+			var tr = jQuery('#sc_rows tr[data-id="' + crRow + '"]');
+			tr.find('td').eq(4).text(r.label);
+			tr.find('td').eq(5).html('created <span class="fa fa-clock-o" style="color:#b26a00"></span>');
+			tr.find('a.sc_create').remove();
+			var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text());
+			var u = jQuery('#sc_unkbadge'); var n = Math.max(0, (parseInt(u.find('a').text()) || 1) - 1); u.find('a').text(n + ' inconnus'); if (!n) u.addClass('zero');
+			setLive('ok', '<span class="fa fa-check"></span> ' + r.ref + ' &mdash; ' + r.label + (r.family ? ' [famille ' + r.family + ']' : '') + ' &middot; <?php print dol_escape_js($langs->trans('CreatedPending')); ?>');
+			jQuery('#sc_codek').focus();
+		});
+	});
 	jQuery(document).on('click', '.sc_del', function(ev) {
 		ev.preventDefault();
 		var row = jQuery(this).data('row'); var tr = jQuery(this).closest('tr');

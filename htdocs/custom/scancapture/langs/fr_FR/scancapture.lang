@@ -55,3 +55,6 @@ AutoCreateUnknown=Créer automatiquement les produits inconnus lors de l'envoi (
 ProductsAutoCreated=produit(s) créé(s) automatiquement
 KeziaCodeLearned=code Kezia appris
 AjaxFailed=⚠ Échec de communication (session expirée ?). Rechargez la page — la saisie n'est pas perdue.
+CreateProduct=Créer le produit
+CreatedPending=créé — en attente d'envoi
+PriceFromFamily=vide = prix de la famille
