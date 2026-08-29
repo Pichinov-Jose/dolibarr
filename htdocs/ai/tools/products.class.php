@@ -265,7 +265,15 @@ class ToolProducts extends McpTool
 		}
 		if (isset($args['barcode'])) {
 			$product->barcode = trim((string) $args['barcode']);
+			// Dolibarr barcode features need the type (e.g. 2=EAN13): use the
+			// instance default when configured.
+			$defbctype = getDolGlobalInt('PRODUIT_DEFAULT_BARCODE_TYPE');
+			if ($defbctype > 0) {
+				$product->barcode_type = $defbctype;
+			}
 		}
+		// Trace AI-created products: lets admins list or purge a whole batch.
+		$product->import_key = 'AI'.dol_print_date(dol_now(), '%y%m%d');
 		if (isset($args['description'])) {
 			$product->description = (string) $args['description'];
 		}
