@@ -280,7 +280,11 @@ jQuery(function() {
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }
 			if (r.status == 'unknown' && params.ean.trim() !== '') {
 				jQuery.getJSON(base + 'enrich.php', {rowid: r.rowid, token: token}, function(re) {
-					if (!(re && re.ok && re.info && re.info.title)) { jQuery.getJSON(base + 'enrich_ai.php', {rowid: r.rowid, token: token}); }
+					if (re && re.ok && re.info && re.info.title) return;
+					jQuery.getJSON(base + 'enrich_ebay.php', {rowid: r.rowid, token: token}, function(re2) {
+						if (re2 && re2.ok && re2.info && re2.info.title) return;
+						jQuery.getJSON(base + 'enrich_ai.php', {rowid: r.rowid, token: token});
+					});
 				});
 			}
 			applyFilter();
@@ -333,9 +337,11 @@ jQuery(function() {
 			return !!(r.info.title);
 		}
 		jQuery.getJSON(base + 'enrich.php', {rowid: crRow, token: token}, function(r) {
-			if (!applyInfo(r)) {
-				jQuery.getJSON(base + 'enrich_ai.php', {rowid: crRow, token: token}, function(r2) { applyInfo(r2); });
-			}
+			if (applyInfo(r)) return;
+			jQuery.getJSON(base + 'enrich_ebay.php', {rowid: crRow, token: token}, function(r2) {
+				if (applyInfo(r2)) return;
+				jQuery.getJSON(base + 'enrich_ai.php', {rowid: crRow, token: token}, function(r3) { applyInfo(r3); });
+			});
 		});
 		jQuery('#sc_cr_label').focus();
 	});
