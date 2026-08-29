@@ -33,3 +33,4 @@ CapturedUnknown=Capturé (inconnu — création plus tard)
 ConfirmDeleteLine=Supprimer cette ligne ? (l'inventaire cible sera corrigé)
 NewQty=Nouvelle quantité :
 FilterRows=Filtrer (code, EAN, produit)…
+LabelMismatch=étiquette Kezia ≠ produit EAN !

@@ -102,7 +102,7 @@ div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
 $resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
-		print '<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'">&#9998;</a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'">&#128465;</a></td><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).'</td></tr>';
+		print '<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-pencil"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).'</td></tr>';
 	}
 }
 ?>
@@ -129,29 +129,40 @@ jQuery(function() {
 			});
 		});
 	}
-	function submitRow(forced) {
+	function submitRow(forced, replaceRow) {
 		var q = jQuery('#sc_qty').val() || jQuery('#sc_defqty').val() || 1;
 		var params = {code_kezia: jQuery('#sc_codek').val(), ean: jQuery('#sc_ean').val(), qty: q, fk_inventory: jQuery('#sc_inv').val(), token: token};
 		if (!params.code_kezia.trim() && !params.ean.trim()) return;
 		if (forced) params.fk_product = forced;
+		if (replaceRow) params.replace_row = replaceRow;
 		jQuery.getJSON(base + 'saverow.php', params, function(r) {
 			if (!r.ok) { setLive('multi', 'Erreur'); return; }
 			if (r.status == 'ambiguous' && !forced) {
 				var h = '<b><?php print dol_escape_js($langs->trans('PickProduct')); ?></b><br>';
-				r.candidates.forEach(function(p) { h += '<button type="button" class="button sc_pick" data-id="' + p.rowid + '">' + p.ref + '<br><small>' + p.label + '</small></button>'; });
+				r.candidates.forEach(function(p) { h += '<button type="button" class="button sc_pick" data-id="' + p.rowid + '" data-stub="' + r.rowid + '">' + p.ref + '<br><small>' + p.label + '</small></button>'; });
 				setLive('multi', h);
 				return;
 			}
-			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.fed ? ' &middot; inventaire +' + q : '');
+			if (r.status == 'mismatch' && !forced) {
+				var h = '<b style="color:#b71c1c">&#9888; <?php print dol_escape_js($langs->trans('LabelMismatch')); ?></b><div style="display:flex;gap:8px;margin-top:6px">';
+				h += '<div style="flex:1;border:2px solid #b71c1c;border-radius:6px;padding:6px"><b><?php print dol_escape_js($langs->trans('KeziaCode')); ?></b><br>';
+				r.group_kezia.forEach(function(p) { h += '<button type="button" class="button sc_pick" data-id="' + p.rowid + '" data-stub="' + r.rowid + '">' + p.ref + '<br><small>' + p.label + '</small></button> '; });
+				h += '</div><div style="flex:1;border:2px solid #b71c1c;border-radius:6px;padding:6px"><b><?php print dol_escape_js($langs->trans('ProductEan')); ?></b><br>';
+				r.group_ean.forEach(function(p) { h += '<button type="button" class="button sc_pick" data-id="' + p.rowid + '" data-stub="' + r.rowid + '">' + p.ref + '<br><small>' + p.label + '</small></button> '; });
+				h += '</div></div>';
+				setLive('multi', h);
+				return;
+			}
+			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.fed ? ' &middot; inventaire +' + q : '') + (r.mismatch ? ' <b>&#9888; <?php print dol_escape_js($langs->trans('LabelMismatch')); ?></b>' : '');
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '&#10004; ' + r.label + extra : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>');
-			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '">&#9998;</a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '">&#128465;</a></td><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + '</td></tr>');
+			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven"><td class="nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-pencil"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + '</td></tr>');
 			if (r.status == 'unknown' && params.ean.trim() !== '') { jQuery.getJSON(base + 'enrich.php', {rowid: r.rowid, token: token}); }
 			applyFilter();
 			jQuery('#sc_codek').val(''); jQuery('#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1);
 			jQuery('#sc_codek').focus();
 		});
 	}
-	jQuery(document).on('click', '.sc_pick', function() { submitRow(jQuery(this).data('id')); });
+	jQuery(document).on('click', '.sc_pick', function() { submitRow(jQuery(this).data('id'), jQuery(this).data('stub') || 0); });
 	var npTarget = null; var npCb = null;
 	function openPad(initial, cb) { npCb = cb; jQuery('#sc_np_val').text(initial || ''); jQuery('#sc_numpad').show(); }
 	jQuery('#sc_numpad .keys button').on('click', function() {
