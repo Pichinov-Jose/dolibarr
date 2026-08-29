@@ -171,14 +171,48 @@ function scFeedInventory($db, $fk_inventory, $fk_product, $qty)
 	$resql = $db->query("SELECT rowid, qty_view FROM ".MAIN_DB_PREFIX."inventorydet WHERE fk_inventory = ".((int) $fk_inventory)." AND fk_product = ".((int) $fk_product)." AND fk_warehouse = ".$wh." AND (batch IS NULL OR batch = '') LIMIT 1");
 	$line = $resql ? $db->fetch_object($resql) : null;
 	if ($line) {
-		$db->query("UPDATE ".MAIN_DB_PREFIX."inventorydet SET qty_view = ".(float) (((float) $line->qty_view) + $qty)." WHERE rowid = ".((int) $line->rowid));
+		$resup = $db->query("UPDATE ".MAIN_DB_PREFIX."inventorydet SET qty_view = ".(float) (((float) $line->qty_view) + $qty)." WHERE rowid = ".((int) $line->rowid));
+		if (!$resup) {
+			dol_syslog("scFeedInventory UPDATE failed: ".$db->lasterror(), LOG_ERR);
+			return 0;
+		}
 	} else {
 		$stock = 0;
 		$resql = $db->query("SELECT reel FROM ".MAIN_DB_PREFIX."product_stock WHERE fk_product = ".((int) $fk_product)." AND fk_entrepot = ".$wh);
 		if ($resql && ($o = $db->fetch_object($resql))) {
 			$stock = (float) $o->reel;
 		}
-		$db->query("INSERT INTO ".MAIN_DB_PREFIX."inventorydet (datec, fk_inventory, fk_warehouse, fk_product, qty_stock, qty_view) VALUES (NOW(), ".((int) $fk_inventory).", ".$wh.", ".((int) $fk_product).", ".(float) $stock.", ".(float) $qty.")");
+		$resin = $db->query("INSERT INTO ".MAIN_DB_PREFIX."inventorydet (datec, fk_inventory, fk_warehouse, fk_product, qty_stock, qty_view) VALUES (NOW(), ".((int) $fk_inventory).", ".$wh.", ".((int) $fk_product).", ".(float) $stock.", ".(float) $qty.")");
+		if (!$resin) {
+			dol_syslog("scFeedInventory INSERT failed: ".$db->lasterror(), LOG_ERR);
+			return 0;
+		}
 	}
 	return 1;
+}
+
+/**
+ * Does this product already carry at least one manufacturer EAN
+ * (valid EAN13 barcode, supplier price barcode, or scan association)?
+ *
+ * @param DoliDB $db DB
+ * @param int $pid Product id
+ * @return bool
+ */
+function scProductHasEan($db, $pid)
+{
+	$resql = $db->query("SELECT barcode FROM ".MAIN_DB_PREFIX."product WHERE rowid = ".((int) $pid));
+	$o = $resql ? $db->fetch_object($resql) : null;
+	if ($o && $o->barcode && scIsValidEan13($o->barcode)) {
+		return true;
+	}
+	$resql = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE fk_product = ".((int) $pid)." AND barcode IS NOT NULL AND barcode != '' LIMIT 1");
+	if ($resql && $db->fetch_object($resql)) {
+		return true;
+	}
+	$resql = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."scan_assoc WHERE fk_product = ".((int) $pid)." LIMIT 1");
+	if ($resql && $db->fetch_object($resql)) {
+		return true;
+	}
+	return false;
 }

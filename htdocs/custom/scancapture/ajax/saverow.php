@@ -48,14 +48,26 @@ if ($forced_product > 0) {
 } elseif (count($ce) > 1) {
 	$status = 'ambiguous'; $candidates = $ce;
 } elseif (count($ck) == 1) {
-	$fk_product = $ck[0]['rowid']; $label = $ck[0]['label']; $source = $ck[0]['source'];
-	$status = 'matched';
+	if ($ean !== '' && count($ce) == 0 && scProductHasEan($db, (int) $ck[0]['rowid'])) {
+		// family code + brand-new EAN while the product already carries one:
+		// treat as a NEW flat variant to create, linked to this family (variant_parent_ref)
+		$status = 'unknown'; $label = $ck[0]['label']; $source = 'variantof:'.$ck[0]['ref'];
+	} else {
+		$fk_product = $ck[0]['rowid']; $label = $ck[0]['label']; $source = $ck[0]['source'];
+		$status = 'matched';
+	}
 } elseif (count($ck) > 1) {
 	$status = 'ambiguous'; $candidates = $ck;
 }
 
-$assoc = '';
+$assoc = ''; $kassoc = '';
 $db->begin();
+// reverse association: EAN identified the product but the scanned Kezia label is unknown
+// (typical Presta-born products): remember the label so future label scans resolve directly
+if ($status == 'matched' && $codek !== '' && $fk_product > 0 && count($ck) == 0) {
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."scan_assoc (datec, code, fk_product, fk_user, written_to) VALUES (NOW(), '".$db->escape($codek)."', ".((int) $fk_product).", ".((int) $user->id).", 'kezia_code')");
+	$kassoc = 'kezia';
+}
 if ($replace_row > 0 && $forced_product > 0) {
 	$db->query("DELETE FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $replace_row)." AND status IN ('ambiguous', 'mismatch')");
 }
@@ -70,4 +82,4 @@ $sql .= (count($candidates) > 1 || $status == 'mismatch' ? "'".$db->escape(json_
 $resql = $db->query($sql);
 $rowid = $resql ? $db->last_insert_id(MAIN_DB_PREFIX.'scan_capture') : 0;
 $db->commit();
-print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce));
+print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc));

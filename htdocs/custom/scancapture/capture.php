@@ -261,8 +261,8 @@ jQuery(function() {
 				setLive('multi', h);
 				return;
 			}
-			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '');
-			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>');
+			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.kassoc ? ' &middot; <?php print dol_escape_js($langs->trans('KeziaCodeLearned')); ?>' : '');
+			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : (r.variant_of ? '<span class="fa fa-code-fork"></span> <?php print dol_escape_js($langs->trans('VariantCandidate')); ?> ' + r.variant_of : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>'));
 			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'fa fa-clock-o\' style=\'color:#b26a00\'></span>' : '') + '</td><td class="right nowrap"><a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
 			bumpCount(r.status == 'unknown');
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }

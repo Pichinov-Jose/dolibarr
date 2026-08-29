@@ -16,12 +16,13 @@ $created = 0;
 if ($autocreate) {
 	// create products for unknown rows carrying an EAN, using internet info when available
 	require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
-	$resql = $db->query("SELECT rowid, ean, code_kezia, qty, ean_info FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND status = 'unknown' AND ean IS NOT NULL AND ean != ''");
+	$resql = $db->query("SELECT rowid, ean, code_kezia, qty, ean_info, match_source, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND status = 'unknown' AND ean IS NOT NULL AND ean != ''");
 	$unk = array();
 	while ($resql && ($o = $db->fetch_object($resql))) { $unk[] = $o; }
 	foreach ($unk as $u) {
 		$info = $u->ean_info ? json_decode($u->ean_info, true) : null;
-		$label = ($info && !empty($info['title'])) ? trim(($info['brand'] ?? '').' '.$info['title']) : 'A COMPLETER EAN '.$u->ean;
+		$parentref = (strpos((string) $u->match_source, 'variantof:') === 0) ? substr($u->match_source, 10) : '';
+		$label = ($info && !empty($info['title'])) ? trim(($info['brand'] ?? '').' '.$info['title']) : ($parentref !== '' && $u->product_label ? $u->product_label.' (EAN '.substr($u->ean, -5).')' : 'A COMPLETER EAN '.$u->ean);
 		$db->begin();
 		$ref = scMakeRef($db, ($info && !empty($info['title'])) ? $label : 'SCAN'.substr($u->ean, -6));
 		$eanOk = (scIsValidEan13($u->ean) && count(scLookupCode($db, $u->ean)) == 0);
@@ -34,6 +35,9 @@ if ($autocreate) {
 			$db->query("UPDATE ".MAIN_DB_PREFIX."product SET import_key = 'SCAN".$db->escape(dol_print_date(dol_now(), '%y%m%d'))."' WHERE rowid = ".((int) $pid));
 			if (!$eanOk) {
 				$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, ean_kezia) VALUES (".((int) $pid).", '".$db->escape($u->ean)."') ON DUPLICATE KEY UPDATE ean_kezia = VALUES(ean_kezia)");
+			}
+			if ($parentref !== '') {
+				$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, variant_parent_ref) VALUES (".((int) $pid).", '".$db->escape($parentref)."') ON DUPLICATE KEY UPDATE variant_parent_ref = VALUES(variant_parent_ref)");
 			}
 			$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid).", status = 'created', product_label = '".$db->escape($label)."' WHERE rowid = ".((int) $u->rowid));
 			$db->commit(); $created++;
