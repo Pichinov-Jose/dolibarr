@@ -72,6 +72,39 @@ class pdf_standard_inventory extends ModelePDFInventory
 	 */
 	public $emetteur;
 
+	/**
+	 * @var float Column positions
+	 */
+	public $posxproduct;
+	/**
+	 * @var float Column positions
+	 */
+	public $posxlabel;
+	/**
+	 * @var float Column positions
+	 */
+	public $posxwarehouse;
+	/**
+	 * @var float Column positions
+	 */
+	public $posxbatch;
+	/**
+	 * @var float Column positions
+	 */
+	public $posxqtystock;
+	/**
+	 * @var float Column positions
+	 */
+	public $posxqtyview;
+	/**
+	 * @var float Column positions
+	 */
+	public $posxgap;
+	/**
+	 * @var float Column positions
+	 */
+	public $posxend;
+
 
 	/**
 	 *	Constructor
@@ -210,7 +243,7 @@ class pdf_standard_inventory extends ModelePDFInventory
 		// Create pdf instance
 		$pdf = pdf_getInstance($this->format);
 		$default_font_size = pdf_getPDFFontSize($outputlangs); // Must be after pdf_getInstance
-		$pdf->SetAutoPageBreak(1, 0);
+		$pdf->SetAutoPageBreak(true, 0);
 
 		$heightforinfotot = 30; // Height reserved to output the totals table
 		$heightforsignature = ($isspecimen || !$recorded) ? 25 : 0; // Height reserved for the signature block on count sheets
@@ -236,6 +269,7 @@ class pdf_standard_inventory extends ModelePDFInventory
 			$pdf->SetCompression(false);
 		}
 
+		// @phan-suppress-next-line PhanPluginSuspiciousParamOrder
 		$pdf->SetMargins($this->marge_gauche, $this->marge_haute, $this->marge_droite); // Left, Top, Right
 
 		// Columns (from left)

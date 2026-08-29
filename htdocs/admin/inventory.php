@@ -32,8 +32,6 @@ require '../main.inc.php';
  * @var User $user
  */
 
-global $langs, $user;
-
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/stock.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';

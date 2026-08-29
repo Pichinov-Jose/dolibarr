@@ -819,7 +819,7 @@ if (empty($reshook)) {
 
 
 			if (!$error) {
-				$result = $object->updatelinefree(GETPOSTINT('lineid'), (float) $qty, $element_type, $fk_product, GETPOSTINT('units'), $rang, $description, 0, $array_options, GETPOSTISSET('cost_price') ? price2num(GETPOST('cost_price', 'alpha')) : null, GETPOSTISSET('fourn_ref') ? GETPOST('fourn_ref', 'alphanohtml') : null, GETPOSTISSET('entrepot_id') ? GETPOSTINT('entrepot_id') : -1, GETPOSTISSET('batch') ? GETPOST('batch', 'alphanohtml') : null);
+				$result = $object->updatelinefree(GETPOSTINT('lineid'), (float) $qty, $element_type, $fk_product, GETPOSTINT('units'), $rang, $description, 0, $array_options, GETPOSTISSET('cost_price') ? price2num(GETPOST('cost_price', 'alpha')) : null, GETPOSTISSET('fourn_ref') ? GETPOST('fourn_ref', 'alphanohtml') : null, GETPOSTISSET('entrepot_id') ? max(0, GETPOSTINT('entrepot_id')) : -1, GETPOSTISSET('batch') ? GETPOST('batch', 'alphanohtml') : null);
 
 				if ($result >= 0) {
 					if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
@@ -1144,7 +1144,7 @@ if (empty($reshook)) {
 					if (GETPOST('batch', 'alphanohtml') !== '') {
 						$setparts[] = "batch = '".$db->escape(GETPOST('batch', 'alphanohtml'))."'";
 					}
-					$wh_line = GETPOSTINT('entrepot_id');	// May be empty: a line without warehouse deliberately generates no stock movement
+					$wh_line = max(0, GETPOSTINT('entrepot_id'));	// Empty choice of the select posts -1: store 0 (a line without warehouse deliberately generates no stock movement)
 					if ($wh_line > 0) {
 						$setparts[] = "fk_entrepot = ".$wh_line;
 					}
@@ -2367,7 +2367,7 @@ if ($action == 'create' && $permissiontoadd) {
 			print '<td class="right"><a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?action=editwarehouse&token='.newToken().'&id='.$object->id.'">'.img_edit($langs->trans('SetWarehouse'), 1).'</a></td>';
 		}
 		print '</tr></table></td><td colspan="3">';
-		if ($action == 'editwarehouse') {
+		if ($action == 'editwarehouse' && $permissiontoadd) {
 			$formproduct->formSelectWarehouses($_SERVER['PHP_SELF'].'?id='.$object->id, $object->fk_warehouse, 'warehouse_id', 1);
 		} else {
 			$formproduct->formSelectWarehouses($_SERVER['PHP_SELF'].'?id='.$object->id, $object->fk_warehouse, 'none');
