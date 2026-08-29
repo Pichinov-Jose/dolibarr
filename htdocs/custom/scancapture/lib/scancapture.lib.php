@@ -263,3 +263,27 @@ function scInheritFromParent($db, $user, $pid, $parent_id, $newref)
 		SELECT NOW(), NOW(), ".((int) $pid).", pfp.fk_soc, '".$db->escape($newref)."', pfp.price, pfp.quantity, pfp.unitprice, pfp.tva_tx, 1, ".((int) $user->id).", pfp.multicurrency_price, pfp.multicurrency_unitprice, pfp.multicurrency_tx, pfp.multicurrency_code
 		FROM ".MAIN_DB_PREFIX."product_fournisseur_price pfp WHERE pfp.fk_product = ".((int) $parent_id)." ORDER BY pfp.quantity ASC, pfp.rowid ASC LIMIT 1");
 }
+
+/**
+ * Tag a scanner-created product with the "Mettre à jour" category (created once if missing)
+ * so incomplete products are easy to list and finish later.
+ *
+ * @param DoliDB $db DB
+ * @param User $user User
+ * @param int $pid Product id
+ * @return void
+ */
+function scTagToUpdate($db, $user, $pid)
+{
+	$catid = 0;
+	$resql = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."categorie WHERE type = 0 AND label = 'Mettre à jour' AND entity = 1");
+	if ($resql && ($o = $db->fetch_object($resql))) {
+		$catid = (int) $o->rowid;
+	} else {
+		$db->query("INSERT INTO ".MAIN_DB_PREFIX."categorie (entity, fk_parent, label, type, visible, date_creation, fk_user_creat) VALUES (1, 0, 'Mettre à jour', 0, 1, NOW(), ".((int) $user->id).")");
+		$catid = (int) $db->last_insert_id(MAIN_DB_PREFIX.'categorie');
+	}
+	if ($catid > 0) {
+		$db->query("INSERT IGNORE INTO ".MAIN_DB_PREFIX."categorie_product (fk_categorie, fk_product) VALUES (".$catid.", ".((int) $pid).")");
+	}
+}

@@ -33,6 +33,7 @@ if ($autocreate) {
 		$pid = $p->create($user);
 		if ($pid > 0) {
 			$db->query("UPDATE ".MAIN_DB_PREFIX."product SET import_key = 'SCAN".$db->escape(dol_print_date(dol_now(), '%y%m%d'))."' WHERE rowid = ".((int) $pid));
+			scTagToUpdate($db, $user, (int) $pid);
 			if (!$eanOk) {
 				$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, ean_kezia) VALUES (".((int) $pid).", '".$db->escape($u->ean)."') ON DUPLICATE KEY UPDATE ean_kezia = VALUES(ean_kezia)");
 			}

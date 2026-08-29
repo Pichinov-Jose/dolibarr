@@ -33,6 +33,7 @@ if ($action == 'masscreate') {
 		if ($pid > 0) {
 			// Product::create does not persist import_key from the property
 			$db->query("UPDATE ".MAIN_DB_PREFIX."product SET import_key = '".$db->escape($p->import_key)."' WHERE rowid = ".((int) $pid));
+			scTagToUpdate($db, $user, (int) $pid);
 			if (!$eanOk && !empty($row->ean)) {
 				$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, ean_kezia) VALUES (".((int) $pid).", '".$db->escape($row->ean)."') ON DUPLICATE KEY UPDATE ean_kezia = VALUES(ean_kezia)");
 			}

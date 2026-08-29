@@ -36,6 +36,7 @@ if ($eanOk) { $p->barcode = $row->ean; $p->barcode_type = 2; }
 $pid = $p->create($user);
 if ($pid <= 0) { $db->rollback(); print json_encode(array('ok' => false, 'error' => $p->error)); exit; }
 $db->query("UPDATE ".MAIN_DB_PREFIX."product SET import_key = 'SCAN".$db->escape(dol_print_date(dol_now(), '%y%m%d'))."' WHERE rowid = ".((int) $pid));
+scTagToUpdate($db, $user, (int) $pid);
 if (!$eanOk && !empty($row->ean)) {
 	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, ean_kezia) VALUES (".((int) $pid).", '".$db->escape($row->ean)."') ON DUPLICATE KEY UPDATE ean_kezia = VALUES(ean_kezia)");
 }
