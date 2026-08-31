@@ -12,6 +12,8 @@ top_httphead('application/json');
 $rowid = GETPOSTINT('rowid');
 $label = trim(GETPOST('label', 'alphanohtml'));
 $price = (float) price2num(GETPOST('price', 'alpha'), 'MU');
+$buyprice = (float) price2num(GETPOST('buyprice', 'alpha'), 'MU');
+$mpn = trim(GETPOST('mpn', 'alphanohtml'));
 $resql = $db->query("SELECT rowid, ean, qty, status, sent_to_inv, match_source, ean_info, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row || $row->status != 'unknown' || $row->sent_to_inv) { print json_encode(array('ok' => false, 'error' => 'bad row')); exit; }
@@ -47,6 +49,15 @@ if ($parentref !== '') {
 	if ($parent) {
 		scInheritFromParent($db, $user, (int) $pid, (int) $parent->rowid, $ref);
 	}
+}
+// user overrides from the popup: manufacturer ref becomes the supplier product ref, buy price replaces the inherited one
+if ($mpn !== '') {
+	$resupd = $db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET ref_fourn = '".$db->escape($mpn)."' WHERE fk_product = ".((int) $pid));
+	// duplicate (fk_soc, ref_fourn): keep the technical ref silently
+}
+if ($buyprice > 0) {
+	$db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET price = ".((float) $buyprice)." * quantity, unitprice = ".((float) $buyprice)." WHERE fk_product = ".((int) $pid));
+	$db->query("UPDATE ".MAIN_DB_PREFIX."product SET cost_price = ".((float) $buyprice)." WHERE rowid = ".((int) $pid));
 }
 $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid).", status = 'created', product_label = '".$db->escape($label)."' WHERE rowid = ".((int) $rowid));
 $db->commit();

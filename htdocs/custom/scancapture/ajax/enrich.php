@@ -29,7 +29,7 @@ if ($out) {
 	$j = json_decode($out, true);
 	if (!empty($j['items'][0])) {
 		$it = $j['items'][0];
-		$info = array('title' => $it['title'] ?? '', 'brand' => $it['brand'] ?? '', 'category' => $it['category'] ?? '', 'image' => (!empty($it['images'][0]) ? $it['images'][0] : ''), 'desc_courte' => (string) ($it['description'] ?? ''));
+		$info = array('title' => $it['title'] ?? '', 'brand' => $it['brand'] ?? '', 'category' => $it['category'] ?? '', 'image' => (!empty($it['images'][0]) ? $it['images'][0] : ''), 'desc_courte' => (string) ($it['description'] ?? ''), 'mpn' => (string) (!empty($it['mpn']) ? $it['mpn'] : ($it['model'] ?? '')));
 		$lo = (float) ($it['lowest_recorded_price'] ?? 0);
 		$hi = (float) ($it['highest_recorded_price'] ?? 0);
 		if ($lo > 0) { $info['prix_marche'] = $lo.($hi > $lo ? ' à '.$hi : '').' '.($it['currency'] ?? 'USD').' (constaté)'; }

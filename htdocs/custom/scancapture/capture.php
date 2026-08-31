@@ -139,6 +139,8 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="row" id="sc_cr_cands_wrap" style="display:none"><label>Libellés possibles (EAN)</label><div id="sc_cr_cands"></div></div>
 	<div class="row"><label><?php print $langs->trans('Label'); ?></label><input type="text" id="sc_cr_label" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="row"><label><?php print $langs->trans('PriceTTC'); ?></label><input type="number" id="sc_cr_price" step="any" inputmode="decimal" placeholder="<?php print $langs->trans('PriceFromFamily'); ?>" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="row"><label>Prix d'achat HT</label><input type="number" id="sc_cr_buyprice" step="any" inputmode="decimal" placeholder="vide = prix d'achat de la famille" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="row"><label>Réf fabricant</label><input type="text" id="sc_cr_mpn" placeholder="réf produit fournisseur (MPN)" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="center"><button type="button" class="button sc_btn" id="sc_cr_ok" style="width:100%"><?php print $langs->trans('Create'); ?></button></div>
 </div></div>
 
@@ -346,12 +348,14 @@ jQuery(function() {
 		if (extra.length) { h += '<br><span class="opacitymedium">Aussi hérité : ' + extra.join(' · ') + '</span>'; }
 		jQuery('#sc_cr_fam').html(h).show();
 		if (f.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = ' + f.price_ttc + ' TTC (famille ' + f.ref + ')'); }
+		if (f.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = ' + f.buy_price + ' HT (famille' + (f.supplier ? ', ' + f.supplier : '') + ')'); }
 	}
 	function scRenderInfo(info, source) {
 		if (!info) { return; }
 		var h = '<span class="tit"><span class="fa fa-search paddingright"></span>Enrichissement (' + scEsc(source) + ')</span>';
 		var name = ((info.brand || '') + ' ' + (info.title || '')).trim();
 		if (name) { h += 'Produit identifié : <b>' + scEsc(name) + '</b>'; } else { h += '<span class="opacitymedium">Rien d\'identifié pour cet EAN</span>'; }
+		if (info.mpn) { h += '<br>Réf fabricant : <b>' + scEsc(info.mpn) + '</b>'; }
 		if (info.desc_courte) { h += '<br>' + scEsc(info.desc_courte); }
 		if (info.desc_longue && info.desc_longue != info.desc_courte) {
 			var dl = String(info.desc_longue);
@@ -395,6 +399,7 @@ jQuery(function() {
 		if (r.info.title) { scAddCand(((r.info.brand || '') + ' ' + r.info.title).trim(), src); }
 		if (r.info.titles && r.info.titles.length) { for (var i = 0; i < r.info.titles.length; i++) { scAddCand(r.info.titles[i], 'eBay'); } }
 		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(((r.info.brand || '') + ' ' + r.info.title).trim()); }
+		if (r.info.mpn && !jQuery('#sc_cr_mpn').val()) { jQuery('#sc_cr_mpn').val(r.info.mpn); }
 		scRenderInfo(r.info, src);
 		return !!(r.info.title);
 	}
@@ -404,6 +409,8 @@ jQuery(function() {
 		jQuery('#sc_cr_ean').text('EAN : ' + (a.data('ean') || '—'));
 		jQuery('#sc_cr_label').val(a.data('label') || '');
 		jQuery('#sc_cr_price').val('').attr('placeholder', '<?php print dol_escape_js($langs->trans('PriceFromFamily')); ?>');
+		jQuery('#sc_cr_buyprice').val('').attr('placeholder', "vide = prix d'achat de la famille");
+		jQuery('#sc_cr_mpn').val('');
 		jQuery('#sc_cr_fam').hide().empty();
 		jQuery('#sc_cr_enrich').hide().empty();
 		scCands = []; jQuery('#sc_cr_cands').empty(); jQuery('#sc_cr_cands_wrap').hide();
@@ -428,7 +435,7 @@ jQuery(function() {
 	});
 	jQuery('#sc_cr_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_create').hide(); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_cr_ok').on('click', function() {
-		jQuery.getJSON(base + 'createfromrow.php', {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), token: token}).fail(function() {
+		jQuery.getJSON(base + 'createfromrow.php', {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), token: token}).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
 			jQuery('#sc_create').hide();
