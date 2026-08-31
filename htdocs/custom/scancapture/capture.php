@@ -58,7 +58,7 @@ body { padding-bottom: 76px !important; }
 .sc_actdis { font-size: 1.25em; padding: 6px; color: #bbb; }
 .sc_pick { font-size: 1.1em !important; padding: 10px !important; margin: 4px 4px 0 0; display: inline-block; }
 .sc_modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; }
-.sc_modal .box { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 12px; padding: 18px; width: min(92vw, 420px); box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+.sc_modal .box { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 12px; padding: 18px; width: min(92vw, 420px); box-shadow: 0 6px 24px rgba(0,0,0,0.4); max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
 .sc_modal h3 { margin: 0 0 12px; }
 .sc_modal .row { margin-bottom: 12px; }
 .sc_modal label { font-weight: bold; display: block; margin-bottom: 4px; }
