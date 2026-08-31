@@ -66,9 +66,10 @@ $j = $out ? json_decode($out, true) : null;
 if ($code != 200) { print json_encode(array('ok' => false, 'error' => 'api '.$code, 'detail' => substr((string) $out, 0, 200))); exit; }
 
 $items = $j['itemSummaries'] ?? array();
-$title = ''; $images = array(); $prices = array(); $urls = array();
+$title = ''; $titles = array(); $images = array(); $prices = array(); $urls = array();
 foreach ($items as $it) {
 	if ($title === '' && !empty($it['title'])) { $title = $it['title']; }
+	if (!empty($it['title']) && !in_array($it['title'], $titles)) { $titles[] = $it['title']; }
 	if (!empty($it['image']['imageUrl'])) { $images[] = $it['image']['imageUrl']; }
 	foreach (($it['additionalImages'] ?? array()) as $ai) { if (!empty($ai['imageUrl'])) { $images[] = $ai['imageUrl']; } }
 	if (!empty($it['price']['value'])) { $prices[] = (float) $it['price']['value']; }
@@ -78,6 +79,7 @@ $images = array_slice(array_values(array_unique($images)), 0, 5);
 $merged = array_merge($prev ?: array(), array(
 	'ebay' => 1,
 	'title' => ($prev['title'] ?? '') !== '' ? $prev['title'] : $title,
+	'titles' => array_slice($titles, 0, 5),
 	'images' => !empty($prev['images']) ? $prev['images'] : $images,
 	'prix_marche' => $prices ? min($prices).' à '.max($prices).' EUR ('.count($prices).' annonces)' : '',
 	'sources' => array_slice($urls, 0, 3),

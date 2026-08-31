@@ -64,6 +64,12 @@ body { padding-bottom: 76px !important; }
 .sc_modal label { font-weight: bold; display: block; margin-bottom: 4px; }
 .sc_modal select, .sc_modal input[type=number] { width: 100%; font-size: 1.15em; padding: 9px; box-sizing: border-box; }
 .sc_modal .close { float: right; font-size: 1.3em; text-decoration: none; color: #666; }
+.sc_cr_block { background: #f5f5f5; border-radius: 8px; padding: 8px 10px; font-size: 0.95em; line-height: 1.5; }
+.sc_cr_block .tit { font-weight: bold; display: block; margin-bottom: 2px; }
+.sc_cr_block img { max-height: 46px; max-width: 46px; border-radius: 4px; vertical-align: middle; margin: 2px 4px 2px 0; }
+.sc_cand { display: block; width: 100%; text-align: left; margin: 3px 0; padding: 7px 10px; border: 1px solid #b9a5e3; background: #f4f0fc; border-radius: 8px; cursor: pointer; font-size: 0.95em; box-sizing: border-box; }
+.sc_cand:hover { background: #e6dcf7; }
+.sc_cand .src { float: right; color: #7a6aa5; font-size: 0.85em; margin-left: 8px; }
 #sc_numpad .val { font-size: 2em; text-align: right; border: 1px solid #ccc; border-radius: 6px; padding: 8px; margin-bottom: 10px; min-height: 1.2em; }
 #sc_numpad .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 #sc_numpad .keys button { font-size: 1.6em; padding: 16px 0; border: 1px solid #bbb; border-radius: 8px; background: #f5f5f5; }
@@ -128,6 +134,9 @@ html.scfs #id-container { width: 100% !important; }
 	<a href="#" class="close" id="sc_cr_close"><span class="fa fa-times"></span></a>
 	<h3><span class="fa fa-plus-circle paddingright" style="color:#2e7d32"></span><?php print $langs->trans('CreateProduct'); ?></h3>
 	<div class="row"><span class="opacitymedium" id="sc_cr_ean"></span></div>
+	<div class="row sc_cr_block" id="sc_cr_fam" style="display:none"></div>
+	<div class="row sc_cr_block" id="sc_cr_enrich" style="display:none"></div>
+	<div class="row" id="sc_cr_cands_wrap" style="display:none"><label>Libellés possibles (EAN)</label><div id="sc_cr_cands"></div></div>
 	<div class="row"><label><?php print $langs->trans('Label'); ?></label><input type="text" id="sc_cr_label" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="row"><label><?php print $langs->trans('PriceTTC'); ?></label><input type="number" id="sc_cr_price" step="any" inputmode="decimal" placeholder="<?php print $langs->trans('PriceFromFamily'); ?>" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="center"><button type="button" class="button sc_btn" id="sc_cr_ok" style="width:100%"><?php print $langs->trans('Create'); ?></button></div>
@@ -323,24 +332,88 @@ jQuery(function() {
 	jQuery('#sc_qty').on('keydown', function(e) { if (e.key == 'Enter') { e.preventDefault(); submitRow(0); } });
 	// row edit/delete
 	var crRow = 0;
+	function scEsc(s) { return jQuery('<span>').text(s == null ? '' : String(s)).html(); }
+	function scRenderFam(f) {
+		if (!f) { jQuery('#sc_cr_fam').hide(); return; }
+		var h = '<span class="tit"><span class="fa fa-sitemap paddingright"></span>Famille : <a href="' + f.url + '" target="_blank">' + scEsc(f.ref) + '</a> — ' + scEsc(f.label) + '</span>';
+		h += 'Vente hérité : <b>' + scEsc(f.price_ttc) + ' TTC</b> · TVA ' + scEsc(f.tva_tx) + ' %';
+		if (f.buy_price) { h += '<br>Achat hérité : <b>' + scEsc(f.buy_price) + ' HT</b>' + (f.supplier ? ' chez ' + scEsc(f.supplier) : '') + (f.ref_fourn ? ' (réf. ' + scEsc(f.ref_fourn) + ')' : ''); }
+		var extra = [];
+		if (f.pmp) { extra.push('PMP ' + scEsc(f.pmp)); }
+		if (f.cost_price) { extra.push('coût ' + scEsc(f.cost_price)); }
+		if (f.warehouse) { extra.push('entrepôt ' + scEsc(f.warehouse)); }
+		if (f.nbcat) { extra.push(f.nbcat + ' catégorie(s)'); }
+		if (extra.length) { h += '<br><span class="opacitymedium">Aussi hérité : ' + extra.join(' · ') + '</span>'; }
+		jQuery('#sc_cr_fam').html(h).show();
+		if (f.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = ' + f.price_ttc + ' TTC (famille ' + f.ref + ')'); }
+	}
+	function scRenderInfo(info, source) {
+		if (!info) { return; }
+		var h = '<span class="tit"><span class="fa fa-search paddingright"></span>Enrichissement (' + scEsc(source) + ')</span>';
+		var name = ((info.brand || '') + ' ' + (info.title || '')).trim();
+		if (name) { h += 'Produit identifié : <b>' + scEsc(name) + '</b>'; } else { h += '<span class="opacitymedium">Rien d\'identifié pour cet EAN</span>'; }
+		if (info.desc_courte) { h += '<br>' + scEsc(info.desc_courte); }
+		if (info.prix_marche) { h += '<br>Prix marché : ' + scEsc(info.prix_marche); }
+		var badges = [];
+		if (info.confiance) { badges.push('confiance ' + scEsc(info.confiance)); }
+		if (info.category) { badges.push(scEsc(info.category)); }
+		if (info.sources && info.sources.length) { badges.push(info.sources.length + ' source(s)'); }
+		if (badges.length) { h += '<br><span class="opacitymedium">' + badges.join(' · ') + '</span>'; }
+		var imgs = info.images || (info.image ? [info.image] : []);
+		if (imgs.length) {
+			h += '<br>';
+			for (var i = 0; i < Math.min(3, imgs.length); i++) { h += '<img src="' + scEsc(imgs[i]) + '" alt="">'; }
+			h += '<span class="opacitymedium"> ' + imgs.length + ' photo(s) — jointes à la création</span>';
+		}
+		jQuery('#sc_cr_enrich').html(h).show();
+	}
+	var scCands = [];
+	function scAddCand(label, source) {
+		label = (label || '').trim();
+		if (!label) { return; }
+		for (var i = 0; i < scCands.length; i++) { if (scCands[i].l.toLowerCase() == label.toLowerCase()) { return; } }
+		scCands.push({l: label, s: source});
+		var b = jQuery('<button type="button" class="sc_cand"></button>').text(label).append(jQuery('<span class="src"></span>').text(source));
+		jQuery('#sc_cr_cands').append(b);
+		jQuery('#sc_cr_cands_wrap').show();
+	}
+	jQuery(document).on('click', '.sc_cand', function() {
+		jQuery('#sc_cr_label').val(jQuery(this).clone().children().remove().end().text());
+		jQuery('#sc_cr_price').focus();
+	});
+	function scApplyInfo(r, source) {
+		if (!(r && r.ok && r.info)) { return false; }
+		var src = r.cached ? (r.info.ai ? 'IA' : source) + ', cache' : source;
+		if (r.info.title) { scAddCand(((r.info.brand || '') + ' ' + r.info.title).trim(), src); }
+		if (r.info.titles && r.info.titles.length) { for (var i = 0; i < r.info.titles.length; i++) { scAddCand(r.info.titles[i], 'eBay'); } }
+		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(((r.info.brand || '') + ' ' + r.info.title).trim()); }
+		scRenderInfo(r.info, src);
+		return !!(r.info.title);
+	}
 	jQuery(document).on('click', '.sc_create', function(ev) {
 		ev.preventDefault();
 		var a = jQuery(this); crRow = a.data('row');
-		jQuery('#sc_cr_ean').text('EAN : ' + (a.data('ean') || '&mdash;'));
+		jQuery('#sc_cr_ean').text('EAN : ' + (a.data('ean') || '—'));
 		jQuery('#sc_cr_label').val(a.data('label') || '');
-		jQuery('#sc_cr_price').val('');
+		jQuery('#sc_cr_price').val('').attr('placeholder', '<?php print dol_escape_js($langs->trans('PriceFromFamily')); ?>');
+		jQuery('#sc_cr_fam').hide().empty();
+		jQuery('#sc_cr_enrich').hide().empty();
+		scCands = []; jQuery('#sc_cr_cands').empty(); jQuery('#sc_cr_cands_wrap').hide();
 		jQuery('#sc_create').show();
-		function applyInfo(r) {
-			if (!(r && r.ok && r.info)) return false;
-			if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(((r.info.brand || '') + ' ' + r.info.title).trim()); }
-			if (r.info.confiance) { jQuery('#sc_cr_ean').append(' — IA : ' + r.info.confiance + (r.info.images && r.info.images.length ? ', ' + r.info.images.length + ' photo(s)' : '')); }
-			return !!(r.info.title);
-		}
+		if (a.data('label')) { scAddCand(String(a.data('label')), 'scan'); }
+		jQuery.getJSON(base + 'createinfo.php', {rowid: crRow, token: token}, function(ci) {
+			if (ci && ci.ok) {
+				if (ci.code_kezia) { jQuery('#sc_cr_ean').text('EAN : ' + (ci.ean || '—') + ' · Code Kezia : ' + ci.code_kezia); }
+				scRenderFam(ci.family);
+				if (ci.family && ci.family.label) { scAddCand(ci.family.label, 'famille ' + ci.family.ref); }
+			}
+		});
 		jQuery.getJSON(base + 'enrich.php', {rowid: crRow, token: token}, function(r) {
-			if (applyInfo(r)) return;
+			var upcFound = scApplyInfo(r, 'base UPC');
 			jQuery.getJSON(base + 'enrich_ebay.php', {rowid: crRow, token: token}, function(r2) {
-				if (applyInfo(r2)) return;
-				jQuery.getJSON(base + 'enrich_ai.php', {rowid: crRow, token: token}, function(r3) { applyInfo(r3); });
+				var ebayFound = scApplyInfo(r2, 'eBay');
+				if (upcFound || ebayFound) { return; }
+				jQuery.getJSON(base + 'enrich_ai.php', {rowid: crRow, token: token}, function(r3) { scApplyInfo(r3, 'IA'); });
 			});
 		});
 		jQuery('#sc_cr_label').focus();
