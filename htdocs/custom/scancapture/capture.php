@@ -350,10 +350,15 @@ jQuery(function() {
 		if (f.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = ' + f.price_ttc + ' TTC (famille ' + f.ref + ')'); }
 		if (f.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = ' + f.buy_price + ' HT (famille' + (f.supplier ? ', ' + f.supplier : '') + ')'); }
 	}
+	function scFullName(info) {
+		var t = (info.title || '').trim(), b = (info.brand || '').trim();
+		if (!t) { return b; }
+		return (b && t.toLowerCase().indexOf(b.toLowerCase()) < 0) ? b + ' ' + t : t;
+	}
 	function scRenderInfo(info, source) {
 		if (!info) { return; }
 		var h = '<span class="tit"><span class="fa fa-search paddingright"></span>Enrichissement (' + scEsc(source) + ')</span>';
-		var name = ((info.brand || '') + ' ' + (info.title || '')).trim();
+		var name = scFullName(info);
 		if (name) { h += 'Produit identifié : <b>' + scEsc(name) + '</b>'; } else { h += '<span class="opacitymedium">Rien d\'identifié pour cet EAN</span>'; }
 		if (info.mpn) { h += '<br>Réf fabricant : <b>' + scEsc(info.mpn) + '</b>'; }
 		if (info.desc_courte) { h += '<br>' + scEsc(info.desc_courte); }
@@ -396,9 +401,9 @@ jQuery(function() {
 	function scApplyInfo(r, source) {
 		if (!(r && r.ok && r.info)) { return false; }
 		var src = r.cached ? (r.info.ai ? 'IA' : source) + ', cache' : source;
-		if (r.info.title) { scAddCand(((r.info.brand || '') + ' ' + r.info.title).trim(), src); }
+		if (r.info.title) { scAddCand(scFullName(r.info), src); }
 		if (r.info.titles && r.info.titles.length) { for (var i = 0; i < r.info.titles.length; i++) { scAddCand(r.info.titles[i], 'eBay'); } }
-		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(((r.info.brand || '') + ' ' + r.info.title).trim()); }
+		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(scFullName(r.info)); }
 		if (r.info.mpn && (!jQuery('#sc_cr_mpn').val() || jQuery('#sc_cr_mpn').attr('data-src') == 'family')) { jQuery('#sc_cr_mpn').val(r.info.mpn).removeAttr('data-src'); }
 		scRenderInfo(r.info, src);
 		return !!(r.info.title);
