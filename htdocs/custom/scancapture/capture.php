@@ -353,7 +353,15 @@ jQuery(function() {
 		var name = ((info.brand || '') + ' ' + (info.title || '')).trim();
 		if (name) { h += 'Produit identifié : <b>' + scEsc(name) + '</b>'; } else { h += '<span class="opacitymedium">Rien d\'identifié pour cet EAN</span>'; }
 		if (info.desc_courte) { h += '<br>' + scEsc(info.desc_courte); }
-		if (info.prix_marche) { h += '<br>Prix marché : ' + scEsc(info.prix_marche); }
+		if (info.desc_longue && info.desc_longue != info.desc_courte) {
+			var dl = String(info.desc_longue);
+			h += '<br><span class="opacitymedium">' + scEsc(dl.length > 220 ? dl.substring(0, 220) + '…' : dl) + '</span>';
+		}
+		var px = [];
+		if (info.prix_public) { px.push('Prix public : <b>' + scEsc(info.prix_public) + ' € TTC</b>'); }
+		if (info.prix_achat) { px.push('Achat estimé : <b>' + scEsc(info.prix_achat) + ' € HT</b>'); }
+		if (info.prix_marche) { px.push('Marché : ' + scEsc(info.prix_marche)); }
+		if (px.length) { h += '<br>' + px.join(' · '); }
 		var badges = [];
 		if (info.confiance) { badges.push('confiance ' + scEsc(info.confiance)); }
 		if (info.category) { badges.push(scEsc(info.category)); }

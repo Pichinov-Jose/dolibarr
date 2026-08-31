@@ -17,7 +17,7 @@ $resql = $db->query("SELECT rowid, ean, code_kezia, product_label, match_source,
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row || empty($row->ean)) { print json_encode(array('ok' => false, 'error' => 'row/ean')); exit; }
 $prev = $row->ean_info ? json_decode($row->ean_info, true) : array();
-if (!empty($prev['ai'])) { print json_encode(array('ok' => true, 'cached' => true, 'info' => $prev)); exit; }
+if (!empty($prev['ai']) && ($prev['title'] ?? '') !== '') { print json_encode(array('ok' => true, 'cached' => true, 'info' => $prev)); exit; }
 
 // daily budget guard
 $kday = 'SCANCAPTURE_AI_'.dol_print_date(dol_now(), '%Y%m%d');
@@ -32,7 +32,7 @@ if (strpos((string) $row->match_source, 'variantof:') === 0 && $row->product_lab
 $prompt = "Tu aides un magasin d'articles de peche francais a identifier un produit par son code-barres EAN ".$row->ean.".".$context."
 Si tu peux faire une recherche web, cherche l'EAN puis l'EAN avec des mots-cles peche. Sinon appuie-toi sur ta connaissance (prefixe fabricant, gammes connues).
 Reponds UNIQUEMENT avec un objet JSON (aucun texte autour, pas de balise markdown) de la forme :
-{\"libelle\": \"nom commercial court en francais\", \"marque\": \"...\", \"description_courte\": \"1-2 phrases\", \"description_longue\": \"paragraphe detaille (matiere, usage, points forts)\", \"specs\": {\"cle\": \"valeur\"}, \"images\": [\"url https\"], \"confiance\": \"haute|moyenne|basse\", \"sources\": [\"url\"]}
+{\"libelle\": \"nom commercial court en francais\", \"marque\": \"...\", \"description_courte\": \"1-2 phrases\", \"description_longue\": \"paragraphe detaille (matiere, usage, points forts)\", \"specs\": {\"cle\": \"valeur\"}, \"prix_public_ttc_eur\": \"prix public conseille ou constate en France, ex 12.90, sinon vide\", \"prix_achat_ht_eur\": \"estimation du prix d'achat revendeur HT, ex 6.50, sinon vide\", \"images\": [\"url https\"], \"confiance\": \"haute|moyenne|basse\", \"sources\": [\"url\"]}
 Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"}.";
 
 $ai = new Ai($db);
@@ -53,6 +53,8 @@ $merged = array_merge($prev ?: array(), array(
 	'desc_courte' => $info['description_courte'] ?? '',
 	'desc_longue' => $info['description_longue'] ?? '',
 	'specs' => $info['specs'] ?? array(),
+	'prix_public' => (string) ($info['prix_public_ttc_eur'] ?? ''),
+	'prix_achat' => (string) ($info['prix_achat_ht_eur'] ?? ''),
 	'images' => $info['images'] ?? array(),
 	'confiance' => $info['confiance'] ?? '',
 	'sources' => $info['sources'] ?? array(),

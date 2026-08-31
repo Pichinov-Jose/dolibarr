@@ -29,7 +29,10 @@ if ($out) {
 	$j = json_decode($out, true);
 	if (!empty($j['items'][0])) {
 		$it = $j['items'][0];
-		$info = array('title' => $it['title'] ?? '', 'brand' => $it['brand'] ?? '', 'category' => $it['category'] ?? '', 'image' => (!empty($it['images'][0]) ? $it['images'][0] : ''));
+		$info = array('title' => $it['title'] ?? '', 'brand' => $it['brand'] ?? '', 'category' => $it['category'] ?? '', 'image' => (!empty($it['images'][0]) ? $it['images'][0] : ''), 'desc_courte' => (string) ($it['description'] ?? ''));
+		$lo = (float) ($it['lowest_recorded_price'] ?? 0);
+		$hi = (float) ($it['highest_recorded_price'] ?? 0);
+		if ($lo > 0) { $info['prix_marche'] = $lo.($hi > $lo ? ' à '.$hi : '').' '.($it['currency'] ?? 'USD').' (constaté)'; }
 	}
 }
 $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = '".$db->escape(json_encode($info ?: array('title' => '')))."' WHERE rowid = ".((int) $rowid));
