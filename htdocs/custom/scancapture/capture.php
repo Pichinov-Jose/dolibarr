@@ -399,7 +399,7 @@ jQuery(function() {
 		if (r.info.title) { scAddCand(((r.info.brand || '') + ' ' + r.info.title).trim(), src); }
 		if (r.info.titles && r.info.titles.length) { for (var i = 0; i < r.info.titles.length; i++) { scAddCand(r.info.titles[i], 'eBay'); } }
 		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(((r.info.brand || '') + ' ' + r.info.title).trim()); }
-		if (r.info.mpn && !jQuery('#sc_cr_mpn').val()) { jQuery('#sc_cr_mpn').val(r.info.mpn); }
+		if (r.info.mpn && (!jQuery('#sc_cr_mpn').val() || jQuery('#sc_cr_mpn').attr('data-src') == 'family')) { jQuery('#sc_cr_mpn').val(r.info.mpn).removeAttr('data-src'); }
 		scRenderInfo(r.info, src);
 		return !!(r.info.title);
 	}
@@ -410,7 +410,7 @@ jQuery(function() {
 		jQuery('#sc_cr_label').val(a.data('label') || '');
 		jQuery('#sc_cr_price').val('').attr('placeholder', '<?php print dol_escape_js($langs->trans('PriceFromFamily')); ?>');
 		jQuery('#sc_cr_buyprice').val('').attr('placeholder', "vide = prix d'achat de la famille");
-		jQuery('#sc_cr_mpn').val('');
+		jQuery('#sc_cr_mpn').val('').removeAttr('data-src').removeAttr('title');
 		jQuery('#sc_cr_fam').hide().empty();
 		jQuery('#sc_cr_enrich').hide().empty();
 		scCands = []; jQuery('#sc_cr_cands').empty(); jQuery('#sc_cr_cands_wrap').hide();
@@ -421,6 +421,10 @@ jQuery(function() {
 				if (ci.code_kezia) { jQuery('#sc_cr_ean').text('EAN : ' + (ci.ean || '—') + ' · Code Kezia : ' + ci.code_kezia); }
 				scRenderFam(ci.family);
 				if (ci.family && ci.family.label) { scAddCand(ci.family.label, 'famille ' + ci.family.ref); }
+				if (ci.family && ci.family.ref_fourn && !jQuery('#sc_cr_mpn').val()) {
+					jQuery('#sc_cr_mpn').val(ci.family.ref_fourn).attr('data-src', 'family')
+						.attr('title', 'Réf de la famille — à ajuster pour cette déclinaison');
+				}
 			}
 		});
 		jQuery.getJSON(base + 'enrich.php', {rowid: crRow, token: token}, function(r) {
@@ -446,7 +450,7 @@ jQuery(function() {
 			tr.find('a.sc_create').remove();
 			var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text());
 			var u = jQuery('#sc_unkbadge'); var n = Math.max(0, (parseInt(u.find('a').text()) || 1) - 1); u.find('a').text(n + ' inconnus'); if (!n) u.addClass('zero');
-			setLive('ok', '<span class="fa fa-check"></span> ' + r.ref + ' &mdash; ' + r.label + (r.family ? ' [famille ' + r.family + ']' : '') + ' &middot; <?php print dol_escape_js($langs->trans('CreatedPending')); ?>');
+			setLive(r.warning ? 'multi' : 'ok', '<span class="fa fa-check"></span> ' + r.ref + ' &mdash; ' + r.label + (r.family ? ' [famille ' + r.family + ']' : '') + ' &middot; <?php print dol_escape_js($langs->trans('CreatedPending')); ?>' + (r.warning ? '<br><span class="fa fa-exclamation-triangle"></span> ' + r.warning : ''));
 			jQuery('#sc_codek').focus();
 		});
 	});

@@ -51,9 +51,13 @@ if ($parentref !== '') {
 	}
 }
 // user overrides from the popup: manufacturer ref becomes the supplier product ref, buy price replaces the inherited one
+$warning = '';
 if ($mpn !== '') {
 	$resupd = $db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET ref_fourn = '".$db->escape($mpn)."' WHERE fk_product = ".((int) $pid));
-	// duplicate (fk_soc, ref_fourn): keep the technical ref silently
+	if (!$resupd) {
+		// unique key (ref_fourn, fk_soc, quantity, entity): another product (often the family parent) already uses it
+		$warning = "Réf fournisseur \"".$mpn."\" déjà prise chez ce fournisseur (famille ?) — réf technique conservée";
+	}
 }
 if ($buyprice > 0) {
 	$db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET price = ".((float) $buyprice)." * quantity, unitprice = ".((float) $buyprice)." WHERE fk_product = ".((int) $pid));
@@ -63,4 +67,4 @@ $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid
 $db->commit();
 $nbimg = 0;
 if (!empty($info['images'])) { $nbimg = scAttachImages($conf, $ref, $info['images']); }
-print json_encode(array('ok' => true, 'fk_product' => $pid, 'ref' => $ref, 'label' => $label, 'family' => $parentref, 'images' => $nbimg));
+print json_encode(array('ok' => true, 'fk_product' => $pid, 'ref' => $ref, 'label' => $label, 'family' => $parentref, 'images' => $nbimg, 'warning' => $warning));
