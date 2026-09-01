@@ -8,11 +8,40 @@ if (!$user->admin && !$user->hasRight('stock', 'creer')) accessforbidden();
 top_httphead('application/json');
 
 $rowid = GETPOSTINT('rowid');
-$resql = $db->query("SELECT rowid, code_kezia, ean, match_source, ean_info FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
+$resql = $db->query("SELECT rowid, code_kezia, ean, match_source, ean_info, fk_product FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row) { print json_encode(array('ok' => false, 'error' => 'bad row')); exit; }
 
-$out = array('ok' => true, 'ean' => (string) $row->ean, 'code_kezia' => (string) $row->code_kezia, 'family' => null, 'info' => ($row->ean_info ? json_decode($row->ean_info) : null));
+$out = array('ok' => true, 'ean' => (string) $row->ean, 'code_kezia' => (string) $row->code_kezia, 'family' => null, 'product' => null, 'info' => ($row->ean_info ? json_decode($row->ean_info) : null));
+
+// matched product (enrich-existing mode): current values shown and prefilled in the popup
+if (!empty($row->fk_product)) {
+	$resql = $db->query("SELECT p.rowid, p.ref, p.label, p.description, p.price_ttc, p.tva_tx, p.pmp, p.cost_price
+		FROM ".MAIN_DB_PREFIX."product p WHERE p.rowid = ".((int) $row->fk_product));
+	if ($resql && ($pr = $db->fetch_object($resql))) {
+		$pr->buy_price = 0; $pr->ref_fourn = ''; $pr->supplier = '';
+		$resql = $db->query("SELECT pfp.unitprice, pfp.ref_fourn, s.nom AS supplier
+			FROM ".MAIN_DB_PREFIX."product_fournisseur_price pfp
+			LEFT JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = pfp.fk_soc
+			WHERE pfp.fk_product = ".((int) $pr->rowid)." ORDER BY pfp.quantity ASC, pfp.rowid ASC LIMIT 1");
+		if ($resql && ($bp = $db->fetch_object($resql))) {
+			$pr->buy_price = (float) $bp->unitprice; $pr->ref_fourn = (string) $bp->ref_fourn; $pr->supplier = (string) $bp->supplier;
+		}
+		$out['product'] = array(
+			'id' => (int) $pr->rowid,
+			'ref' => $pr->ref,
+			'label' => $pr->label,
+			'url' => DOL_URL_ROOT.'/product/card.php?id='.((int) $pr->rowid),
+			'has_desc' => (int) !empty($pr->description),
+			'price_ttc' => price((float) $pr->price_ttc),
+			'tva_tx' => price2num($pr->tva_tx),
+			'pmp' => ((float) $pr->pmp > 0 ? price((float) $pr->pmp) : ''),
+			'buy_price' => ((float) $pr->buy_price > 0 ? price((float) $pr->buy_price) : ''),
+			'supplier' => (string) $pr->supplier,
+			'ref_fourn' => (string) $pr->ref_fourn
+		);
+	}
+}
 
 // family pseudo-parent (known Kezia code shared by the family): everything the new product will inherit
 $parentref = (strpos((string) $row->match_source, 'variantof:') === 0) ? substr($row->match_source, 10) : '';

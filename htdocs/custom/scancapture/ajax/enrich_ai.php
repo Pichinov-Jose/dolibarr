@@ -53,7 +53,7 @@ if ($service === 'anthropic' && $apikey !== '') {
 	$payload = json_encode(array(
 		'model' => $model,
 		'max_tokens' => 4000,
-		'tools' => array(array('type' => 'web_search_20250305', 'name' => 'web_search', 'max_uses' => 4)),
+		'tools' => array(array('type' => 'web_search_20250305', 'name' => 'web_search', 'max_uses' => (int) getDolGlobalString('SCANCAPTURE_AI_MAX_SEARCHES', '3'))),
 		'messages' => array(array('role' => 'user', 'content' => $prompt)),
 	));
 	$ch = curl_init('https://api.anthropic.com/v1/messages');
