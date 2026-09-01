@@ -28,11 +28,20 @@ dolibarr_set_const($db, $kday, (string) ($count + 1), 'chaine', 0, '', 1);
 $context = '';
 if (strpos((string) $row->match_source, 'variantof:') === 0 && $row->product_label) {
 	$context = " Contexte magasin : ce code appartient probablement a une variante de la famille \"".$row->product_label."\".";
+	// manufacturer/distributor website from the family supplier thirdparty card, to steer the web search
+	$resql = $db->query("SELECT s.nom, s.url FROM ".MAIN_DB_PREFIX."product p
+		JOIN ".MAIN_DB_PREFIX."product_fournisseur_price pfp ON pfp.fk_product = p.rowid
+		JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = pfp.fk_soc
+		WHERE p.ref = '".$db->escape(substr($row->match_source, 10))."' AND s.url IS NOT NULL AND s.url != '' LIMIT 1");
+	if ($resql && ($sup = $db->fetch_object($resql))) {
+		$context .= " Fournisseur/fabricant : ".$sup->nom." — consulte EN PRIORITE son site ".$sup->url." (fiche produit du modele : liste des declinaisons/coloris avec leurs codes et souvent les JAN/EAN par declinaison).";
+	}
 }
 $prompt = "Trouve un maximum d'informations sur ce produit a partir de son code-barres EAN ".$row->ean." (magasin d'articles de peche francais).".$context."
 Cherche sur le web : l'EAN seul, puis l'EAN avec des mots-cles peche, puis marque+modele une fois identifies (prefixe GS1 = pays, prefixe entreprise = fabricant). Attention : chez beaucoup de fabricants chaque coloris/taille a son propre EAN, la reference fabricant etant commune — precise le discriminant de declinaison (code coloris, taille) quand tu le trouves.
 IMPORTANT : fais tes recherches puis reponds avec UNIQUEMENT l'objet JSON ci-dessous — aucun rapport, aucune analyse, aucun texte ni markdown avant ou apres, ta reponse visible EST le JSON :
-{\"libelle\": \"nom commercial court en francais avec le coloris/la taille\", \"marque\": \"...\", \"reference_fabricant\": \"reference/MPN du fabricant + code declinaison si trouve, sinon vide\", \"description_courte\": \"1-2 phrases\", \"description_longue\": \"paragraphe detaille (matiere, usage, points forts, specs)\", \"specs\": {\"cle\": \"valeur\"}, \"prix_public_ttc_eur\": \"prix public conseille ou constate en France, ex 12.90, sinon vide\", \"prix_achat_ht_eur\": \"estimation du prix d'achat revendeur HT, ex 6.50, sinon vide\", \"images\": [\"url https directes\"], \"confiance\": \"haute|moyenne|basse\", \"sources\": [\"url\"]}
+{\"libelle\": \"nom commercial court en francais avec le coloris/la taille\", \"marque\": \"...\", \"reference_fabricant\": \"reference/MPN du fabricant + code declinaison si trouve, sinon vide\", \"description_courte\": \"1-2 phrases\", \"description_longue\": \"paragraphe detaille (matiere, usage, points forts, specs)\", \"specs\": {\"cle\": \"valeur\"}, \"prix_public_ttc_eur\": \"prix public conseille ou constate en France, ex 12.90, sinon vide\", \"prix_achat_ht_eur\": \"estimation du prix d'achat revendeur HT, ex 6.50, sinon vide\", \"declinaisons\": [{\"code\": \"code declinaison fabricant\", \"libelle\": \"nom du coloris ou de la taille\", \"ean\": \"JAN/EAN de cette declinaison si connu sinon vide\"}], \"declinaison_scannee\": \"code de la declinaison correspondant a l'EAN recherche si determinable, sinon vide\", \"images\": [\"url https directes\"], \"confiance\": \"haute|moyenne|basse\", \"sources\": [\"url\"]}
+Le champ declinaisons doit lister TOUTES les declinaisons du modele trouvees sur le site du fabricant (jusqu'a 20).
 Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"}.";
 
 $text = '';
@@ -97,6 +106,8 @@ $merged = array_merge($prev ?: array(), array(
 	'specs' => $info['specs'] ?? array(),
 	'prix_public' => (string) ($info['prix_public_ttc_eur'] ?? ''),
 	'prix_achat' => (string) ($info['prix_achat_ht_eur'] ?? ''),
+	'declinaisons' => (array) ($info['declinaisons'] ?? array()),
+	'declinaison_scannee' => (string) ($info['declinaison_scannee'] ?? ''),
 	'images' => $info['images'] ?? array(),
 	'confiance' => $info['confiance'] ?? '',
 	'sources' => $info['sources'] ?? array(),

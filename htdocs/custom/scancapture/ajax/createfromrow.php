@@ -14,6 +14,8 @@ $label = trim(GETPOST('label', 'alphanohtml'));
 $price = (float) price2num(GETPOST('price', 'alpha'), 'MU');
 $buyprice = (float) price2num(GETPOST('buyprice', 'alpha'), 'MU');
 $mpn = trim(GETPOST('mpn', 'alphanohtml'));
+$parent_mode = GETPOST('parent_mode', 'aZ09') ?: 'family';
+$parent_label = trim(GETPOST('parent_label', 'alphanohtml'));
 $resql = $db->query("SELECT rowid, ean, qty, status, sent_to_inv, match_source, ean_info, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row || $row->status != 'unknown' || $row->sent_to_inv) { print json_encode(array('ok' => false, 'error' => 'bad row')); exit; }
@@ -22,11 +24,28 @@ if ($label === '') { print json_encode(array('ok' => false, 'error' => 'label'))
 // family product (known Kezia code): inherit selling price/VAT and supplier buying price
 $parentref = (strpos((string) $row->match_source, 'variantof:') === 0) ? substr($row->match_source, 10) : '';
 $parent = null;
-if ($parentref !== '') {
+if ($parent_mode === 'none') {
+	$parentref = '';
+} elseif ($parentref !== '' && $parent_mode !== 'new') {
 	$resql = $db->query("SELECT rowid, price_ttc, price_base_type, tva_tx FROM ".MAIN_DB_PREFIX."product WHERE ref = '".$db->escape($parentref)."'");
 	$parent = $resql ? $db->fetch_object($resql) : null;
 }
 $db->begin();
+// user asked to attach the variant to a brand-new parent product (Kezia pseudo-parents being phased out)
+if ($parent_mode === 'new') {
+	if ($parent_label === '') { $db->rollback(); print json_encode(array('ok' => false, 'error' => 'parent_label')); exit; }
+	$np = new Product($db);
+	$np->ref = scMakeRef($db, $parent_label);
+	$np->label = $parent_label;
+	$np->type = 0; $np->status = 1; $np->status_buy = 1;
+	$np->tva_tx = 20;
+	$npid = $np->create($user);
+	if ($npid <= 0) { $db->rollback(); print json_encode(array('ok' => false, 'error' => 'parent: '.$np->error)); exit; }
+	$db->query("UPDATE ".MAIN_DB_PREFIX."product SET import_key = 'SCAN".$db->escape(dol_print_date(dol_now(), '%y%m%d'))."' WHERE rowid = ".((int) $npid));
+	scTagToUpdate($db, $user, (int) $npid);
+	$parentref = $np->ref;
+	$parent = null;
+}
 $ref = scMakeRef($db, $label);
 $eanOk = (!empty($row->ean) && scIsValidEan13($row->ean) && count(scLookupCode($db, $row->ean)) == 0);
 $p = new Product($db);

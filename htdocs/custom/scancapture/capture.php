@@ -70,6 +70,9 @@ body { padding-bottom: 76px !important; }
 .sc_cand { display: block; width: 100%; text-align: left; margin: 3px 0; padding: 7px 10px; border: 1px solid #b9a5e3; background: #f4f0fc; border-radius: 8px; cursor: pointer; font-size: 0.95em; box-sizing: border-box; }
 .sc_cand:hover { background: #e6dcf7; }
 .sc_cand .src { float: right; color: #7a6aa5; font-size: 0.85em; margin-left: 8px; }
+.sc_decl { display: inline-block; margin: 3px 4px 0 0; padding: 6px 10px; border: 1px solid #90caf9; background: #e3f2fd; border-radius: 14px; cursor: pointer; font-size: 0.9em; }
+.sc_decl.sel { background: #1976d2; border-color: #1976d2; color: #fff; font-weight: bold; }
+.sc_decl:hover { border-color: #1976d2; }
 #sc_numpad .val { font-size: 2em; text-align: right; border: 1px solid #ccc; border-radius: 6px; padding: 8px; margin-bottom: 10px; min-height: 1.2em; }
 #sc_numpad .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 #sc_numpad .keys button { font-size: 1.6em; padding: 16px 0; border: 1px solid #bbb; border-radius: 8px; background: #f5f5f5; }
@@ -82,9 +85,9 @@ html.scfs #id-container { width: 100% !important; }
 	#sc_bar { display: none; }
 	#sc_livewrap { position: static; }
 	body { padding-bottom: 10px !important; }
-	/* single clean 1100px column: fields, hint, actions, filter and list aligned */
-	#sc_livewrap, #sc_filter, .div-table-responsive-no-min { max-width: 1100px; }
-	#sc_deskactions { display: flex; gap: 10px; max-width: 1100px; margin: 2px 0 14px !important; padding: 0 !important; text-align: left; }
+	/* single clean 1100px column, centered: fields, hint, actions, filter and list aligned */
+	#sc_app, #sc_livewrap, #sc_filter, .div-table-responsive-no-min { max-width: 1100px; margin-left: auto; margin-right: auto; }
+	#sc_deskactions { display: flex; gap: 10px; max-width: 1100px; margin: 2px auto 14px !important; padding: 0 !important; text-align: left; }
 	#sc_deskactions .butAction { margin: 0 !important; }
 	#sc_deskactions .sc_a_send { margin-left: auto !important; }
 	#sc_live { margin: 10px 0 0; }
@@ -142,6 +145,14 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="row"><span class="opacitymedium" id="sc_cr_ean"></span></div>
 	<div class="row sc_cr_block" id="sc_cr_fam" style="display:none"></div>
 	<div class="row sc_cr_block" id="sc_cr_enrich" style="display:none"></div>
+	<div class="row" id="sc_cr_decl_wrap" style="display:none"><label>Déclinaison (site fabricant)</label><div id="sc_cr_decls"></div></div>
+	<div class="row" id="sc_cr_parent_wrap">
+		<label>Rattacher la variante à</label>
+		<label style="font-weight:normal;display:block" id="sc_cr_pfam_opt"><input type="radio" name="sc_cr_parent" value="family" checked> Famille <b id="sc_cr_pfam"></b></label>
+		<label style="font-weight:normal;display:block"><input type="radio" name="sc_cr_parent" value="new"> Nouveau parent à créer</label>
+		<input type="text" id="sc_cr_parent_label" placeholder="libellé du nouveau parent" style="display:none;width:100%;font-size:1.05em;padding:8px;box-sizing:border-box;margin-top:4px">
+		<label style="font-weight:normal;display:block"><input type="radio" name="sc_cr_parent" value="none"> Aucun (produit isolé)</label>
+	</div>
 	<div class="row" id="sc_cr_cands_wrap" style="display:none"><label>Libellés possibles (EAN)</label><div id="sc_cr_cands"></div></div>
 	<div class="row"><label><?php print $langs->trans('Label'); ?></label><input type="text" id="sc_cr_label" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="row"><label><?php print $langs->trans('PriceTTC'); ?></label><input type="number" id="sc_cr_price" step="any" inputmode="decimal" placeholder="<?php print $langs->trans('PriceFromFamily'); ?>" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
@@ -404,6 +415,45 @@ jQuery(function() {
 		jQuery('#sc_cr_label').val(jQuery(this).clone().children().remove().end().text());
 		jQuery('#sc_cr_price').focus();
 	});
+	var crLabelBase = '', crMpnBase = '', crDecl = null;
+	function scRenderDecls(info) {
+		var ds = info.declinaisons || [];
+		if (!ds.length) { return; }
+		var box = jQuery('#sc_cr_decls').empty();
+		for (var i = 0; i < ds.length; i++) {
+			var d = ds[i];
+			if (!d || (!d.code && !d.libelle)) { continue; }
+			var b = jQuery('<span class="sc_decl"></span>').text((d.code ? d.code + ' — ' : '') + (d.libelle || ''))
+				.attr('data-code', d.code || '').attr('data-lib', d.libelle || '');
+			if (d.ean && info.__ean && d.ean == info.__ean) { b.addClass('sel'); }
+			else if (info.declinaison_scannee && d.code == info.declinaison_scannee) { b.addClass('sel'); }
+			box.append(b);
+		}
+		if (box.children().length) {
+			jQuery('#sc_cr_decl_wrap').show();
+			var sel = box.children('.sel').first();
+			if (sel.length) { scPickDecl(sel); }
+		}
+	}
+	function scPickDecl(el) {
+		jQuery('#sc_cr_decls .sc_decl').removeClass('sel'); el.addClass('sel');
+		crDecl = {code: el.attr('data-code'), lib: el.attr('data-lib')};
+		if (crLabelBase === '') { crLabelBase = jQuery('#sc_cr_label').val(); }
+		if (crMpnBase === '') { crMpnBase = jQuery('#sc_cr_mpn').val(); }
+		var lb = crLabelBase;
+		if (crDecl.lib && lb.toLowerCase().indexOf(crDecl.lib.toLowerCase()) < 0) { lb += ' ' + crDecl.lib; }
+		if (crDecl.code && lb.toLowerCase().indexOf(crDecl.code.toLowerCase()) < 0) { lb += ' (' + crDecl.code + ')'; }
+		jQuery('#sc_cr_label').val(lb.replace(/\s*\(coloris non identifi[^)]*\)\s*/i, ' ').trim());
+		if (crDecl.code) {
+			var mp = crMpnBase;
+			if (mp.toLowerCase().indexOf(crDecl.code.toLowerCase()) < 0) { mp = (mp ? mp + ' ' : '') + crDecl.code; }
+			jQuery('#sc_cr_mpn').val(mp);
+		}
+	}
+	jQuery(document).on('click', '.sc_decl', function() { scPickDecl(jQuery(this)); });
+	jQuery(document).on('change', 'input[name=sc_cr_parent]', function() {
+		jQuery('#sc_cr_parent_label').toggle(jQuery(this).val() == 'new');
+	});
 	function scApplyInfo(r, source) {
 		if (!(r && r.ok && r.info)) { return false; }
 		var src = r.cached ? (r.info.ai ? 'IA' : source) + ', cache' : source;
@@ -412,6 +462,7 @@ jQuery(function() {
 		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(scFullName(r.info)); }
 		if (r.info.mpn && (!jQuery('#sc_cr_mpn').val() || jQuery('#sc_cr_mpn').attr('data-src') == 'family')) { jQuery('#sc_cr_mpn').val(r.info.mpn).removeAttr('data-src'); }
 		scRenderInfo(r.info, src);
+		scRenderDecls(r.info);
 		return !!(r.info.title);
 	}
 	jQuery(document).on('click', '.sc_create', function(ev) {
@@ -425,6 +476,11 @@ jQuery(function() {
 		jQuery('#sc_cr_fam').hide().empty();
 		jQuery('#sc_cr_enrich').hide().empty();
 		scCands = []; jQuery('#sc_cr_cands').empty(); jQuery('#sc_cr_cands_wrap').hide();
+		crLabelBase = ''; crMpnBase = ''; crDecl = null;
+		jQuery('#sc_cr_decls').empty(); jQuery('#sc_cr_decl_wrap').hide();
+		jQuery('#sc_cr_pfam').text(''); jQuery('#sc_cr_pfam_opt').hide();
+		jQuery('input[name=sc_cr_parent][value=none]').prop('checked', true);
+		jQuery('#sc_cr_parent_label').val('').hide();
 		jQuery('#sc_create').show();
 		if (a.data('label')) { scAddCand(String(a.data('label')), 'scan'); }
 		jQuery.getJSON(base + 'createinfo.php', {rowid: crRow, token: token}, function(ci) {
@@ -432,6 +488,11 @@ jQuery(function() {
 				if (ci.code_kezia) { jQuery('#sc_cr_ean').text('EAN : ' + (ci.ean || '—') + ' · Code Kezia : ' + ci.code_kezia); }
 				scRenderFam(ci.family);
 				if (ci.family && ci.family.label) { scAddCand(ci.family.label, 'famille ' + ci.family.ref); }
+				if (ci.family && ci.family.ref) {
+					jQuery('#sc_cr_pfam').text(ci.family.ref + ' — ' + (ci.family.label || ''));
+					jQuery('#sc_cr_pfam_opt').show();
+					jQuery('input[name=sc_cr_parent][value=family]').prop('checked', true);
+				}
 				if (ci.family && ci.family.ref_fourn && !jQuery('#sc_cr_mpn').val()) {
 					jQuery('#sc_cr_mpn').val(ci.family.ref_fourn).attr('data-src', 'family')
 						.attr('title', 'Réf de la famille — à ajuster pour cette déclinaison');
@@ -450,7 +511,7 @@ jQuery(function() {
 	});
 	jQuery('#sc_cr_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_create').hide(); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_cr_ok').on('click', function() {
-		jQuery.getJSON(base + 'createfromrow.php', {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), token: token}).fail(function() {
+		jQuery.getJSON(base + 'createfromrow.php', {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), token: token}).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
 			jQuery('#sc_create').hide();
