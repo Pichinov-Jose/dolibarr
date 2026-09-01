@@ -80,9 +80,15 @@ html.scfs #id-container { width: 100% !important; }
 #sc_deskactions { display: none; }
 @media (min-width: 769px) {
 	#sc_bar { display: none; }
-	#sc_deskactions { display: block; }
 	#sc_livewrap { position: static; }
 	body { padding-bottom: 10px !important; }
+	/* single clean 1100px column: fields, hint, actions, filter and list aligned */
+	#sc_livewrap, #sc_filter, .div-table-responsive-no-min { max-width: 1100px; }
+	#sc_deskactions { display: flex; gap: 10px; max-width: 1100px; margin: 2px 0 14px !important; padding: 0 !important; text-align: left; }
+	#sc_deskactions .butAction { margin: 0 !important; }
+	#sc_deskactions .sc_a_send { margin-left: auto !important; }
+	#sc_live { margin: 10px 0 0; }
+	#sc_rows td { padding-top: 7px; padding-bottom: 7px; }
 }
 @media (max-width: 768px) {
 	#sc_fields { display: block; }
