@@ -30,6 +30,14 @@ if ($out) {
 	if (!empty($j['items'][0])) {
 		$it = $j['items'][0];
 		$info = array('title' => $it['title'] ?? '', 'brand' => $it['brand'] ?? '', 'category' => $it['category'] ?? '', 'image' => (!empty($it['images'][0]) ? $it['images'][0] : ''), 'desc_courte' => (string) ($it['description'] ?? ''), 'mpn' => (string) (!empty($it['mpn']) ? $it['mpn'] : ($it['model'] ?? '')));
+		// attribute fields UPCitemdb exposes directly
+		$specs = array();
+		if (!empty($it['color'])) { $specs['Coloris'] = $it['color']; }
+		if (!empty($it['size'])) { $specs['Taille'] = $it['size']; }
+		if (!empty($it['model'])) { $specs['Modèle'] = $it['model']; }
+		if (!empty($it['weight'])) { $specs['Poids'] = $it['weight']; }
+		if (!empty($it['dimension'])) { $specs['Dimensions'] = $it['dimension']; }
+		if ($specs) { $info['specs'] = $specs; }
 		$lo = (float) ($it['lowest_recorded_price'] ?? 0);
 		$hi = (float) ($it['highest_recorded_price'] ?? 0);
 		if ($lo > 0) { $info['prix_marche'] = $lo.($hi > $lo ? ' à '.$hi : '').' '.($it['currency'] ?? 'USD').' (constaté)'; }

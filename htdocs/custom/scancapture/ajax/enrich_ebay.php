@@ -80,6 +80,26 @@ foreach ($items as $it) {
 	if (!empty($it['itemWebUrl'])) { $urls[] = $it['itemWebUrl']; }
 }
 $images = array_slice(array_values(array_unique($images)), 0, 5);
+
+// item specifics (localizedAspects) from the first listing: the seller-filled attribute/value pairs
+$specs = array(); $mpn_ebay = '';
+if (!empty($items[0]['itemId'])) {
+	$ch = curl_init('https://'.$apihost.'/buy/browse/v1/item/'.urlencode($items[0]['itemId']));
+	curl_setopt_array($ch, array(
+		CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10,
+		CURLOPT_HTTPHEADER => array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: EBAY_FR', 'Accept-Language: fr-FR'),
+	));
+	$outit = curl_exec($ch);
+	curl_close($ch);
+	$ji = $outit ? json_decode($outit, true) : null;
+	foreach (($ji['localizedAspects'] ?? array()) as $asp) {
+		$an = trim((string) ($asp['name'] ?? '')); $av = trim((string) ($asp['value'] ?? ''));
+		if ($an === '' || $av === '') { continue; }
+		if (preg_match('/^(EAN|UPC|ISBN|GTIN)$/i', $an)) { continue; }
+		if (preg_match('/^(MPN|Référence fabricant|Numéro de pièce fabricant)$/iu', $an)) { $mpn_ebay = $av; continue; }
+		if (count($specs) < 15) { $specs[$an] = $av; }
+	}
+}
 $merged = array_merge($prev ?: array(), array(
 	'ebay' => $env,
 	'title' => ($prev['title'] ?? '') !== '' ? $prev['title'] : $title,
@@ -87,6 +107,9 @@ $merged = array_merge($prev ?: array(), array(
 	'images' => !empty($prev['images']) ? $prev['images'] : $images,
 	'prix_marche' => $prices ? min($prices).' à '.max($prices).' EUR ('.count($prices).' annonces)' : '',
 	'sources' => array_slice($urls, 0, 3),
+	'specs' => (!empty($prev['specs']) ? array_merge($specs, (array) $prev['specs']) : $specs),
+	'mpn' => ($prev['mpn'] ?? '') !== '' ? $prev['mpn'] : $mpn_ebay,
 ));
+if (($merged['brand'] ?? '') === '' && !empty($specs['Marque'])) { $merged['brand'] = $specs['Marque']; }
 $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = '".$db->escape(json_encode($merged))."' WHERE rowid = ".((int) $row->rowid));
 print json_encode(array('ok' => true, 'found' => (int) count($items), 'info' => $merged));
