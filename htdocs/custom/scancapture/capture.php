@@ -56,7 +56,7 @@ body { padding-bottom: 76px !important; }
 #sc_search { flex: 1; font-size: 1.05em; padding: 9px; border: 1.5px solid #ccc; border-radius: 8px; box-sizing: border-box; }
 .sc_edit, .sc_del { font-size: 1.25em; text-decoration: none; padding: 6px; }
 .sc_actdis { font-size: 1.25em; padding: 6px; color: #bbb; }
-.sc_pick { font-size: 1.1em !important; padding: 10px !important; margin: 4px 4px 0 0; display: inline-block; }
+.sc_pick, .sc_dupbtn { font-size: 1.1em !important; padding: 10px !important; margin: 4px 4px 0 0; display: inline-block; }
 .sc_modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; }
 .sc_modal .box { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 12px; padding: 18px; width: min(92vw, 420px); box-shadow: 0 6px 24px rgba(0,0,0,0.4); max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
 .sc_modal h3 { margin: 0 0 12px; }
@@ -279,16 +279,48 @@ jQuery(function() {
 		list.forEach(function(p) { h += '<button type="button" class="button sc_pick" data-id="' + p.rowid + '" data-stub="' + stub + '">' + p.ref + '<br><small>' + p.label + '</small></button> '; });
 		return h;
 	}
+	var scDupPending = null;
+	jQuery(document).on('click', '.sc_dup_merge', function(ev) {
+		ev.preventDefault();
+		if (!scDupPending) { return; }
+		var p = jQuery.extend({}, scDupPending.params, {merge_row: scDupPending.dup});
+		jQuery.getJSON(base + 'saverow.php', p).done(function(r) {
+			if (!r.ok) { setLive('multi', 'Erreur fusion'); return; }
+			var tr = jQuery('#sc_rows tr[data-id="' + r.merged + '"]');
+			tr.find('td').eq(3).text(r.qty);
+			setLive('ok', '<span class="fa fa-compress"></span> ' + (r.label || '') + ' &mdash; quantit&eacute; cumul&eacute;e : <b>' + r.qty + '</b> (ligne ' + r.merged + ')');
+			scDupPending = null;
+			jQuery('#sc_codek').focus();
+		});
+	});
+	jQuery(document).on('click', '.sc_dup_new', function(ev) {
+		ev.preventDefault();
+		if (!scDupPending) { return; }
+		var p = scDupPending; scDupPending = null;
+		submitRowParams(jQuery.extend({}, p.params, {force: 1}));
+	});
 	function submitRow(forced, replaceRow) {
 		var q = jQuery('#sc_qty').val() || jQuery('#sc_defqty').val() || 1;
 		var params = {code_kezia: jQuery('#sc_codek').val(), ean: jQuery('#sc_ean').val(), qty: q, fk_inventory: jQuery('#sc_inv').val(), token: token};
 		if (!params.code_kezia.trim() && !params.ean.trim()) return;
 		if (forced) params.fk_product = forced;
 		if (replaceRow) params.replace_row = replaceRow;
+		submitRowParams(params, forced);
+	}
+	function submitRowParams(params, forced) {
+		var q = params.qty;
 		jQuery.getJSON(base + 'saverow.php', params).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
 			if (!r.ok) { setLive('multi', 'Erreur'); return; }
+			if (r.status == 'dup') {
+				scDupPending = {dup: r.dup, params: params};
+				setLive('multi', '<b><span class="fa fa-copy"></span> D&eacute;j&agrave; scann&eacute; aujourd\'hui</b> : ' + (r.label || '') + ' (ligne ' + r.dup + ', qt&eacute; ' + r.dup_qty + ')' +
+					'<div style="display:flex;gap:8px;margin-top:6px"><a href="#" class="button sc_dupbtn sc_dup_merge"><span class="fa fa-compress paddingright"></span>Fusionner (+' + q + ')</a>' +
+					'<a href="#" class="button sc_dupbtn sc_dup_new"><span class="fa fa-plus paddingright"></span>Nouvelle ligne</a></div>');
+				clearFields();
+				return;
+			}
 			if (r.status == 'ambiguous' && !forced) {
 				setLive('multi', '<b><?php print dol_escape_js($langs->trans('PickProduct')); ?></b><br>' + pickBtns(r.candidates, r.rowid));
 				return;
@@ -316,9 +348,12 @@ jQuery(function() {
 				});
 			}
 			applyFilter();
-			jQuery('#sc_codek').val(''); jQuery('#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1);
-			jQuery('#sc_codek').focus();
+			clearFields();
 		});
+	}
+	function clearFields() {
+		jQuery('#sc_codek').val(''); jQuery('#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1);
+		jQuery('#sc_codek').focus();
 	}
 	jQuery(document).on('click', '.sc_pick', function() { submitRow(jQuery(this).data('id'), jQuery(this).data('stub') || 0); });
 	jQuery('#sc_submit, .sc_a_submit').on('click', function(e) { e.preventDefault(); submitRow(0); });

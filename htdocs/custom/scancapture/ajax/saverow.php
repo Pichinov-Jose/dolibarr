@@ -60,6 +60,30 @@ if ($forced_product > 0) {
 	$status = 'ambiguous'; $candidates = $ck;
 }
 
+// duplicate scan detection (same product, or same code+EAN pair, still pending today):
+// announce and let the operator merge quantities or force a new row
+$force = GETPOSTINT('force');
+$merge_row = GETPOSTINT('merge_row');
+if ($merge_row > 0) {
+	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET qty = qty + ".((float) $qty)." WHERE rowid = ".((int) $merge_row)." AND sent_to_inv IS NULL");
+	$resql = $db->query("SELECT rowid, qty, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $merge_row));
+	$m = $resql ? $db->fetch_object($resql) : null;
+	print json_encode(array('ok' => (bool) $m, 'merged' => (int) $merge_row, 'qty' => ($m ? price2num($m->qty) : 0), 'label' => ($m ? $m->product_label : ''), 'status' => 'merged'));
+	exit;
+}
+if (!$force && !$replace_row && in_array($status, array('matched', 'unknown'))) {
+	if ($fk_product > 0) {
+		$dupsql = "SELECT rowid, qty, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND datec >= CURDATE() AND fk_product = ".((int) $fk_product)." ORDER BY rowid DESC LIMIT 1";
+	} else {
+		$dupsql = "SELECT rowid, qty, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND datec >= CURDATE() AND ".($codek !== '' ? "code_kezia = '".$db->escape($codek)."'" : "code_kezia IS NULL")." AND ".($ean !== '' ? "ean = '".$db->escape($ean)."'" : "ean IS NULL")." ORDER BY rowid DESC LIMIT 1";
+	}
+	$resql = $db->query($dupsql);
+	if ($resql && ($d = $db->fetch_object($resql))) {
+		print json_encode(array('ok' => true, 'dup' => (int) $d->rowid, 'dup_qty' => price2num($d->qty), 'label' => ($label !== '' ? $label : (string) $d->product_label), 'status' => 'dup'));
+		exit;
+	}
+}
+
 $assoc = ''; $kassoc = '';
 $db->begin();
 // reverse association: EAN identified the product but the scanned Kezia label is unknown
