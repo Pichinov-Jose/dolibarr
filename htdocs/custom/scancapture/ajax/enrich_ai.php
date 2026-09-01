@@ -13,7 +13,7 @@ if (!isModEnabled('ai')) { print json_encode(array('ok' => false, 'error' => 'ai
 require_once DOL_DOCUMENT_ROOT.'/ai/class/ai.class.php';
 
 $rowid = GETPOSTINT('rowid');
-$resql = $db->query("SELECT rowid, ean, code_kezia, product_label, match_source, ean_info FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
+$resql = $db->query("SELECT rowid, ean, code_kezia, product_label, match_source, ean_info, fk_product FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row || empty($row->ean)) { print json_encode(array('ok' => false, 'error' => 'row/ean')); exit; }
 $prev = $row->ean_info ? json_decode($row->ean_info, true) : array();
@@ -26,6 +26,18 @@ if ($count >= (int) getDolGlobalString('SCANCAPTURE_AI_DAILY_MAX', '200')) { pri
 dolibarr_set_const($db, $kday, (string) ($count + 1), 'chaine', 0, '', 1);
 
 $context = '';
+if ($row->product_label && strpos((string) $row->match_source, 'variantof:') !== 0) {
+	// matched/created row: the shop already knows this product — feed its label and supplier to the search
+	$context = " Contexte magasin : ce produit est connu sous le libellé \"".$row->product_label."\" (libellé interne, souvent abrégé — sers-t'en comme indice de marque/modèle).";
+	if (!empty($row->fk_product)) {
+		$resql = $db->query("SELECT s.nom, s.url FROM ".MAIN_DB_PREFIX."product_fournisseur_price pfp
+			JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = pfp.fk_soc
+			WHERE pfp.fk_product = ".((int) $row->fk_product)." ORDER BY pfp.quantity ASC, pfp.rowid ASC LIMIT 1");
+		if ($resql && ($sup = $db->fetch_object($resql))) {
+			$context .= " Fournisseur : ".$sup->nom.(!empty($sup->url) ? " — consulte EN PRIORITE son site ".$sup->url : "").".";
+		}
+	}
+}
 if (strpos((string) $row->match_source, 'variantof:') === 0 && $row->product_label) {
 	$context = " Contexte magasin : ce code appartient probablement a une variante de la famille \"".$row->product_label."\".";
 	// manufacturer/distributor website from the family supplier thirdparty card, to steer the web search
