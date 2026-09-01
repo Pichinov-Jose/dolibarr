@@ -92,9 +92,9 @@ html.scfs #id-container { width: 100% !important; }
 	#sc_bar { display: none; }
 	#sc_livewrap { position: static; }
 	body { padding-bottom: 10px !important; }
-	/* single clean 1100px column, centered: fields, hint, actions, filter and list aligned */
-	#sc_app, #sc_livewrap, #sc_filter, .div-table-responsive-no-min { max-width: 1100px; margin-left: auto; margin-right: auto; }
-	#sc_deskactions { display: flex; gap: 10px; max-width: 1100px; margin: 2px auto 14px !important; padding: 0 !important; text-align: left; }
+	/* one clean centered column, fluid with the viewport (92vw, capped at 1500px) */
+	#sc_app, #sc_livewrap, #sc_filter, .div-table-responsive-no-min { max-width: min(92vw, 1500px); margin-left: auto; margin-right: auto; }
+	#sc_deskactions { display: flex; gap: 10px; max-width: min(92vw, 1500px); margin: 2px auto 14px !important; padding: 0 !important; text-align: left; }
 	#sc_deskactions .butAction { margin: 0 !important; }
 	#sc_deskactions .sc_a_send { margin-left: auto !important; }
 	#sc_live { margin: 10px 0 0; }
