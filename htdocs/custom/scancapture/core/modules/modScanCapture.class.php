@@ -86,6 +86,11 @@ class modScanCapture extends DolibarrModules
 		foreach ($sqls as $sql) {
 			$this->db->query($sql);
 		}
+		// supplier/manufacturer product-page URL captured by the enrichment, to ease later updates
+		include_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+		$ef = new ExtraFields($this->db);
+		$ef->addExtraField('supplier_url', 'URL produit fournisseur', 'url', 100, 255, 'product', 0, 0, '', '', 1, '', 1);
+
 		return $this->_init(array(), $options);
 	}
 }

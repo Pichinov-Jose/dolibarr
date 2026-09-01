@@ -72,6 +72,17 @@ if (!empty($row->ean)) {
 	$assoc = scAssocEan($db, $user, (int) $p->id, $row->ean);
 	if ($assoc && $assoc != 'already' && $assoc != 'none') { $done[] = 'EAN ('.$assoc.')'; }
 }
+// manufacturer/supplier product page for future updates (only when not already set)
+$srcurl = '';
+foreach ((array) ($info['sources'] ?? array()) as $u) {
+	if (!is_string($u) || !preg_match('#^https?://#i', $u)) { continue; }
+	if (stripos($u, 'ebay.') === false) { $srcurl = $u; break; }
+	if ($srcurl === '') { $srcurl = $u; }
+}
+if ($srcurl !== '') {
+	$resupd = $db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, supplier_url) VALUES (".((int) $p->id).", '".$db->escape($srcurl)."') ON DUPLICATE KEY UPDATE supplier_url = IF(supplier_url IS NULL OR supplier_url = '', VALUES(supplier_url), supplier_url)");
+	if ($resupd && $db->affected_rows($resupd) > 0) { $done[] = 'URL fournisseur'; }
+}
 scTagToUpdate($db, $user, (int) $p->id);
 $db->commit();
 $nbimg = 0;

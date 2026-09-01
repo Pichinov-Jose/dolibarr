@@ -87,6 +87,16 @@ if ($buyprice > 0) {
 	$db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET price = ".((float) $buyprice)." * quantity, unitprice = ".((float) $buyprice)." WHERE fk_product = ".((int) $pid));
 	$db->query("UPDATE ".MAIN_DB_PREFIX."product SET cost_price = ".((float) $buyprice)." WHERE rowid = ".((int) $pid));
 }
+// keep the manufacturer/supplier product page for future updates (skip volatile ebay listing URLs when possible)
+$srcurl = '';
+foreach ((array) ($info['sources'] ?? array()) as $u) {
+	if (!is_string($u) || !preg_match('#^https?://#i', $u)) { continue; }
+	if (stripos($u, 'ebay.') === false) { $srcurl = $u; break; }
+	if ($srcurl === '') { $srcurl = $u; }
+}
+if ($srcurl !== '') {
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, supplier_url) VALUES (".((int) $pid).", '".$db->escape($srcurl)."') ON DUPLICATE KEY UPDATE supplier_url = IF(supplier_url IS NULL OR supplier_url = '', VALUES(supplier_url), supplier_url)");
+}
 $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid).", status = 'created', product_label = '".$db->escape($label)."', stock_before = 0 WHERE rowid = ".((int) $rowid));
 $db->commit();
 $nbimg = 0;
