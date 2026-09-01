@@ -73,9 +73,9 @@ if ($merge_row > 0) {
 }
 if (!$force && !$replace_row && in_array($status, array('matched', 'unknown'))) {
 	if ($fk_product > 0) {
-		$dupsql = "SELECT rowid, qty, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND datec >= CURDATE() AND fk_product = ".((int) $fk_product)." ORDER BY rowid DESC LIMIT 1";
+		$dupsql = "SELECT rowid, qty, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product = ".((int) $fk_product)." ORDER BY rowid DESC LIMIT 1";
 	} else {
-		$dupsql = "SELECT rowid, qty, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND datec >= CURDATE() AND ".($codek !== '' ? "code_kezia = '".$db->escape($codek)."'" : "code_kezia IS NULL")." AND ".($ean !== '' ? "ean = '".$db->escape($ean)."'" : "ean IS NULL")." ORDER BY rowid DESC LIMIT 1";
+		$dupsql = "SELECT rowid, qty, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND ".($codek !== '' ? "code_kezia = '".$db->escape($codek)."'" : "code_kezia IS NULL")." AND ".($ean !== '' ? "ean = '".$db->escape($ean)."'" : "ean IS NULL")." ORDER BY rowid DESC LIMIT 1";
 	}
 	$resql = $db->query($dupsql);
 	if ($resql && ($d = $db->fetch_object($resql))) {
