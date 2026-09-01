@@ -41,6 +41,14 @@ if ($forced_product > 0) {
 		$ok = 0;
 		foreach ($ck as $c) if ($c['rowid'] == $fk_product) $ok = 1;
 		if (!$ok) {
+			// scanner-created variant: the EAN product is a child (variant_parent_ref) of the code-side family — no conflict
+			$resql = $db->query("SELECT variant_parent_ref FROM ".MAIN_DB_PREFIX."product_extrafields WHERE fk_object = ".((int) $fk_product));
+			$vpr = ($resql && ($x = $db->fetch_object($resql))) ? trim((string) $x->variant_parent_ref) : '';
+			if ($vpr !== '') {
+				foreach ($ck as $c) if (!strcasecmp((string) $c['ref'], $vpr)) { $ok = 1; }
+			}
+		}
+		if (!$ok) {
 			// labels disagree: let the operator choose between both products (red two-column alert)
 			$mismatch = 1; $status = 'mismatch'; $fk_product = 0; $label = ''; $source = '';
 		}

@@ -18,7 +18,7 @@ $preinv = GETPOSTINT('fk_inventory');
 $nbToday = $nbUnknown = 0; $nbPending = 0;
 $resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created')");
 if ($resql && ($o = $db->fetch_object($resql))) { $nbPending = (int) $o->n; }
-$resql = $db->query("SELECT COUNT(*) AS n, SUM(status = 'unknown') AS u FROM ".MAIN_DB_PREFIX."scan_capture WHERE datec >= CURDATE()");
+$resql = $db->query("SELECT COUNT(*) AS n, SUM(status = 'unknown') AS u FROM ".MAIN_DB_PREFIX."scan_capture WHERE datec >= CURDATE() OR sent_to_inv IS NULL");
 if ($resql && ($o = $db->fetch_object($resql))) { $nbToday = (int) $o->n; $nbUnknown = (int) $o->u; }
 ?>
 <script>document.documentElement.classList.add('scfs');</script>
@@ -208,7 +208,7 @@ html.scfs #id-container { width: 100% !important; }
 $resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
-		print '<tr class="oddeven" data-id="'.$o->rowid.'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').(in_array($o->status, array('matched', 'created')) && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
+		print '<tr class="oddeven" data-id="'.$o->rowid.'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').(in_array($o->status, array('matched', 'created')) && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').(in_array($o->status, array('mismatch', 'ambiguous')) ? '<a href="#" class="sc_resolve" title="Résoudre : choisir le bon produit" data-row="'.$o->rowid.'" data-ck="'.dol_escape_htmltag((string) $o->code_kezia).'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-qty="'.price2num($o->qty).'"><span class="fa fa-question-circle" style="color:#b71c1c"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
 	}
 }
 ?>
@@ -555,7 +555,7 @@ jQuery(function() {
 		if (a.data('label')) { scAddCand(String(a.data('label')), mode == 'update' ? 'actuel' : 'scan'); scSetSrc('sc_cr_label_src', mode == 'update' ? 'actuel' : 'scan'); }
 		jQuery.getJSON(base + 'createinfo.php', {rowid: crRow, token: token}, function(ci) {
 			if (!(ci && ci.ok)) { return; }
-			if (ci.code_kezia) { jQuery('#sc_cr_ean').text('EAN : ' + (ci.ean || '—') + ' · Code Kezia : ' + ci.code_kezia); }
+			jQuery('#sc_cr_ean').text('EAN : ' + (ci.ean || '—') + (ci.code_kezia ? ' · Code Kezia : ' + ci.code_kezia : '') + (ci.datec ? ' · scanné le ' + ci.datec : ''));
 			if (crMode == 'update' && ci.product) {
 				var p = ci.product;
 				var h = '<span class="tit"><span class="fa fa-cube paddingright"></span>Produit : <a href="' + p.url + '" target="_blank">' + scEsc(p.ref) + '</a> — ' + scEsc(p.label) + '</span>';
@@ -594,6 +594,22 @@ jQuery(function() {
 	}
 	jQuery(document).on('click', '.sc_create', function(ev) { ev.preventDefault(); scOpenPopup(jQuery(this), 'create'); });
 	jQuery(document).on('click', '.sc_enrich', function(ev) { ev.preventDefault(); scOpenPopup(jQuery(this), 'update'); });
+	jQuery(document).on('click', '.sc_resolve', function(ev) {
+		ev.preventDefault();
+		var a = jQuery(this);
+		// refill the scan fields so the pick flow can resubmit, then reopen the chooser from the stored candidates
+		jQuery('#sc_codek').val(a.data('ck') || '');
+		jQuery('#sc_ean').val(a.data('ean') || '');
+		jQuery('#sc_qty').val(a.data('qty') || 1);
+		jQuery.getJSON(base + 'createinfo.php', {rowid: a.data('row'), token: token}, function(ci) {
+			if (ci && ci.ok && ci.candidates && ci.candidates.length) {
+				setLive('multi', '<b><?php print dol_escape_js($langs->trans('PickProduct')); ?></b> (ligne ' + a.data('row') + (ci.datec ? ', scanné le ' + ci.datec : '') + ')<br>' + pickBtns(ci.candidates, a.data('row')));
+				jQuery('html, body').animate({scrollTop: 0}, 200);
+			} else {
+				setLive('multi', 'Pas de candidats mémorisés — supprime la ligne et re-scanne.');
+			}
+		});
+	});
 	jQuery('#sc_cr_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_create').hide(); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_cr_ok').on('click', function() {
 		var ep = (crMode == 'update') ? 'updatefromrow.php' : 'createfromrow.php';

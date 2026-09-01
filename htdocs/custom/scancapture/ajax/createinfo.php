@@ -8,11 +8,11 @@ if (!$user->admin && !$user->hasRight('stock', 'creer')) accessforbidden();
 top_httphead('application/json');
 
 $rowid = GETPOSTINT('rowid');
-$resql = $db->query("SELECT rowid, code_kezia, ean, match_source, ean_info, fk_product FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
+$resql = $db->query("SELECT rowid, code_kezia, ean, match_source, ean_info, fk_product, status, candidates, datec FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row) { print json_encode(array('ok' => false, 'error' => 'bad row')); exit; }
 
-$out = array('ok' => true, 'ean' => (string) $row->ean, 'code_kezia' => (string) $row->code_kezia, 'family' => null, 'product' => null, 'info' => ($row->ean_info ? json_decode($row->ean_info) : null));
+$out = array('ok' => true, 'ean' => (string) $row->ean, 'code_kezia' => (string) $row->code_kezia, 'family' => null, 'product' => null, 'info' => ($row->ean_info ? json_decode($row->ean_info) : null), 'status' => (string) $row->status, 'candidates' => ($row->candidates ? json_decode($row->candidates) : null), 'datec' => dol_print_date($db->jdate($row->datec), 'dayhour'));
 
 // matched product (enrich-existing mode): current values shown and prefilled in the popup
 if (!empty($row->fk_product)) {
