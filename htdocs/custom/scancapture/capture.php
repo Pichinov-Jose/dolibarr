@@ -297,7 +297,7 @@ jQuery(function() {
 	}
 	function pickBtns(list, stub) {
 		var h = '';
-		list.forEach(function(p) { h += '<button type="button" class="button sc_pick" data-id="' + p.rowid + '" data-stub="' + stub + '">' + p.ref + '<br><small>' + p.label + '</small></button> '; });
+		list.forEach(function(p) { h += '<button type="button" class="button sc_pick" data-id="' + p.rowid + '" data-stub="' + stub + '">' + p.ref + (p.origin ? ' <span style="background:#eef2f7;color:#455a64;border-radius:9px;padding:1px 7px;font-size:0.78em;font-weight:normal">' + p.origin + '</span>' : '') + '<br><small>' + p.label + (p.stock !== undefined ? ' · stock ' + p.stock : '') + '</small></button> '; });
 		return h;
 	}
 	var scDupPending = null;
