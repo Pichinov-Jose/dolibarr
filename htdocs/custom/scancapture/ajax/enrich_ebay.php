@@ -23,7 +23,8 @@ $resql = $db->query("SELECT rowid, ean, ean_info FROM ".MAIN_DB_PREFIX."scan_cap
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row || empty($row->ean)) { print json_encode(array('ok' => false, 'error' => 'row/ean')); exit; }
 $prev = $row->ean_info ? json_decode($row->ean_info, true) : array();
-if (!empty($prev['ebay']) && $prev['ebay'] === $env) { print json_encode(array('ok' => true, 'cached' => true, 'info' => $prev)); exit; }
+// cache version 2 = includes item specifics (localizedAspects); older caches re-fetch once
+if (!empty($prev['ebay']) && $prev['ebay'] === $env && (int) ($prev['ebay_v'] ?? 0) >= 2) { print json_encode(array('ok' => true, 'cached' => true, 'info' => $prev)); exit; }
 
 // daily guard (free tier allows 5000/day; stay well under)
 $kday = 'SCANCAPTURE_EBAY_'.dol_print_date(dol_now(), '%Y%m%d');
@@ -70,6 +71,19 @@ $j = $out ? json_decode($out, true) : null;
 if ($code != 200) { print json_encode(array('ok' => false, 'error' => 'api '.$code, 'detail' => substr((string) $out, 0, 200))); exit; }
 
 $items = $j['itemSummaries'] ?? array();
+$mkt = 'EBAY_FR';
+if (!count($items)) {
+	// nothing on the FR marketplace: US brands (0-prefixed UPC-A and others) often only list on ebay.com
+	$ch = curl_init('https://'.$apihost.'/buy/browse/v1/item_summary/search?gtin='.urlencode($row->ean).'&limit=5');
+	curl_setopt_array($ch, array(
+		CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10,
+		CURLOPT_HTTPHEADER => array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: EBAY_US'),
+	));
+	$out = curl_exec($ch);
+	curl_close($ch);
+	$j2 = $out ? json_decode($out, true) : null;
+	if (!empty($j2['itemSummaries'])) { $items = $j2['itemSummaries']; $mkt = 'EBAY_US'; }
+}
 $title = ''; $titles = array(); $images = array(); $prices = array(); $urls = array();
 foreach ($items as $it) {
 	if ($title === '' && !empty($it['title'])) { $title = $it['title']; }
@@ -87,7 +101,7 @@ if (!empty($items[0]['itemId'])) {
 	$ch = curl_init('https://'.$apihost.'/buy/browse/v1/item/'.urlencode($items[0]['itemId']));
 	curl_setopt_array($ch, array(
 		CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10,
-		CURLOPT_HTTPHEADER => array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: EBAY_FR', 'Accept-Language: fr-FR'),
+		CURLOPT_HTTPHEADER => array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: '.$mkt, 'Accept-Language: fr-FR'),
 	));
 	$outit = curl_exec($ch);
 	curl_close($ch);
@@ -102,10 +116,11 @@ if (!empty($items[0]['itemId'])) {
 }
 $merged = array_merge($prev ?: array(), array(
 	'ebay' => $env,
+	'ebay_v' => 2,
 	'title' => ($prev['title'] ?? '') !== '' ? $prev['title'] : $title,
 	'titles' => array_slice($titles, 0, 5),
 	'images' => !empty($prev['images']) ? $prev['images'] : $images,
-	'prix_marche' => $prices ? min($prices).' à '.max($prices).' EUR ('.count($prices).' annonces)' : '',
+	'prix_marche' => $prices ? min($prices).' à '.max($prices).' '.((string) ($items[0]['price']['currency'] ?? 'EUR')).' ('.count($prices).' annonces'.($mkt == 'EBAY_US' ? ', eBay US' : '').')' : '',
 	'sources' => array_slice($urls, 0, 3),
 	'specs' => (!empty($prev['specs']) ? array_merge($specs, (array) $prev['specs']) : $specs),
 	'mpn' => ($prev['mpn'] ?? '') !== '' ? $prev['mpn'] : $mpn_ebay,
