@@ -74,9 +74,9 @@ $force = GETPOSTINT('force');
 $merge_row = GETPOSTINT('merge_row');
 if ($merge_row > 0) {
 	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET qty = qty + ".((float) $qty)." WHERE rowid = ".((int) $merge_row)." AND sent_to_inv IS NULL");
-	$resql = $db->query("SELECT rowid, qty, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $merge_row));
+	$resql = $db->query("SELECT rowid, qty, product_label, stock_before FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $merge_row));
 	$m = $resql ? $db->fetch_object($resql) : null;
-	print json_encode(array('ok' => (bool) $m, 'merged' => (int) $merge_row, 'qty' => ($m ? price2num($m->qty) : 0), 'label' => ($m ? $m->product_label : ''), 'status' => 'merged'));
+	print json_encode(array('ok' => (bool) $m, 'merged' => (int) $merge_row, 'qty' => ($m ? price2num($m->qty) : 0), 'label' => ($m ? $m->product_label : ''), 'status' => 'merged', 'stock_before' => ($m && $m->stock_before !== null ? (float) $m->stock_before : null)));
 	exit;
 }
 if (!$force && !$replace_row && in_array($status, array('matched', 'unknown'))) {
@@ -107,11 +107,22 @@ if ($status == 'matched' && $ean !== '' && $fk_product > 0 && !$eanIsKnown) {
 	$assoc = scAssocEan($db, $user, $fk_product, $ean);
 }
 $fed = 0; // inventory is now fed in one shot by ajax/sendtoinv.php after the operator validates the list
-$sql = "INSERT INTO ".MAIN_DB_PREFIX."scan_capture (datec, fk_user, code_kezia, ean, qty, fk_product, match_source, product_label, candidates, status, fk_inventory, import_key) VALUES (";
+// timestamped snapshot of the theoretical stock at scan time (target warehouse when an inventory is set)
+$stock_before = null;
+if ($fk_product > 0 && $status == 'matched') {
+	$wh = 0;
+	if ($fk_inventory > 0) {
+		$resql = $db->query("SELECT fk_warehouse FROM ".MAIN_DB_PREFIX."inventory WHERE rowid = ".((int) $fk_inventory));
+		if ($resql && ($x = $db->fetch_object($resql))) { $wh = (int) $x->fk_warehouse; }
+	}
+	$resql = $db->query("SELECT SUM(reel) AS s FROM ".MAIN_DB_PREFIX."product_stock WHERE fk_product = ".((int) $fk_product).($wh > 0 ? " AND fk_entrepot = ".$wh : ""));
+	$stock_before = ($resql && ($x = $db->fetch_object($resql)) && $x->s !== null) ? (float) $x->s : 0.0;
+}
+$sql = "INSERT INTO ".MAIN_DB_PREFIX."scan_capture (datec, fk_user, code_kezia, ean, qty, fk_product, match_source, product_label, candidates, status, fk_inventory, stock_before, import_key) VALUES (";
 $sql .= "NOW(), ".((int) $user->id).", ".($codek !== '' ? "'".$db->escape($codek)."'" : "NULL").", ".($ean !== '' ? "'".$db->escape($ean)."'" : "NULL").", ".((float) $qty).", ";
 $sql .= ($fk_product > 0 ? (int) $fk_product : "NULL").", ".($source !== '' ? "'".$db->escape($source)."'" : "NULL").", ".($label !== '' ? "'".$db->escape($label)."'" : "NULL").", ";
-$sql .= (count($candidates) > 1 || $status == 'mismatch' ? "'".$db->escape(json_encode($candidates))."'" : "NULL").", '".$db->escape($status)."', ".($fk_inventory > 0 ? (int) $fk_inventory : "NULL").", '".$db->escape(dol_print_date(dol_now(), '%Y%m%d') ? 'SCAN'.dol_print_date(dol_now(), '%y%m%d') : 'SCAN')."')";
+$sql .= (count($candidates) > 1 || $status == 'mismatch' ? "'".$db->escape(json_encode($candidates))."'" : "NULL").", '".$db->escape($status)."', ".($fk_inventory > 0 ? (int) $fk_inventory : "NULL").", ".($stock_before === null ? "NULL" : (float) $stock_before).", '".$db->escape(dol_print_date(dol_now(), '%Y%m%d') ? 'SCAN'.dol_print_date(dol_now(), '%y%m%d') : 'SCAN')."')";
 $resql = $db->query($sql);
 $rowid = $resql ? $db->last_insert_id(MAIN_DB_PREFIX.'scan_capture') : 0;
 $db->commit();
-print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc));
+print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc, 'stock_before' => $stock_before));

@@ -66,6 +66,7 @@ class modScanCapture extends DolibarrModules
 				ean_info TEXT NULL,
 				fk_inventory INTEGER NULL,
 				sent_to_inv DATETIME NULL,
+				stock_before DOUBLE DEFAULT NULL,
 				import_key VARCHAR(14) NULL,
 				KEY idx_scap_status (status),
 				KEY idx_scap_ean (ean),
