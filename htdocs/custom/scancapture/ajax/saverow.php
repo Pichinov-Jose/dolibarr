@@ -95,13 +95,14 @@ if (!$force && !$replace_row && in_array($status, array('matched', 'unknown'))) 
 // product origin badges for the operator choice (Kezia migration / scanner-AI creation / Dolibarr-PS)
 if (in_array($status, array('mismatch', 'ambiguous'))) {
 	$scOrigin = function ($pid) use ($db) {
-		$resql = $db->query("SELECT p.import_key, pe.kezia_idart FROM ".MAIN_DB_PREFIX."product p LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $pid));
+		$resql = $db->query("SELECT p.import_key, pe.kezia_idart, u.login AS author FROM ".MAIN_DB_PREFIX."product p LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = p.fk_user_author WHERE p.rowid = ".((int) $pid));
 		if ($resql && ($o = $db->fetch_object($resql))) {
 			$ik = (string) $o->import_key;
 			if (!empty($o->kezia_idart) || strpos($ik, 'KZMIG') === 0) { return 'Kezia'; }
 			if (strpos($ik, 'SCAN') === 0) { return 'Dolibarr (scan)'; }
 			if (strpos($ik, 'AI') === 0) { return 'Dolibarr (IA)'; }
-			return 'Dolibarr/PS';
+			if (stripos((string) $o->author, 'splash') !== false) { return 'PS'; }
+			return 'Dolibarr';
 		}
 		return '';
 	};
