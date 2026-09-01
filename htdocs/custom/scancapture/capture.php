@@ -52,6 +52,8 @@ div.phpdebugbar, div.phpdebugbar-openhandler { display: none !important; }
 #sc_bar .badge.zero { display: none; }
 body { padding-bottom: 76px !important; }
 .sc_btn { font-size: 1.25em !important; padding: 15px 10px !important; border-radius: 8px !important; }
+.sc_modal button.sc_btn { background: var(--butactionbg, #79609b) !important; color: var(--butactiontextcolor, #fff) !important; border: none !important; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+.sc_modal button.sc_btn:hover { opacity: 0.9; }
 #sc_filter { max-width: 1100px; margin: 10px 0 6px; display: flex; gap: 8px; }
 #sc_search { flex: 1; font-size: 1.05em; padding: 9px; border: 1.5px solid #ccc; border-radius: 8px; box-sizing: border-box; }
 .sc_edit, .sc_del { font-size: 1.25em; text-decoration: none; padding: 6px; }
@@ -70,6 +72,10 @@ body { padding-bottom: 76px !important; }
 .sc_cand { display: block; width: 100%; text-align: left; margin: 3px 0; padding: 7px 10px; border: 1px solid #b9a5e3; background: #f4f0fc; border-radius: 8px; cursor: pointer; font-size: 0.95em; box-sizing: border-box; }
 .sc_cand:hover { background: #e6dcf7; }
 .sc_cand .src { float: right; color: #7a6aa5; font-size: 0.85em; margin-left: 8px; }
+.sc_src { font-weight: normal; font-size: 0.85em; }
+.sc_spec { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 0.92em; }
+.sc_spec .kv { flex: 1; }
+.sc_spec input[type=checkbox] { width: 18px; height: 18px; }
 .sc_decl { display: inline-block; margin: 3px 4px 0 0; padding: 6px 10px; border: 1px solid #90caf9; background: #e3f2fd; border-radius: 14px; cursor: pointer; font-size: 0.9em; }
 .sc_decl.sel { background: #1976d2; border-color: #1976d2; color: #fff; font-weight: bold; }
 .sc_decl:hover { border-color: #1976d2; }
@@ -78,7 +84,8 @@ body { padding-bottom: 76px !important; }
 #sc_numpad .keys button { font-size: 1.6em; padding: 16px 0; border: 1px solid #bbb; border-radius: 8px; background: #f5f5f5; }
 #sc_numpad .ok { grid-column: span 2; background: #2e7d32 !important; color: #fff; }
 html.scfs #id-top, html.scfs #id-left, html.scfs .side-nav, html.scfs #tmenu_tooltip, html.scfs .tmenudiv { display: none !important; }
-html.scfs #id-right, html.scfs .fiche { padding: 10px !important; margin: 0 !important; width: auto !important; }
+html.scfs #id-right { padding: 10px !important; margin: 0 !important; width: 100% !important; display: block; box-sizing: border-box; }
+html.scfs .fiche { padding: 0 !important; margin: 0 !important; width: auto !important; }
 html.scfs #id-container { width: 100% !important; }
 #sc_deskactions { display: none; }
 @media (min-width: 769px) {
@@ -154,10 +161,11 @@ html.scfs #id-container { width: 100% !important; }
 		<label style="font-weight:normal;display:block"><input type="radio" name="sc_cr_parent" value="none"> Aucun (produit isolé)</label>
 	</div>
 	<div class="row" id="sc_cr_cands_wrap" style="display:none"><label>Libellés possibles (EAN)</label><div id="sc_cr_cands"></div></div>
-	<div class="row"><label><?php print $langs->trans('Label'); ?></label><input type="text" id="sc_cr_label" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
-	<div class="row"><label><?php print $langs->trans('PriceTTC'); ?></label><input type="number" id="sc_cr_price" step="any" inputmode="decimal" placeholder="<?php print $langs->trans('PriceFromFamily'); ?>" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
-	<div class="row"><label>Prix d'achat HT</label><input type="number" id="sc_cr_buyprice" step="any" inputmode="decimal" placeholder="vide = prix d'achat de la famille" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
-	<div class="row"><label>Réf fabricant</label><input type="text" id="sc_cr_mpn" placeholder="réf produit fournisseur (MPN)" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="row" id="sc_cr_specs_wrap" style="display:none"><label>Caractéristiques <span class="opacitymedium sc_src" id="sc_cr_specs_src"></span> <span class="opacitymedium" style="font-weight:normal;float:right">garder · décliner</span></label><div id="sc_cr_specs"></div></div>
+	<div class="row"><label><?php print $langs->trans('Label'); ?> <span class="opacitymedium sc_src" id="sc_cr_label_src"></span></label><input type="text" id="sc_cr_label" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="row"><label><?php print $langs->trans('PriceTTC'); ?> <span class="opacitymedium sc_src" id="sc_cr_price_src"></span></label><input type="number" id="sc_cr_price" step="any" inputmode="decimal" placeholder="<?php print $langs->trans('PriceFromFamily'); ?>" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="row"><label>Prix d'achat HT <span class="opacitymedium sc_src" id="sc_cr_buy_src"></span></label><input type="number" id="sc_cr_buyprice" step="any" inputmode="decimal" placeholder="vide = prix d'achat de la famille" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="row"><label>Réf fabricant <span class="opacitymedium sc_src" id="sc_cr_mpn_src"></span></label><input type="text" id="sc_cr_mpn" placeholder="réf produit fournisseur (MPN)" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="center"><button type="button" class="button sc_btn" id="sc_cr_ok" style="width:100%"><span id="sc_cr_oktxt"><?php print $langs->trans('Create'); ?></span></button></div>
 </div></div>
 
@@ -200,7 +208,7 @@ html.scfs #id-container { width: 100% !important; }
 $resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
-		print '<tr class="oddeven" data-id="'.$o->rowid.'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').($o->status == 'matched' && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
+		print '<tr class="oddeven" data-id="'.$o->rowid.'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').(in_array($o->status, array('matched', 'created')) && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
 	}
 }
 ?>
@@ -399,8 +407,8 @@ jQuery(function() {
 		if (f.nbcat) { extra.push(f.nbcat + ' catégorie(s)'); }
 		if (extra.length) { h += '<br><span class="opacitymedium">Aussi hérité : ' + extra.join(' · ') + '</span>'; }
 		jQuery('#sc_cr_fam').html(h).show();
-		if (f.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = ' + f.price_ttc + ' TTC (famille ' + f.ref + ')'); }
-		if (f.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = ' + f.buy_price + ' HT (famille' + (f.supplier ? ', ' + f.supplier : '') + ')'); }
+		if (f.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = ' + f.price_ttc + ' TTC (famille ' + f.ref + ')'); scSetSrc('sc_cr_price_src', 'famille ' + f.ref); }
+		if (f.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = ' + f.buy_price + ' HT (famille' + (f.supplier ? ', ' + f.supplier : '') + ')'); scSetSrc('sc_cr_buy_src', 'famille' + (f.supplier ? ', ' + f.supplier : '')); }
 	}
 	function scFullName(info) {
 		var t = (info.title || '').trim(), b = (info.brand || '').trim();
@@ -448,9 +456,29 @@ jQuery(function() {
 	}
 	jQuery(document).on('click', '.sc_cand', function() {
 		jQuery('#sc_cr_label').val(jQuery(this).clone().children().remove().end().text());
+		scSetSrc('sc_cr_label_src', jQuery(this).find('.src').text());
 		jQuery('#sc_cr_price').focus();
 	});
 	var crLabelBase = '', crMpnBase = '', crDecl = null;
+	function scSetSrc(id, s) { jQuery('#' + id).text(s ? '(' + s + ')' : ''); }
+	function scRenderSpecs(info, source) {
+		var sp = info.specs || {};
+		var keys = Object.keys(sp);
+		if (!keys.length) { return; }
+		var box = jQuery('#sc_cr_specs').empty();
+		for (var i = 0; i < keys.length; i++) {
+			var k = keys[i], v = sp[k];
+			if (v === null || v === '' || typeof v === 'object') { continue; }
+			var axis = /coloris|couleur|taille|size|color/i.test(k);
+			var row = jQuery('<div class="sc_spec"></div>')
+				.append(jQuery('<span class="kv"></span>').html('<b>' + scEsc(k) + '</b> : ' + scEsc(v)))
+				.append(jQuery('<input type="checkbox" class="sc_spec_keep" checked title="Garder sur la fiche produit">'))
+				.append(jQuery('<input type="checkbox" class="sc_spec_axis" title="Axe de déclinaison (ajouté au libellé)">').prop('checked', axis))
+				.attr('data-k', k).attr('data-v', v);
+			box.append(row);
+		}
+		if (box.children().length) { scSetSrc('sc_cr_specs_src', source); jQuery('#sc_cr_specs_wrap').show(); }
+	}
 	function scRenderDecls(info) {
 		var ds = info.declinaisons || [];
 		if (!ds.length) { return; }
@@ -494,10 +522,11 @@ jQuery(function() {
 		var src = r.cached ? (r.info.ai ? 'IA' : source) + ', cache' : source;
 		if (r.info.title) { scAddCand(scFullName(r.info), src); }
 		if (r.info.titles && r.info.titles.length) { for (var i = 0; i < r.info.titles.length; i++) { scAddCand(r.info.titles[i], 'eBay'); } }
-		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(scFullName(r.info)); }
-		if (r.info.mpn && (!jQuery('#sc_cr_mpn').val() || jQuery('#sc_cr_mpn').attr('data-src') == 'family')) { jQuery('#sc_cr_mpn').val(r.info.mpn).removeAttr('data-src'); }
+		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(scFullName(r.info)); scSetSrc('sc_cr_label_src', src); }
+		if (r.info.mpn && (!jQuery('#sc_cr_mpn').val() || jQuery('#sc_cr_mpn').attr('data-src') == 'family')) { jQuery('#sc_cr_mpn').val(r.info.mpn).removeAttr('data-src'); scSetSrc('sc_cr_mpn_src', src); }
 		scRenderInfo(r.info, src);
 		scRenderDecls(r.info);
+		scRenderSpecs(r.info, src);
 		return !!(r.info.title);
 	}
 	var crMode = 'create';
@@ -515,13 +544,15 @@ jQuery(function() {
 		jQuery('#sc_cr_enrich').hide().empty();
 		scCands = []; jQuery('#sc_cr_cands').empty(); jQuery('#sc_cr_cands_wrap').hide();
 		crLabelBase = ''; crMpnBase = ''; crDecl = null;
+		jQuery('#sc_cr_specs').empty(); jQuery('#sc_cr_specs_wrap').hide();
+		jQuery('.sc_src').text('');
 		jQuery('#sc_cr_decls').empty(); jQuery('#sc_cr_decl_wrap').hide();
 		jQuery('#sc_cr_pfam').text(''); jQuery('#sc_cr_pfam_opt').hide();
 		jQuery('input[name=sc_cr_parent][value=none]').prop('checked', true);
 		jQuery('#sc_cr_parent_label').val('').hide();
 		jQuery('#sc_cr_parent_wrap').toggle(mode != 'update');
 		jQuery('#sc_create').show();
-		if (a.data('label')) { scAddCand(String(a.data('label')), mode == 'update' ? 'actuel' : 'scan'); }
+		if (a.data('label')) { scAddCand(String(a.data('label')), mode == 'update' ? 'actuel' : 'scan'); scSetSrc('sc_cr_label_src', mode == 'update' ? 'actuel' : 'scan'); }
 		jQuery.getJSON(base + 'createinfo.php', {rowid: crRow, token: token}, function(ci) {
 			if (!(ci && ci.ok)) { return; }
 			if (ci.code_kezia) { jQuery('#sc_cr_ean').text('EAN : ' + (ci.ean || '—') + ' · Code Kezia : ' + ci.code_kezia); }
@@ -532,10 +563,10 @@ jQuery(function() {
 				if (p.buy_price) { h += '<br>Achat actuel : <b>' + scEsc(p.buy_price) + ' HT</b>' + (p.supplier ? ' chez ' + scEsc(p.supplier) : '') + (p.ref_fourn ? ' (réf. ' + scEsc(p.ref_fourn) + ')' : ''); }
 				if (p.pmp) { h += '<br><span class="opacitymedium">PMP ' + scEsc(p.pmp) + (p.has_desc ? ' · description en place (conservée)' : ' · description vide (sera remplie)') + '</span>'; }
 				jQuery('#sc_cr_fam').html(h).show();
-				if (!jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(p.label); }
-				if (p.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = inchangé (' + p.price_ttc + ' TTC actuel)'); }
-				if (p.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = inchangé (' + p.buy_price + ' HT actuel)'); }
-				if (p.ref_fourn && !jQuery('#sc_cr_mpn').val()) { jQuery('#sc_cr_mpn').val(p.ref_fourn).attr('data-src', 'family'); }
+				if (!jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(p.label); scSetSrc('sc_cr_label_src', 'actuel'); }
+				if (p.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = inchangé (' + p.price_ttc + ' TTC actuel)'); scSetSrc('sc_cr_price_src', 'actuel'); }
+				if (p.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = inchangé (' + p.buy_price + ' HT actuel)'); scSetSrc('sc_cr_buy_src', 'actuel' + (p.supplier ? ', ' + p.supplier : '')); }
+				if (p.ref_fourn && !jQuery('#sc_cr_mpn').val()) { jQuery('#sc_cr_mpn').val(p.ref_fourn).attr('data-src', 'family'); scSetSrc('sc_cr_mpn_src', 'produit actuel'); }
 				return;
 			}
 			scRenderFam(ci.family);
@@ -548,6 +579,7 @@ jQuery(function() {
 			if (ci.family && ci.family.ref_fourn && !jQuery('#sc_cr_mpn').val()) {
 				jQuery('#sc_cr_mpn').val(ci.family.ref_fourn).attr('data-src', 'family')
 					.attr('title', 'Réf de la famille — à ajuster pour cette déclinaison');
+				scSetSrc('sc_cr_mpn_src', 'famille ' + ci.family.ref + ', à ajuster');
 			}
 		});
 		jQuery.getJSON(base + 'enrich.php', {rowid: crRow, token: token}, function(r) {
@@ -565,7 +597,16 @@ jQuery(function() {
 	jQuery('#sc_cr_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_create').hide(); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_cr_ok').on('click', function() {
 		var ep = (crMode == 'update') ? 'updatefromrow.php' : 'createfromrow.php';
-		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), token: token}).fail(function() {
+		var specsKeep = [];
+		jQuery('#sc_cr_specs .sc_spec').each(function() {
+			var k = jQuery(this).attr('data-k'), v = jQuery(this).attr('data-v');
+			if (jQuery(this).find('.sc_spec_keep').is(':checked')) { specsKeep.push(k + ' : ' + v); }
+			if (jQuery(this).find('.sc_spec_axis').is(':checked')) {
+				var lb = jQuery('#sc_cr_label');
+				if (lb.val().toLowerCase().indexOf(String(v).toLowerCase()) < 0) { lb.val((lb.val() + ' ' + v).trim()); }
+			}
+		});
+		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), token: token}).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
 			jQuery('#sc_create').hide();
@@ -578,7 +619,7 @@ jQuery(function() {
 				return;
 			}
 			tr.find('td').eq(5).html('created <span class="fa fa-clock-o" style="color:#b26a00"></span>');
-			tr.find('a.sc_create').remove();
+			tr.find('a.sc_create').replaceWith('<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + crRow + '" data-ean="' + (jQuery('#sc_cr_ean').text().match(/EAN : (\S+)/) || ['',''])[1].replace('—','') + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>');
 			var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text());
 			var u = jQuery('#sc_unkbadge'); var n = Math.max(0, (parseInt(u.find('a').text()) || 1) - 1); u.find('a').text(n + ' inconnus'); if (!n) u.addClass('zero');
 			setLive(r.warning ? 'multi' : 'ok', '<span class="fa fa-check"></span> ' + r.ref + ' &mdash; ' + r.label + (r.family ? ' [famille ' + r.family + ']' : '') + ' &middot; <?php print dol_escape_js($langs->trans('CreatedPending')); ?>' + (r.warning ? '<br><span class="fa fa-exclamation-triangle"></span> ' + r.warning : ''));

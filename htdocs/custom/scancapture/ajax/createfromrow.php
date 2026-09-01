@@ -52,6 +52,11 @@ $p = new Product($db);
 $info = $row->ean_info ? json_decode($row->ean_info, true) : array();
 $p->ref = $ref; $p->label = $label; $p->type = 0; $p->status = 1; $p->status_buy = 1;
 if (!empty($info['desc_longue'])) { $p->description = $info['desc_longue']; } elseif (!empty($info['desc_courte'])) { $p->description = $info['desc_courte']; }
+// attribute/value pairs the operator ticked to keep on the card
+$specs_keep = trim(GETPOST('specs_keep', 'alphawithlgt'));
+if ($specs_keep !== '') {
+	$p->description = trim((string) $p->description."\n\nCaractéristiques :\n- ".implode("\n- ", array_filter(array_map('trim', explode('||', $specs_keep)))));
+}
 $p->price_base_type = 'TTC';
 $p->price_ttc = ($price > 0 ? $price : ($parent ? (float) $parent->price_ttc : 0));
 $p->tva_tx = ($parent ? (float) $parent->tva_tx : 20);

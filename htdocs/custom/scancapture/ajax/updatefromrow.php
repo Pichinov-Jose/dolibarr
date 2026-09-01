@@ -31,13 +31,22 @@ if ($label !== '' && $label !== $p->label) {
 	$done[] = 'libellé';
 }
 // descriptions from enrichment fill an empty card, never overwrite manual text
+$specs_keep = trim(GETPOST('specs_keep', 'alphawithlgt'));
+$specblock = '';
+if ($specs_keep !== '') {
+	$specblock = "Caractéristiques :\n- ".implode("\n- ", array_filter(array_map('trim', explode('||', $specs_keep))));
+}
 if (empty($p->description)) {
 	$desc = '';
 	if (!empty($info['desc_longue'])) { $desc = $info['desc_longue']; } elseif (!empty($info['desc_courte'])) { $desc = $info['desc_courte']; }
+	if ($specblock !== '') { $desc = trim($desc."\n\n".$specblock); }
 	if ($desc !== '') {
 		$db->query("UPDATE ".MAIN_DB_PREFIX."product SET description = '".$db->escape($desc)."' WHERE rowid = ".((int) $p->id));
 		$done[] = 'description';
 	}
+} elseif ($specblock !== '' && strpos((string) $p->description, 'Caractéristiques :') === false) {
+	$db->query("UPDATE ".MAIN_DB_PREFIX."product SET description = CONCAT(description, '".$db->escape("\n\n".$specblock)."') WHERE rowid = ".((int) $p->id));
+	$done[] = 'caractéristiques';
 }
 // selling price entered in the popup
 if ($price > 0) {
