@@ -166,7 +166,7 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="row"><label><?php print $langs->trans('PriceTTC'); ?> <span class="opacitymedium sc_src" id="sc_cr_price_src"></span></label><input type="number" id="sc_cr_price" step="any" inputmode="decimal" placeholder="<?php print $langs->trans('PriceFromFamily'); ?>" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="row"><label>Prix d'achat HT <span class="opacitymedium sc_src" id="sc_cr_buy_src"></span></label><input type="number" id="sc_cr_buyprice" step="any" inputmode="decimal" placeholder="vide = prix d'achat de la famille" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="row"><label>Réf fabricant <span class="opacitymedium sc_src" id="sc_cr_mpn_src"></span></label><input type="text" id="sc_cr_mpn" placeholder="réf produit fournisseur (MPN)" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
-	<div class="center"><button type="button" class="button sc_btn" id="sc_cr_ok" style="width:100%"><span id="sc_cr_oktxt"><?php print $langs->trans('Create'); ?></span></button></div>
+	<div style="display:flex;gap:10px"><button type="button" class="button sc_btn" id="sc_cr_ok" style="flex:2"><span id="sc_cr_oktxt"><?php print $langs->trans('Create'); ?></span></button><button type="button" class="button sc_btn" id="sc_cr_cancel" style="flex:1;background:#90a4ae !important"><?php print $langs->trans('Cancel'); ?></button></div>
 </div></div>
 
 <div id="sc_numpad" class="sc_modal"><div class="box" style="width:290px">
@@ -546,9 +546,9 @@ jQuery(function() {
 	var crMode = 'create';
 	function scOpenPopup(a, mode) {
 		crRow = a.data('row'); crMode = mode;
-		jQuery('#sc_cr_title').text(mode == 'update' ? 'Enrichir le produit' : '<?php print dol_escape_js($langs->trans('CreateProduct')); ?>');
+		jQuery('#sc_cr_title').html(mode == 'update' ? 'Enrichir le produit' : '<?php print dol_escape_js($langs->trans('CreateProduct')); ?>');
 		jQuery('#sc_cr_picto').attr('class', mode == 'update' ? 'fa fa-magic paddingright' : 'fa fa-plus-circle paddingright');
-		jQuery('#sc_cr_oktxt').text(mode == 'update' ? 'Mettre à jour' : '<?php print dol_escape_js($langs->trans('Create')); ?>');
+		jQuery('#sc_cr_oktxt').html(mode == 'update' ? 'Mettre à jour' : '<?php print dol_escape_js($langs->trans('Create')); ?>');
 		jQuery('#sc_cr_ean').text('EAN : ' + (a.data('ean') || '—'));
 		jQuery('#sc_cr_label').val(a.data('label') || '');
 		jQuery('#sc_cr_price').val('').attr('placeholder', mode == 'update' ? 'vide = prix inchangé' : '<?php print dol_escape_js($langs->trans('PriceFromFamily')); ?>');
@@ -624,7 +624,7 @@ jQuery(function() {
 			}
 		});
 	});
-	jQuery('#sc_cr_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_create').hide(); jQuery('#sc_codek').focus(); });
+	jQuery('#sc_cr_close, #sc_cr_cancel').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_create').hide(); jQuery('#sc_codek').focus(); });
 	jQuery('#sc_cr_ok').on('click', function() {
 		var ep = (crMode == 'update') ? 'updatefromrow.php' : 'createfromrow.php';
 		var specsKeep = [];
