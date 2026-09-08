@@ -26,6 +26,18 @@ if ($count >= (int) getDolGlobalString('SCANCAPTURE_AI_DAILY_MAX', '200')) { pri
 dolibarr_set_const($db, $kday, (string) ($count + 1), 'chaine', 0, '', 1);
 
 $context = '';
+// sibling scans (same Kezia label) already identified: strong hint that this EAN is another declination of the same model
+$resql = $db->query("SELECT ean, product_label FROM ".MAIN_DB_PREFIX."scan_capture
+	WHERE code_kezia = '".$db->escape((string) $row->code_kezia)."' AND rowid != ".((int) $row->rowid)."
+	AND code_kezia IS NOT NULL AND code_kezia != '' AND product_label IS NOT NULL AND product_label != ''
+	AND status IN ('matched', 'created') ORDER BY rowid DESC LIMIT 3");
+if ($resql) {
+	$sib = array();
+	while ($o = $db->fetch_object($resql)) { $sib[] = 'EAN '.$o->ean.' = "'.$o->product_label.'"'; }
+	if ($sib) {
+		$context .= " Produits FRERES du meme rayon (meme etiquette famille, autres declinaisons deja identifiees) : ".implode(' ; ', $sib).". L'EAN recherche est tres probablement une autre declinaison (diametre/coloris/taille) du MEME modele.";
+	}
+}
 if ($row->product_label && strpos((string) $row->match_source, 'variantof:') !== 0) {
 	// matched/created row: the shop already knows this product — feed its label and supplier to the search
 	$context = " Contexte magasin : ce produit est connu sous le libellé \"".$row->product_label."\" (libellé interne, souvent abrégé — sers-t'en comme indice de marque/modèle).";
