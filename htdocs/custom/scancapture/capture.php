@@ -169,7 +169,7 @@ html.scfs #id-container { width: 100% !important; }
 	<div style="display:flex;gap:10px"><button type="button" class="button sc_btn" id="sc_cr_ok" style="flex:2"><span id="sc_cr_oktxt"><?php print $langs->trans('Create'); ?></span></button><button type="button" class="button sc_btn" id="sc_cr_cancel" style="flex:1;background:#90a4ae !important"><?php print $langs->trans('Cancel'); ?></button></div>
 </div></div>
 
-<div id="sc_numpad" class="sc_modal"><div class="box" style="width:290px">
+<div id="sc_numpad" class="sc_modal"><div class="box" style="width:min(290px,86vw)">
 	<div class="val" id="sc_np_val"></div>
 	<div class="keys">
 		<button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
@@ -261,7 +261,11 @@ jQuery(function() {
 	refreshChips();
 	// numpad
 	var npCb = null;
-	function openPad(initial, cb) { npCb = cb; jQuery('#sc_np_val').text(initial || ''); jQuery('#sc_numpad').show(); }
+	function openPad(initial, cb) {
+		// close any OS keyboard first: our pad and Gboard must never stack on the DT50
+		if (document.activeElement && document.activeElement.blur) { document.activeElement.blur(); }
+		npCb = cb; jQuery('#sc_np_val').text(initial || ''); jQuery('#sc_numpad').show();
+	}
 	jQuery('#sc_numpad .keys button').on('click', function() {
 		var k = jQuery(this).data('k') + ''; var v = jQuery('#sc_np_val').text();
 		if (k == 'C') { jQuery('#sc_np_val').text(''); return; }
