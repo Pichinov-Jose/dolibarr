@@ -45,7 +45,8 @@ if ($resql) {
 		}
 	}
 	if ($sib) {
-		$context .= " Produits FRERES du meme rayon (meme etiquette famille, autres declinaisons deja identifiees) : ".implode(' ; ', $sib).". L'EAN recherche est tres probablement une autre declinaison (diametre/coloris/taille) du MEME modele.".$sibspecs;
+		$context .= " Produits FRERES du meme rayon (meme etiquette famille, autres declinaisons deja identifiees) : ".implode(' ; ', $sib).". L'EAN recherche est tres probablement une autre declinaison (diametre/coloris/taille) du MEME modele.".$sibspecs
+			." IMPORTANT : meme si tu ne peux pas determiner la declinaison exacte de cet EAN, renvoie quand meme nom_famille, marque, descriptions et les specs communes du modele heritees des freres (laisse vide la valeur de l'axe de declinaison inconnu), avec libelle = nom du modele suivi de \"(declinaison a preciser)\" et confiance basse — ne renvoie PAS un resultat vide.";
 	}
 }
 if ($row->product_label && strpos((string) $row->match_source, 'variantof:') !== 0) {
