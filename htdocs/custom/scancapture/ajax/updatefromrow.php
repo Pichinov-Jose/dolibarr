@@ -59,6 +59,17 @@ if ($buyprice > 0) {
 	$db->query("UPDATE ".MAIN_DB_PREFIX."product SET cost_price = ".((float) $buyprice)." WHERE rowid = ".((int) $p->id));
 	$done[] = "prix d'achat";
 }
+// no supplier line yet + supplier chosen in the popup → create the first supplier price line
+$fk_supplier = GETPOSTINT('fk_supplier');
+$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE fk_product = ".((int) $p->id));
+$hasPfp = ($resql && ($x = $db->fetch_object($resql))) ? ((int) $x->n > 0) : false;
+if (!$hasPfp && $fk_supplier > 0) {
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_fournisseur_price (datec, tms, fk_product, fk_soc, ref_fourn, price, quantity, unitprice, tva_tx, entity, fk_user)
+		VALUES (NOW(), NOW(), ".((int) $p->id).", ".((int) $fk_supplier).", '".$db->escape($mpn)."', ".((float) $buyprice).", 1, ".((float) $buyprice).", 20, 1, ".((int) $user->id).")");
+	$done[] = 'fournisseur + prix d\'achat créés';
+	$hasPfp = true; $mpn = ''; $buyprice = 0; // consumed
+}
+
 // manufacturer ref becomes the supplier product ref (unique per supplier: warn when taken)
 $warning = '';
 if ($mpn !== '') {

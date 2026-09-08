@@ -20,12 +20,12 @@ if (!empty($row->fk_product)) {
 		FROM ".MAIN_DB_PREFIX."product p LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $row->fk_product));
 	if ($resql && ($pr = $db->fetch_object($resql))) {
 		$pr->buy_price = 0; $pr->ref_fourn = ''; $pr->supplier = '';
-		$resql = $db->query("SELECT pfp.unitprice, pfp.ref_fourn, s.nom AS supplier
+		$resql = $db->query("SELECT pfp.unitprice, pfp.ref_fourn, pfp.fk_soc AS supplier_id, s.nom AS supplier
 			FROM ".MAIN_DB_PREFIX."product_fournisseur_price pfp
 			LEFT JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = pfp.fk_soc
 			WHERE pfp.fk_product = ".((int) $pr->rowid)." ORDER BY pfp.quantity ASC, pfp.rowid ASC LIMIT 1");
 		if ($resql && ($bp = $db->fetch_object($resql))) {
-			$pr->buy_price = (float) $bp->unitprice; $pr->ref_fourn = (string) $bp->ref_fourn; $pr->supplier = (string) $bp->supplier;
+			$pr->buy_price = (float) $bp->unitprice; $pr->ref_fourn = (string) $bp->ref_fourn; $pr->supplier = (string) $bp->supplier; $pr->supplier_id = (int) $bp->supplier_id;
 		}
 		$out['product'] = array(
 			'id' => (int) $pr->rowid,
@@ -38,6 +38,7 @@ if (!empty($row->fk_product)) {
 			'pmp' => ((float) $pr->pmp > 0 ? price((float) $pr->pmp) : ''),
 			'buy_price' => ((float) $pr->buy_price > 0 ? price((float) $pr->buy_price) : ''),
 			'supplier' => (string) $pr->supplier,
+			'supplier_id' => (int) (isset($pr->supplier_id) ? $pr->supplier_id : 0),
 			'ref_fourn' => (string) $pr->ref_fourn,
 			'parent_ref' => trim((string) $pr->variant_parent_ref)
 		);
@@ -53,12 +54,12 @@ if ($parentref !== '') {
 		WHERE p.ref = '".$db->escape($parentref)."'");
 	if ($resql && ($par = $db->fetch_object($resql))) {
 		$par->buy_price = 0; $par->ref_fourn = ''; $par->supplier = '';
-		$resql = $db->query("SELECT pfp.unitprice, pfp.ref_fourn, s.nom AS supplier
+		$resql = $db->query("SELECT pfp.unitprice, pfp.ref_fourn, pfp.fk_soc AS supplier_id, s.nom AS supplier
 			FROM ".MAIN_DB_PREFIX."product_fournisseur_price pfp
 			LEFT JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = pfp.fk_soc
 			WHERE pfp.fk_product = ".((int) $par->rowid)." ORDER BY pfp.quantity ASC, pfp.rowid ASC LIMIT 1");
 		if ($resql && ($bp = $db->fetch_object($resql))) {
-			$par->buy_price = (float) $bp->unitprice; $par->ref_fourn = (string) $bp->ref_fourn; $par->supplier = (string) $bp->supplier;
+			$par->buy_price = (float) $bp->unitprice; $par->ref_fourn = (string) $bp->ref_fourn; $par->supplier = (string) $bp->supplier; $par->supplier_id = (int) $bp->supplier_id;
 		}
 		$nbcat = 0;
 		$resql = $db->query("SELECT COUNT(*) nb FROM ".MAIN_DB_PREFIX."categorie_product WHERE fk_product = ".((int) $par->rowid));
@@ -73,6 +74,7 @@ if ($parentref !== '') {
 			'cost_price' => ((float) $par->cost_price > 0 ? price((float) $par->cost_price) : ''),
 			'buy_price' => ((float) $par->buy_price > 0 ? price((float) $par->buy_price) : ''),
 			'supplier' => (string) $par->supplier,
+			'supplier_id' => (int) (isset($par->supplier_id) ? $par->supplier_id : 0),
 			'ref_fourn' => (string) $par->ref_fourn,
 			'warehouse' => (string) $par->warehouse,
 			'nbcat' => $nbcat

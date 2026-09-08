@@ -171,6 +171,17 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="row" id="sc_cr_specs_wrap" style="display:none"><label>Caractéristiques <span class="opacitymedium sc_src" id="sc_cr_specs_src"></span> <span class="opacitymedium" style="font-weight:normal;float:right">garder · décliner</span></label><div id="sc_cr_specs"></div></div>
 	<div class="row"><label><?php print $langs->trans('Label'); ?> <span class="opacitymedium sc_src" id="sc_cr_label_src"></span></label><input type="text" id="sc_cr_label" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="row"><label><?php print $langs->trans('PriceTTC'); ?> <span class="opacitymedium sc_src" id="sc_cr_price_src"></span></label><input type="number" id="sc_cr_price" step="any" inputmode="decimal" placeholder="<?php print $langs->trans('PriceFromFamily'); ?>" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
+	<div class="row"><label>Fournisseur <span class="opacitymedium sc_src" id="sc_cr_supp_src"></span></label>
+	<select id="sc_cr_supplier" style="width:100%;font-size:1.05em;padding:8px;box-sizing:border-box"><option value="0">— aucun —</option>
+	<?php
+	$resql = $db->query("SELECT rowid, nom FROM ".MAIN_DB_PREFIX."societe WHERE fournisseur = 1 AND status = 1 ORDER BY nom");
+	if ($resql) {
+		while ($s = $db->fetch_object($resql)) {
+			print '<option value="'.((int) $s->rowid).'">'.dol_escape_htmltag($s->nom).'</option>';
+		}
+	}
+	?>
+	</select></div>
 	<div class="row"><label>Prix d'achat HT <span class="opacitymedium sc_src" id="sc_cr_buy_src"></span></label><input type="number" id="sc_cr_buyprice" step="any" inputmode="decimal" placeholder="vide = prix d'achat de la famille" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div class="row"><label>Réf fabricant <span class="opacitymedium sc_src" id="sc_cr_mpn_src"></span></label><input type="text" id="sc_cr_mpn" placeholder="réf produit fournisseur (MPN)" style="width:100%;font-size:1.15em;padding:9px;box-sizing:border-box"></div>
 	<div style="display:flex;gap:10px"><button type="button" class="button sc_btn" id="sc_cr_ok" style="flex:2"><span id="sc_cr_oktxt"><?php print $langs->trans('Create'); ?></span></button><button type="button" class="button sc_btn" id="sc_cr_cancel" style="flex:1;background:#90a4ae !important"><?php print $langs->trans('Cancel'); ?></button></div>
@@ -444,6 +455,7 @@ jQuery(function() {
 		jQuery('#sc_cr_fam').html(h).show();
 		if (f.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = ' + f.price_ttc + ' TTC (famille ' + f.ref + ')'); scSetSrc('sc_cr_price_src', 'famille ' + f.ref); }
 		if (f.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = ' + f.buy_price + ' HT (famille' + (f.supplier ? ', ' + f.supplier : '') + ')'); scSetSrc('sc_cr_buy_src', 'famille' + (f.supplier ? ', ' + f.supplier : '')); }
+		if (f.supplier_id) { jQuery('#sc_cr_supplier').val(String(f.supplier_id)); scSetSrc('sc_cr_supp_src', 'famille'); }
 	}
 	function scFullName(info) {
 		var t = (info.title || '').trim(), b = (info.brand || '').trim();
@@ -602,6 +614,7 @@ jQuery(function() {
 		scCands = []; jQuery('#sc_cr_cands').empty(); jQuery('#sc_cr_cands_wrap').hide();
 		crLabelBase = ''; crMpnBase = ''; crDecl = null; crFamProposal = '';
 		jQuery('#sc_cr_declm').val(''); scSetSrc('sc_cr_declm_src', '');
+		jQuery('#sc_cr_supplier').val('0'); scSetSrc('sc_cr_supp_src', '');
 		jQuery('#sc_cr_specs').empty(); jQuery('#sc_cr_specs_wrap').hide();
 		jQuery('.sc_src').text('');
 		jQuery('#sc_cr_decls').empty(); jQuery('#sc_cr_decl_wrap').hide();
@@ -625,6 +638,7 @@ jQuery(function() {
 				if (!jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(p.label); scSetSrc('sc_cr_label_src', 'actuel'); }
 				if (p.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = inchangé (' + p.price_ttc + ' TTC actuel)'); scSetSrc('sc_cr_price_src', 'actuel'); }
 				if (p.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = inchangé (' + p.buy_price + ' HT actuel)'); scSetSrc('sc_cr_buy_src', 'actuel' + (p.supplier ? ', ' + p.supplier : '')); }
+				if (p.supplier_id) { jQuery('#sc_cr_supplier').val(String(p.supplier_id)); scSetSrc('sc_cr_supp_src', 'produit actuel'); }
 				if (p.ref_fourn && !jQuery('#sc_cr_mpn').val()) { jQuery('#sc_cr_mpn').val(p.ref_fourn).attr('data-src', 'family'); scSetSrc('sc_cr_mpn_src', 'produit actuel'); }
 				jQuery('#sc_cr_pfam').text(p.parent_ref ? p.parent_ref : 'aucun parent pour l\'instant');
 				return;
@@ -688,7 +702,7 @@ jQuery(function() {
 			var lbm = jQuery('#sc_cr_label');
 			if (lbm.val().toLowerCase().indexOf(dm.toLowerCase()) < 0) { lbm.val((lbm.val() + ' ' + dm).trim()); }
 		}
-		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), decl: dm, token: token}).fail(function() {
+		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), decl: dm, fk_supplier: jQuery('#sc_cr_supplier').val() || 0, token: token}).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
 			jQuery('#sc_create').hide();
