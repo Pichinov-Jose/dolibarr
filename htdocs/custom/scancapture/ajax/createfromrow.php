@@ -36,6 +36,8 @@ if ($parent_mode === 'new') {
 	if ($parent_label === '') { $db->rollback(); print json_encode(array('ok' => false, 'error' => 'parent_label')); exit; }
 	$np = new Product($db);
 	$np->ref = scMakeRef($db, $parent_label);
+	// scanner-born family: CREATE suffix distinguishes it from Kezia-migrated families (Jose 08/09)
+	if (!preg_match('/\bCREATE$/', strtoupper($parent_label))) { $parent_label .= ' CREATE'; }
 	$np->label = $parent_label;
 	$np->type = 0; $np->status = 1; $np->status_buy = 1;
 	$np->tva_tx = 20;
