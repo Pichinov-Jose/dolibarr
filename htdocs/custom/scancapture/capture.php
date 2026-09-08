@@ -548,7 +548,19 @@ jQuery(function() {
 	}
 	jQuery(document).on('click', '.sc_decl', function() { scPickDecl(jQuery(this)); });
 	jQuery(document).on('change', 'input[name=sc_cr_parent]', function() {
-		jQuery('#sc_cr_parent_label').toggle(jQuery(this).val() == 'new');
+		var isNew = jQuery(this).val() == 'new';
+		jQuery('#sc_cr_parent_label').toggle(isNew);
+		if (isNew && !jQuery('#sc_cr_parent_label').val()) {
+			// family name proposal: the current label stripped of its declination (color/size), CREATE added server-side
+			var esc = function(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+			var base = jQuery('#sc_cr_label').val() || '';
+			if (crDecl) {
+				if (crDecl.lib) { base = base.replace(new RegExp(esc(crDecl.lib), 'ig'), ' '); }
+				if (crDecl.code) { base = base.replace(new RegExp(esc(crDecl.code), 'ig'), ' '); }
+			}
+			base = base.replace(/\(\s*\)/g, ' ').replace(/\s{2,}/g, ' ').replace(/[\s\-–·,]+$/g, '').trim();
+			jQuery('#sc_cr_parent_label').val(base).focus().select();
+		}
 	});
 	function scApplyInfo(r, source) {
 		if (!(r && r.ok && r.info)) { return false; }
