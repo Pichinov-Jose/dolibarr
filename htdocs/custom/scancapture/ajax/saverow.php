@@ -92,9 +92,10 @@ if (!$force && !$replace_row && in_array($status, array('matched', 'unknown'))) 
 	}
 }
 
-// column hygiene: a lone scan in the label field that matched a product BARCODE is in fact the EAN — store it as such
+// Kezia labels print the article's main barcode: when that is a real EAN (single scan matching a product
+// barcode), the value is BOTH the label code and the EAN — keep it in both columns
 if ($ean === '' && $codek !== '' && $status == 'matched' && $source == 'barcode') {
-	$ean = $codek; $codek = '';
+	$ean = $codek;
 }
 
 // product origin badges for the operator choice (Kezia migration / scanner-AI creation / Dolibarr-PS)
