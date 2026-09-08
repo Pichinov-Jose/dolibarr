@@ -101,6 +101,11 @@ html.scfs #id-container { width: 100% !important; }
 	#sc_rows td { padding-top: 7px; padding-bottom: 7px; }
 }
 @media (max-width: 768px) {
+	/* no horizontal page overflow: otherwise Android widens the layout viewport and every
+	   position:fixed popup (numpad, modals, bottom bar) centers off-screen to the right */
+	html, body { max-width: 100vw; overflow-x: hidden; }
+	.div-table-responsive-no-min { overflow-x: auto; max-width: 100vw; }
+	#sc_rows { min-width: 640px; }
 	#sc_fields { display: block; }
 	#sc_rows .sc_hidemobile { display: none; }
 	.sc_field { margin-bottom: 12px; }
