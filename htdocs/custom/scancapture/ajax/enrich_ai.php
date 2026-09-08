@@ -52,7 +52,7 @@ if (strpos((string) $row->match_source, 'variantof:') === 0 && $row->product_lab
 $prompt = "Trouve un maximum d'informations sur ce produit a partir de son code-barres EAN ".$row->ean." (magasin d'articles de peche francais).".$context."
 Cherche sur le web : l'EAN seul, puis l'EAN avec des mots-cles peche, puis marque+modele une fois identifies (prefixe GS1 = pays, prefixe entreprise = fabricant). Attention : chez beaucoup de fabricants chaque coloris/taille a son propre EAN, la reference fabricant etant commune — precise le discriminant de declinaison (code coloris, taille) quand tu le trouves.
 IMPORTANT : fais tes recherches puis reponds avec UNIQUEMENT l'objet JSON ci-dessous — aucun rapport, aucune analyse, aucun texte ni markdown avant ou apres, ta reponse visible EST le JSON :
-{\"libelle\": \"nom commercial court en francais avec le coloris/la taille\", \"marque\": \"...\", \"reference_fabricant\": \"reference/MPN du fabricant + code declinaison si trouve, sinon vide\", \"description_courte\": \"1-2 phrases\", \"description_longue\": \"paragraphe detaille (matiere, usage, points forts, specs)\", \"specs\": {\"cle\": \"valeur\"}, \"prix_public_ttc_eur\": \"prix public conseille ou constate en France, ex 12.90, sinon vide\", \"prix_achat_ht_eur\": \"estimation du prix d'achat revendeur HT, ex 6.50, sinon vide\", \"declinaisons\": [{\"code\": \"code declinaison fabricant\", \"libelle\": \"nom du coloris ou de la taille\", \"ean\": \"JAN/EAN de cette declinaison si connu sinon vide\"}], \"declinaison_scannee\": \"code de la declinaison correspondant a l'EAN recherche si determinable, sinon vide\", \"images\": [\"url https directes\"], \"confiance\": \"haute|moyenne|basse\", \"sources\": [\"url\"]}
+{\"libelle\": \"nom commercial court en francais avec le coloris/la taille\", \"nom_famille\": \"nom generique du modele SANS coloris ni taille, tel qu'on nommerait la famille regroupant toutes ses declinaisons, ex 'Sufix Clear Mono 1000m'\", \"marque\": \"...\", \"reference_fabricant\": \"reference/MPN du fabricant + code declinaison si trouve, sinon vide\", \"description_courte\": \"1-2 phrases\", \"description_longue\": \"paragraphe detaille (matiere, usage, points forts, specs)\", \"specs\": {\"cle\": \"valeur\"}, \"prix_public_ttc_eur\": \"prix public conseille ou constate en France, ex 12.90, sinon vide\", \"prix_achat_ht_eur\": \"estimation du prix d'achat revendeur HT, ex 6.50, sinon vide\", \"declinaisons\": [{\"code\": \"code declinaison fabricant\", \"libelle\": \"nom du coloris ou de la taille\", \"ean\": \"JAN/EAN de cette declinaison si connu sinon vide\"}], \"declinaison_scannee\": \"code de la declinaison correspondant a l'EAN recherche si determinable, sinon vide\", \"images\": [\"url https directes\"], \"confiance\": \"haute|moyenne|basse\", \"sources\": [\"url\"]}
 Le champ declinaisons doit lister TOUTES les declinaisons du modele trouvees sur le site du fabricant (jusqu'a 20).
 Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"}.";
 
@@ -104,7 +104,7 @@ if ($p !== false) {
 if (!$info && preg_match('/\{.*\}/s', $text, $m)) { $info = json_decode($m[0], true); }
 if (!$info) { print json_encode(array('ok' => false, 'error' => 'parse', 'raw' => substr($text, 0, 300))); exit; }
 // web-search citation tags must never reach product data
-foreach (array('libelle', 'marque', 'reference_fabricant', 'description_courte', 'description_longue') as $k) {
+foreach (array('libelle', 'nom_famille', 'marque', 'reference_fabricant', 'description_courte', 'description_longue') as $k) {
 	if (!empty($info[$k])) { $info[$k] = trim(preg_replace('/<\/?cite[^>]*>/', '', (string) $info[$k])); }
 }
 
@@ -118,6 +118,7 @@ $merged = array_merge($prev ?: array(), array(
 	'specs' => $info['specs'] ?? array(),
 	'prix_public' => (string) ($info['prix_public_ttc_eur'] ?? ''),
 	'prix_achat' => (string) ($info['prix_achat_ht_eur'] ?? ''),
+	'famille' => (string) ($info['nom_famille'] ?? ($prev['famille'] ?? '')),
 	'declinaisons' => (array) ($info['declinaisons'] ?? array()),
 	'declinaison_scannee' => (string) ($info['declinaison_scannee'] ?? ''),
 	'images' => $info['images'] ?? array(),

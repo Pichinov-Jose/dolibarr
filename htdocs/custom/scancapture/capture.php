@@ -492,7 +492,7 @@ jQuery(function() {
 		scSetSrc('sc_cr_label_src', jQuery(this).find('.src').text());
 		jQuery('#sc_cr_price').focus();
 	});
-	var crLabelBase = '', crMpnBase = '', crDecl = null;
+	var crLabelBase = '', crMpnBase = '', crDecl = null, crFamProposal = '';
 	function scSetSrc(id, s) { jQuery('#' + id).text(s ? '(' + s + ')' : ''); }
 	function scRenderSpecs(info, source) {
 		var sp = info.specs || {};
@@ -551,14 +551,18 @@ jQuery(function() {
 		var isNew = jQuery(this).val() == 'new';
 		jQuery('#sc_cr_parent_label').toggle(isNew);
 		if (isNew && !jQuery('#sc_cr_parent_label').val()) {
-			// family name proposal: the current label stripped of its declination (color/size), CREATE added server-side
-			var esc = function(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
-			var base = jQuery('#sc_cr_label').val() || '';
-			if (crDecl) {
-				if (crDecl.lib) { base = base.replace(new RegExp(esc(crDecl.lib), 'ig'), ' '); }
-				if (crDecl.code) { base = base.replace(new RegExp(esc(crDecl.code), 'ig'), ' '); }
+			// family name proposal: the AI-provided generic model name when available,
+			// else the current label stripped of its declination; CREATE is added server-side
+			var base = crFamProposal || '';
+			if (!base) {
+				var esc = function(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+				base = jQuery('#sc_cr_label').val() || '';
+				if (crDecl) {
+					if (crDecl.lib) { base = base.replace(new RegExp(esc(crDecl.lib), 'ig'), ' '); }
+					if (crDecl.code) { base = base.replace(new RegExp(esc(crDecl.code), 'ig'), ' '); }
+				}
+				base = base.replace(/\(\s*\)/g, ' ').replace(/\s{2,}/g, ' ').replace(/[\s\-–·,]+$/g, '').trim();
 			}
-			base = base.replace(/\(\s*\)/g, ' ').replace(/\s{2,}/g, ' ').replace(/[\s\-–·,]+$/g, '').trim();
 			jQuery('#sc_cr_parent_label').val(base).focus().select();
 		}
 	});
@@ -567,6 +571,7 @@ jQuery(function() {
 		var src = r.cached ? (r.info.ai ? 'IA' : source) + ', cache' : source;
 		if (r.info.title) { scAddCand(scFullName(r.info), src); }
 		if (r.info.titles && r.info.titles.length) { for (var i = 0; i < r.info.titles.length; i++) { scAddCand(r.info.titles[i], 'eBay'); } }
+		if (r.info.famille) { crFamProposal = r.info.famille; }
 		if (r.info.title && !jQuery('#sc_cr_label').val()) { jQuery('#sc_cr_label').val(scFullName(r.info)); scSetSrc('sc_cr_label_src', src); }
 		if (r.info.mpn && (!jQuery('#sc_cr_mpn').val() || jQuery('#sc_cr_mpn').attr('data-src') == 'family')) { jQuery('#sc_cr_mpn').val(r.info.mpn).removeAttr('data-src'); scSetSrc('sc_cr_mpn_src', src); }
 		scRenderInfo(r.info, src);
@@ -588,7 +593,7 @@ jQuery(function() {
 		jQuery('#sc_cr_fam').hide().empty();
 		jQuery('#sc_cr_enrich').hide().empty();
 		scCands = []; jQuery('#sc_cr_cands').empty(); jQuery('#sc_cr_cands_wrap').hide();
-		crLabelBase = ''; crMpnBase = ''; crDecl = null;
+		crLabelBase = ''; crMpnBase = ''; crDecl = null; crFamProposal = '';
 		jQuery('#sc_cr_specs').empty(); jQuery('#sc_cr_specs_wrap').hide();
 		jQuery('.sc_src').text('');
 		jQuery('#sc_cr_decls').empty(); jQuery('#sc_cr_decl_wrap').hide();
