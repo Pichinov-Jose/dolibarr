@@ -66,6 +66,26 @@ if ($mpn !== '') {
 	if ($resupd) { $done[] = 'réf fournisseur'; }
 	else { $warning = "Réf fournisseur \"".$mpn."\" déjà prise chez ce fournisseur — inchangée"; }
 }
+// attach to a family: create the missing parent on demand (Jose 08/09 — enrich mode covers products born parentless)
+if (GETPOST('parent_mode', 'aZ09') === 'new') {
+	$parent_label = trim(GETPOST('parent_label', 'alphanohtml'));
+	if ($parent_label !== '') {
+		$np = new Product($db);
+		$np->ref = scMakeRef($db, $parent_label);
+		if (!preg_match('/\bCREATE$/', strtoupper($parent_label))) { $parent_label .= ' CREATE'; }
+		$np->label = $parent_label;
+		$np->type = 0; $np->status = 1; $np->status_buy = 1; $np->tva_tx = 20;
+		$npid = $np->create($user);
+		if ($npid > 0) {
+			$db->query("UPDATE ".MAIN_DB_PREFIX."product SET import_key = 'SCAN".$db->escape(dol_print_date(dol_now(), '%y%m%d'))."' WHERE rowid = ".((int) $npid));
+			scTagToUpdate($db, $user, (int) $npid);
+			$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, variant_parent_ref, variant_parent_link) VALUES (".((int) $p->id).", '".$db->escape($np->ref)."', ".((int) $npid).") ON DUPLICATE KEY UPDATE variant_parent_ref = '".$db->escape($np->ref)."', variant_parent_link = ".((int) $npid));
+			$done[] = 'parent '.$np->ref.' créé et rattaché';
+		} else {
+			$warning = trim($warning.' Création du parent échouée : '.$np->error);
+		}
+	}
+}
 // scanned EAN associated by the standard non-destructive rules
 $assoc = '';
 if (!empty($row->ean)) {

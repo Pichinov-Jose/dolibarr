@@ -163,7 +163,7 @@ html.scfs #id-container { width: 100% !important; }
 		<label style="font-weight:normal;display:block" id="sc_cr_pfam_opt"><input type="radio" name="sc_cr_parent" value="family" checked> Famille <b id="sc_cr_pfam"></b></label>
 		<label style="font-weight:normal;display:block"><input type="radio" name="sc_cr_parent" value="new"> Nouveau parent à créer</label>
 		<input type="text" id="sc_cr_parent_label" placeholder="libellé du nouveau parent" style="display:none;width:100%;font-size:1.05em;padding:8px;box-sizing:border-box;margin-top:4px">
-		<label style="font-weight:normal;display:block"><input type="radio" name="sc_cr_parent" value="none"> Aucun (produit isolé)</label>
+		<label style="font-weight:normal;display:block" id="sc_cr_pnone_opt"><input type="radio" name="sc_cr_parent" value="none"> Aucun (produit isolé)</label>
 	</div>
 	<div class="row" id="sc_cr_cands_wrap" style="display:none"><label>Libellés possibles (EAN)</label><div id="sc_cr_cands"></div></div>
 	<div class="row" id="sc_cr_specs_wrap" style="display:none"><label>Caractéristiques <span class="opacitymedium sc_src" id="sc_cr_specs_src"></span> <span class="opacitymedium" style="font-weight:normal;float:right">garder · décliner</span></label><div id="sc_cr_specs"></div></div>
@@ -597,10 +597,11 @@ jQuery(function() {
 		jQuery('#sc_cr_specs').empty(); jQuery('#sc_cr_specs_wrap').hide();
 		jQuery('.sc_src').text('');
 		jQuery('#sc_cr_decls').empty(); jQuery('#sc_cr_decl_wrap').hide();
-		jQuery('#sc_cr_pfam').text(''); jQuery('#sc_cr_pfam_opt').hide();
-		jQuery('input[name=sc_cr_parent][value=none]').prop('checked', true);
+		jQuery('#sc_cr_pfam_opt').html('<input type="radio" name="sc_cr_parent" value="family"' + (mode == 'update' ? ' checked' : '') + '> ' + (mode == 'update' ? 'Conserver : <b id="sc_cr_pfam"></b>' : 'Famille <b id="sc_cr_pfam"></b>')).toggle(mode == 'update');
+		jQuery('#sc_cr_pnone_opt').toggle(mode != 'update');
+		if (mode != 'update') { jQuery('input[name=sc_cr_parent][value=none]').prop('checked', true); }
 		jQuery('#sc_cr_parent_label').val('').hide();
-		jQuery('#sc_cr_parent_wrap').toggle(mode != 'update');
+		jQuery('#sc_cr_parent_wrap').show();
 		jQuery('#sc_create').show();
 		if (a.data('label')) { scAddCand(String(a.data('label')), mode == 'update' ? 'actuel' : 'scan'); scSetSrc('sc_cr_label_src', mode == 'update' ? 'actuel' : 'scan'); }
 		jQuery.getJSON(base + 'createinfo.php', {rowid: crRow, token: token}, function(ci) {
@@ -617,6 +618,7 @@ jQuery(function() {
 				if (p.price_ttc) { jQuery('#sc_cr_price').attr('placeholder', 'vide = inchangé (' + p.price_ttc + ' TTC actuel)'); scSetSrc('sc_cr_price_src', 'actuel'); }
 				if (p.buy_price) { jQuery('#sc_cr_buyprice').attr('placeholder', 'vide = inchangé (' + p.buy_price + ' HT actuel)'); scSetSrc('sc_cr_buy_src', 'actuel' + (p.supplier ? ', ' + p.supplier : '')); }
 				if (p.ref_fourn && !jQuery('#sc_cr_mpn').val()) { jQuery('#sc_cr_mpn').val(p.ref_fourn).attr('data-src', 'family'); scSetSrc('sc_cr_mpn_src', 'produit actuel'); }
+				jQuery('#sc_cr_pfam').text(p.parent_ref ? p.parent_ref : 'aucun parent pour l\'instant');
 				return;
 			}
 			scRenderFam(ci.family);

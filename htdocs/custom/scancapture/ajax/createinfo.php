@@ -16,8 +16,8 @@ $out = array('ok' => true, 'ean' => (string) $row->ean, 'code_kezia' => (string)
 
 // matched product (enrich-existing mode): current values shown and prefilled in the popup
 if (!empty($row->fk_product)) {
-	$resql = $db->query("SELECT p.rowid, p.ref, p.label, p.description, p.price_ttc, p.tva_tx, p.pmp, p.cost_price
-		FROM ".MAIN_DB_PREFIX."product p WHERE p.rowid = ".((int) $row->fk_product));
+	$resql = $db->query("SELECT p.rowid, p.ref, p.label, p.description, p.price_ttc, p.tva_tx, p.pmp, p.cost_price, pe.variant_parent_ref
+		FROM ".MAIN_DB_PREFIX."product p LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $row->fk_product));
 	if ($resql && ($pr = $db->fetch_object($resql))) {
 		$pr->buy_price = 0; $pr->ref_fourn = ''; $pr->supplier = '';
 		$resql = $db->query("SELECT pfp.unitprice, pfp.ref_fourn, s.nom AS supplier
@@ -38,7 +38,8 @@ if (!empty($row->fk_product)) {
 			'pmp' => ((float) $pr->pmp > 0 ? price((float) $pr->pmp) : ''),
 			'buy_price' => ((float) $pr->buy_price > 0 ? price((float) $pr->buy_price) : ''),
 			'supplier' => (string) $pr->supplier,
-			'ref_fourn' => (string) $pr->ref_fourn
+			'ref_fourn' => (string) $pr->ref_fourn,
+			'parent_ref' => trim((string) $pr->variant_parent_ref)
 		);
 	}
 }
