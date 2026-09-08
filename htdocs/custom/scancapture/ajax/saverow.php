@@ -92,6 +92,11 @@ if (!$force && !$replace_row && in_array($status, array('matched', 'unknown'))) 
 	}
 }
 
+// column hygiene: a lone scan in the label field that matched a product BARCODE is in fact the EAN — store it as such
+if ($ean === '' && $codek !== '' && $status == 'matched' && $source == 'barcode') {
+	$ean = $codek; $codek = '';
+}
+
 // product origin badges for the operator choice (Kezia migration / scanner-AI creation / Dolibarr-PS)
 if (in_array($status, array('mismatch', 'ambiguous'))) {
 	$scOrigin = function ($pid) use ($db) {
@@ -119,8 +124,23 @@ if ($status == 'matched' && $codek !== '' && $fk_product > 0 && count($ck) == 0)
 	$db->query("INSERT INTO ".MAIN_DB_PREFIX."scan_assoc (datec, code, fk_product, fk_user, written_to) VALUES (NOW(), '".$db->escape($codek)."', ".((int) $fk_product).", ".((int) $user->id).", 'kezia_code')");
 	$kassoc = 'kezia';
 }
+$learned = '';
 if ($replace_row > 0 && $forced_product > 0) {
 	$db->query("DELETE FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $replace_row)." AND status IN ('ambiguous', 'mismatch')");
+	// mismatch learning (GO Jose 08/09): the operator confirmed the EAN product is the real declination behind
+	// a Kezia family label → link it (variant_parent_ref) so the whole family stops raising false mismatches
+	if ($fk_product > 0 && count($ck) == 1 && $ck[0]['rowid'] != $fk_product) {
+		$resql = $db->query("SELECT pe.kezia_idart, p.import_key FROM ".MAIN_DB_PREFIX."product p LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $ck[0]['rowid']));
+		$kz = $resql ? $db->fetch_object($resql) : null;
+		if ($kz && (!empty($kz->kezia_idart) || strpos((string) $kz->import_key, 'KZMIG') === 0)) {
+			$resql = $db->query("SELECT variant_parent_ref FROM ".MAIN_DB_PREFIX."product_extrafields WHERE fk_object = ".((int) $fk_product));
+			$cur = ($resql && ($x = $db->fetch_object($resql))) ? trim((string) $x->variant_parent_ref) : null;
+			if ($cur === null || $cur === '') {
+				$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, variant_parent_ref) VALUES (".((int) $fk_product).", '".$db->escape($ck[0]['ref'])."') ON DUPLICATE KEY UPDATE variant_parent_ref = '".$db->escape($ck[0]['ref'])."'");
+				$learned = $ck[0]['ref'];
+			}
+		}
+	}
 }
 if ($status == 'matched' && $ean !== '' && $fk_product > 0 && !$eanIsKnown) {
 	$assoc = scAssocEan($db, $user, $fk_product, $ean);
@@ -144,4 +164,4 @@ $sql .= (count($candidates) > 1 || $status == 'mismatch' ? "'".$db->escape(json_
 $resql = $db->query($sql);
 $rowid = $resql ? $db->last_insert_id(MAIN_DB_PREFIX.'scan_capture') : 0;
 $db->commit();
-print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc, 'stock_before' => $stock_before));
+print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc, 'stock_before' => $stock_before, 'learned' => $learned));
