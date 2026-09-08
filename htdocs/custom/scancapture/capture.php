@@ -508,6 +508,9 @@ jQuery(function() {
 	});
 	var crLabelBase = '', crMpnBase = '', crDecl = null, crFamProposal = '';
 	function scSetSrc(id, s) { jQuery('#' + id).text(s ? '(' + s + ')' : ''); }
+	// tolerant contains: "0,28mm" matches "0.28 mm" (case, comma/dot and spacing insensitive)
+	function scNorm(s) { return String(s).toLowerCase().replace(/,/g, '.').replace(/[\s]/g, ''); }
+	function scHasToken(hay, needle) { return scNorm(hay).indexOf(scNorm(needle)) >= 0; }
 	function scRenderSpecs(info, source) {
 		var sp = info.specs || {};
 		var keys = Object.keys(sp);
@@ -516,7 +519,7 @@ jQuery(function() {
 		for (var i = 0; i < keys.length; i++) {
 			var k = keys[i], v = sp[k];
 			if (v === null || v === '' || typeof v === 'object') { continue; }
-			var axis = /coloris|couleur|taille|size|color/i.test(k);
+			var axis = /coloris|couleur|taille|size|color|diam|épaisseur|epaisseur/i.test(k);
 			if (axis && !jQuery('#sc_cr_declm').val()) { jQuery('#sc_cr_declm').val(String(v)); scSetSrc('sc_cr_declm_src', source); }
 			var row = jQuery('<div class="sc_spec"></div>')
 				.append(jQuery('<span class="kv"></span>').html('<b>' + scEsc(k) + '</b> : ' + scEsc(v)))
@@ -554,8 +557,8 @@ jQuery(function() {
 		if (crLabelBase === '') { crLabelBase = jQuery('#sc_cr_label').val(); }
 		if (crMpnBase === '') { crMpnBase = jQuery('#sc_cr_mpn').val(); }
 		var lb = crLabelBase;
-		if (crDecl.lib && lb.toLowerCase().indexOf(crDecl.lib.toLowerCase()) < 0) { lb += ' ' + crDecl.lib; }
-		if (crDecl.code && lb.toLowerCase().indexOf(crDecl.code.toLowerCase()) < 0) { lb += ' (' + crDecl.code + ')'; }
+		if (crDecl.lib && !scHasToken(lb, crDecl.lib)) { lb += ' ' + crDecl.lib; }
+		if (crDecl.code && !scHasToken(lb, crDecl.code)) { lb += ' (' + crDecl.code + ')'; }
 		jQuery('#sc_cr_label').val(lb.replace(/\s*\(coloris non identifi[^)]*\)\s*/i, ' ').trim());
 		if (crDecl.code) {
 			var mp = crMpnBase;
@@ -693,14 +696,14 @@ jQuery(function() {
 			if (jQuery(this).find('.sc_spec_keep').is(':checked')) { specsKeep.push(k + ' : ' + v); }
 			if (jQuery(this).find('.sc_spec_axis').is(':checked')) {
 				var lb = jQuery('#sc_cr_label');
-				if (lb.val().toLowerCase().indexOf(String(v).toLowerCase()) < 0) { lb.val((lb.val() + ' ' + v).trim()); }
+				if (!scHasToken(lb.val(), v)) { lb.val((lb.val() + ' ' + v).trim()); }
 			}
 		});
 		// manual declination: always usable, even when no spec/chip was returned by the sources
 		var dm = jQuery('#sc_cr_declm').val().trim();
 		if (dm) {
 			var lbm = jQuery('#sc_cr_label');
-			if (lbm.val().toLowerCase().indexOf(dm.toLowerCase()) < 0) { lbm.val((lbm.val() + ' ' + dm).trim()); }
+			if (!scHasToken(lbm.val(), dm)) { lbm.val((lbm.val() + ' ' + dm).trim()); }
 		}
 		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), decl: dm, fk_supplier: jQuery('#sc_cr_supplier').val() || 0, token: token}).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
