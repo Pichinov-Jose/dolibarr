@@ -134,6 +134,10 @@ function scAssocEan($db, $user, $fk_product, $ean)
 			return 'already';
 		}
 	}
+	// UPC-A (12 digits) is stored as its 0-padded EAN13 equivalent (lookups handle both forms)
+	if (preg_match('/^\d{12}$/', $ean) && scIsValidEan13('0'.$ean)) {
+		$ean = '0'.$ean;
+	}
 	$e = $db->escape($ean);
 	$written = 'assoc_only';
 	$eanFreeGlobally = (count($known) == 0);

@@ -103,6 +103,13 @@ if ($srcurl !== '') {
 	$resupd = $db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, supplier_url) VALUES (".((int) $p->id).", '".$db->escape($srcurl)."') ON DUPLICATE KEY UPDATE supplier_url = IF(supplier_url IS NULL OR supplier_url = '', VALUES(supplier_url), supplier_url)");
 	if ($resupd && $db->affected_rows($resupd) > 0) { $done[] = 'URL fournisseur'; }
 }
+// remember the operator's retained declination in the row cache (shown back on reopen)
+$declm = trim(GETPOST('decl', 'alphanohtml'));
+if ($declm !== '') {
+	$einfo = is_array($info) ? $info : array();
+	$einfo['decl_retenue'] = $declm;
+	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = '".$db->escape(json_encode($einfo, JSON_UNESCAPED_UNICODE))."' WHERE rowid = ".((int) $row->rowid));
+}
 scTagToUpdate($db, $user, (int) $p->id);
 $db->commit();
 $nbimg = 0;

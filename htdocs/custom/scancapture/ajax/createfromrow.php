@@ -108,6 +108,13 @@ foreach ((array) ($info['sources'] ?? array()) as $u) {
 if ($srcurl !== '') {
 	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, supplier_url) VALUES (".((int) $pid).", '".$db->escape($srcurl)."') ON DUPLICATE KEY UPDATE supplier_url = IF(supplier_url IS NULL OR supplier_url = '', VALUES(supplier_url), supplier_url)");
 }
+// remember the operator's retained declination in the row cache (shown back on reopen)
+$declm = trim(GETPOST('decl', 'alphanohtml'));
+if ($declm !== '') {
+	$einfo = is_array($info) ? $info : array();
+	$einfo['decl_retenue'] = $declm;
+	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = '".$db->escape(json_encode($einfo, JSON_UNESCAPED_UNICODE))."' WHERE rowid = ".((int) $rowid));
+}
 $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid).", status = 'created', product_label = '".$db->escape($label)."', stock_before = 0 WHERE rowid = ".((int) $rowid));
 $db->commit();
 $nbimg = 0;

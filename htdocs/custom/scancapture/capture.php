@@ -583,6 +583,7 @@ jQuery(function() {
 		scRenderInfo(r.info, src);
 		scRenderDecls(r.info);
 		scRenderSpecs(r.info, src);
+		if (r.info.decl_retenue) { jQuery('#sc_cr_declm').val(r.info.decl_retenue); scSetSrc('sc_cr_declm_src', 'retenue'); }
 		return !!(r.info.title);
 	}
 	var crMode = 'create';
@@ -687,7 +688,7 @@ jQuery(function() {
 			var lbm = jQuery('#sc_cr_label');
 			if (lbm.val().toLowerCase().indexOf(dm.toLowerCase()) < 0) { lbm.val((lbm.val() + ' ' + dm).trim()); }
 		}
-		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), token: token}).fail(function() {
+		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), decl: dm, token: token}).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
 			jQuery('#sc_create').hide();
