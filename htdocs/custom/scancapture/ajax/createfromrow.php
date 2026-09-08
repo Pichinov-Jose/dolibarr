@@ -16,7 +16,7 @@ $buyprice = (float) price2num(GETPOST('buyprice', 'alpha'), 'MU');
 $mpn = trim(GETPOST('mpn', 'alphanohtml'));
 $parent_mode = GETPOST('parent_mode', 'aZ09') ?: 'family';
 $parent_label = trim(GETPOST('parent_label', 'alphanohtml'));
-$resql = $db->query("SELECT rowid, ean, qty, status, sent_to_inv, match_source, ean_info, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
+$resql = $db->query("SELECT rowid, ean, code_kezia, qty, status, sent_to_inv, match_source, ean_info, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row || $row->status != 'unknown' || $row->sent_to_inv) { print json_encode(array('ok' => false, 'error' => 'bad row')); exit; }
 if ($label === '') { print json_encode(array('ok' => false, 'error' => 'label')); exit; }
@@ -70,9 +70,18 @@ if (!$eanOk && !empty($row->ean)) {
 }
 if ($parentref !== '') {
 	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, variant_parent_ref) VALUES (".((int) $pid).", '".$db->escape($parentref)."') ON DUPLICATE KEY UPDATE variant_parent_ref = VALUES(variant_parent_ref)");
+	// clickable pseudo-parent (link-type extrafield rendered with getNomUrl on the product card)
+	$resql = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product WHERE ref = '".$db->escape($parentref)."'");
+	if ($resql && ($pp = $db->fetch_object($resql))) {
+		$db->query("UPDATE ".MAIN_DB_PREFIX."product_extrafields SET variant_parent_link = ".((int) $pp->rowid)." WHERE fk_object = ".((int) $pid));
+	}
 	if ($parent) {
 		scInheritFromParent($db, $user, (int) $pid, (int) $parent->rowid, $ref);
 	}
+}
+// unknown Kezia label learned at creation: the next declination of the same family will resolve directly
+if (!empty($row->code_kezia) && !count(scLookupCode($db, $row->code_kezia))) {
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."scan_assoc (datec, code, fk_product, fk_user, written_to) VALUES (NOW(), '".$db->escape(scNormalize($row->code_kezia))."', ".((int) $pid).", ".((int) $user->id).", 'kezia_code')");
 }
 // user overrides from the popup: manufacturer ref becomes the supplier product ref, buy price replaces the inherited one
 $warning = '';

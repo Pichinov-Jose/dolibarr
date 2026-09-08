@@ -42,6 +42,8 @@ function scLookupCode($db, $code)
 	$queries = array(
 		'barcode' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p WHERE p.barcode IN (".$in.") AND p.entity IN (1)",
 		'ean_kezia' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE pe.ean_kezia IN (".$in.")",
+		// zero-padded Kezia labels are the IDART itself: resolves migrated products whose barcode was left NULL
+		'kezia_idart' => (preg_match('/^0{4,}(\d+)$/', $code, $mIdart) ? "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE pe.kezia_idart = ".((int) $mIdart[1]) : "SELECT 1 FROM dual WHERE 1=0"),
 		'multicode' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."stg_multicode mc ON mc.fk_product = p.rowid WHERE mc.code IN (".$in.")",
 		'assoc' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."scan_assoc sa ON sa.fk_product = p.rowid WHERE sa.code IN (".$in.")",
 		'pfp' => "SELECT p.rowid, p.ref, p.label, p.stock FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_fournisseur_price pfp ON pfp.fk_product = p.rowid WHERE pfp.barcode IN (".$in.")",

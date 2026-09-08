@@ -90,6 +90,9 @@ class modScanCapture extends DolibarrModules
 		include_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 		$ef = new ExtraFields($this->db);
 		$ef->addExtraField('supplier_url', 'URL produit fournisseur', 'url', 100, 255, 'product', 0, 0, '', '', 1, '', 1);
+		// clickable pseudo-parent: link-type extrafield rendered with getNomUrl (tooltip incl.) on the product card;
+		// variant_parent_ref (plain ref) stays the canonical key used by all queries
+		$ef->addExtraField('variant_parent_link', 'Produit parent (famille)', 'link', 101, '', 'product', 0, 0, '', 'a:1:{s:7:"options";a:1:{s:39:"Product:product/class/product.class.php";N;}}', 1, '', 1);
 
 		return $this->_init(array(), $options);
 	}

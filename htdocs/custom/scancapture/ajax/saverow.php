@@ -34,7 +34,7 @@ if ($codek !== '' && count($ck) && !$forced_product) {
 	$isKezia = false;
 	$barcodeHits = array();
 	foreach ($ck as $c) {
-		if (in_array($c['source'], array('ean_kezia', 'multicode', 'assoc'))) { $isKezia = true; }
+		if (in_array($c['source'], array('ean_kezia', 'kezia_idart', 'multicode', 'assoc'))) { $isKezia = true; }
 		if (in_array($c['source'], array('barcode', 'pfp'))) { $barcodeHits[] = (int) $c['rowid']; }
 	}
 	if (!$isKezia && $barcodeHits) {
@@ -152,7 +152,7 @@ if ($replace_row > 0 && $forced_product > 0) {
 			$resql = $db->query("SELECT variant_parent_ref FROM ".MAIN_DB_PREFIX."product_extrafields WHERE fk_object = ".((int) $fk_product));
 			$cur = ($resql && ($x = $db->fetch_object($resql))) ? trim((string) $x->variant_parent_ref) : null;
 			if ($cur === null || $cur === '') {
-				$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, variant_parent_ref) VALUES (".((int) $fk_product).", '".$db->escape($ck[0]['ref'])."') ON DUPLICATE KEY UPDATE variant_parent_ref = '".$db->escape($ck[0]['ref'])."'");
+				$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, variant_parent_ref, variant_parent_link) VALUES (".((int) $fk_product).", '".$db->escape($ck[0]['ref'])."', ".((int) $ck[0]['rowid']).") ON DUPLICATE KEY UPDATE variant_parent_ref = '".$db->escape($ck[0]['ref'])."', variant_parent_link = ".((int) $ck[0]['rowid']));
 				$learned = $ck[0]['ref'];
 			}
 		}
