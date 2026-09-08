@@ -208,7 +208,7 @@ html.scfs #id-container { width: 100% !important; }
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="unknown">?</button>
 </div>
 <div class="div-table-responsive-no-min"><table class="noborder centpercent" id="sc_rows">
-<tr class="liste_titre"><td class="sc_hidemobile">#</td><td><?php print $langs->trans('KeziaCode'); ?></td><td><?php print $langs->trans('ProductEan'); ?></td><td class="right"><?php print $langs->trans('Qty'); ?></td><td><?php print $langs->trans('Product'); ?></td><td><?php print $langs->trans('Status'); ?></td><td class="right sc_hidemobile" title="Stock théorique au moment du scan">Stock</td><td class="right" title="Compté − théorique">Écart</td><td class="right"></td></tr>
+<tr class="liste_titre"><td class="sc_hidemobile">#</td><td><?php print $langs->trans('KeziaCode'); ?></td><td><?php print $langs->trans('ProductEan'); ?></td><td><?php print $langs->trans('Product'); ?></td><td><?php print $langs->trans('Status'); ?></td><td class="right sc_hidemobile" title="Stock théorique au moment du scan">Stock</td><td class="right" title="Compté − théorique">Écart</td><td class="right"><?php print $langs->trans('Qty'); ?></td><td class="right"></td></tr>
 <?php
 function scEcartCell($qty, $sb)
 {
@@ -220,7 +220,11 @@ function scEcartCell($qty, $sb)
 $resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
-		print '<tr class="oddeven" data-id="'.$o->rowid.'" data-sb="'.($o->stock_before !== null ? price2num($o->stock_before) : '').'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td class="right">'.price2num($o->qty).'</td><td>'.dol_escape_htmltag((string) $o->product_label).'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right sc_hidemobile">'.($o->stock_before !== null ? price2num($o->stock_before) : '<span class="opacitymedium">—</span>').'</td><td class="right">'.scEcartCell($o->qty, $o->stock_before).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').(in_array($o->status, array('matched', 'created')) && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').(in_array($o->status, array('mismatch', 'ambiguous')) ? '<a href="#" class="sc_resolve" title="Résoudre : choisir le bon produit" data-row="'.$o->rowid.'" data-ck="'.dol_escape_htmltag((string) $o->code_kezia).'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-qty="'.price2num($o->qty).'"><span class="fa fa-question-circle" style="color:#b71c1c"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
+		$lblcell = dol_escape_htmltag((string) $o->product_label);
+		if ($o->fk_product) {
+			$lblcell = '<a href="'.DOL_URL_ROOT.'/product/card.php?id='.((int) $o->fk_product).'" target="_blank"><span class="fa fa-cube paddingright" style="color:#4a6785"></span>'.$lblcell.'</a>';
+		}
+		print '<tr class="oddeven" data-id="'.$o->rowid.'" data-sb="'.($o->stock_before !== null ? price2num($o->stock_before) : '').'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td>'.$lblcell.'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right sc_hidemobile">'.($o->stock_before !== null ? price2num($o->stock_before) : '<span class="opacitymedium">—</span>').'</td><td class="right">'.scEcartCell($o->qty, $o->stock_before).'</td><td class="right">'.price2num($o->qty).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').(in_array($o->status, array('matched', 'created')) && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').(in_array($o->status, array('mismatch', 'ambiguous')) ? '<a href="#" class="sc_resolve" title="Résoudre : choisir le bon produit" data-row="'.$o->rowid.'" data-ck="'.dol_escape_htmltag((string) $o->code_kezia).'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-qty="'.price2num($o->qty).'"><span class="fa fa-question-circle" style="color:#b71c1c"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
 	}
 }
 ?>
@@ -317,8 +321,8 @@ jQuery(function() {
 		jQuery.getJSON(base + 'saverow.php', p).done(function(r) {
 			if (!r.ok) { setLive('multi', 'Erreur fusion'); return; }
 			var tr = jQuery('#sc_rows tr[data-id="' + r.merged + '"]');
-			tr.find('td').eq(3).text(r.qty);
-			tr.find('td').eq(7).html(scEcartHtml(r.qty, r.stock_before !== undefined && r.stock_before !== null ? r.stock_before : tr.attr('data-sb')));
+			tr.find('td').eq(7).text(r.qty);
+			tr.find('td').eq(6).html(scEcartHtml(r.qty, r.stock_before !== undefined && r.stock_before !== null ? r.stock_before : tr.attr('data-sb')));
 			setLive('ok', '<span class="fa fa-compress"></span> ' + (r.label || '') + ' &mdash; quantit&eacute; cumul&eacute;e : <b>' + r.qty + '</b> (ligne ' + r.merged + ')');
 			scDupPending = null;
 			jQuery('#sc_codek').focus();
@@ -370,7 +374,8 @@ jQuery(function() {
 			}
 			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.kassoc ? ' &middot; <?php print dol_escape_js($langs->trans('KeziaCodeLearned')); ?>' : '') + (r.learned ? ' &middot; <span class="fa fa-link"></span> lien famille ' + r.learned + ' mémorisé' : '');
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : (r.variant_of ? '<span class="fa fa-code-fork"></span> <?php print dol_escape_js($langs->trans('VariantCandidate')); ?> ' + r.variant_of : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>'));
-			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td class="right">' + q + '</td><td>' + (r.label || '') + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'fa fa-clock-o\' style=\'color:#b26a00\'></span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
+			var lblcell = (r.fk_product ? '<a href="<?php print DOL_URL_ROOT; ?>/product/card.php?id=' + r.fk_product + '" target="_blank"><span class="fa fa-cube paddingright" style="color:#4a6785"></span>' + (r.label || '') + '</a>' : (r.label || ''));
+			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td>' + lblcell + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'fa fa-clock-o\' style=\'color:#b26a00\'></span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
 			bumpCount(r.status == 'unknown');
 			if (scFilterStat && scFilterStat !== r.status) { scFilterStat = ''; jQuery('.sc_fstat').removeClass('butActionRefused'); jQuery('.sc_fstat[data-st=""]').addClass('butActionRefused'); }
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }
@@ -656,13 +661,17 @@ jQuery(function() {
 			jQuery('#sc_create').hide();
 			if (!r.ok) { setLive('multi', 'Erreur : ' + (r.error || '')); return; }
 			var tr = jQuery('#sc_rows tr[data-id="' + crRow + '"]');
-			tr.find('td').eq(4).text(r.label);
+			if (r.fk_product) {
+				tr.find('td').eq(3).html('<a href="<?php print DOL_URL_ROOT; ?>/product/card.php?id=' + r.fk_product + '" target="_blank"><span class="fa fa-cube paddingright" style="color:#4a6785"></span>' + (r.label || '') + '</a>');
+			} else {
+				tr.find('td').eq(3).text(r.label);
+			}
 			if (crMode == 'update') {
 				setLive(r.warning ? 'multi' : 'ok', '<span class="fa fa-magic"></span> ' + r.ref + ' &mdash; ' + r.label + ' &middot; mis à jour : ' + ((r.done && r.done.length) ? r.done.join(', ') : 'rien à changer') + (r.warning ? '<br><span class="fa fa-exclamation-triangle"></span> ' + r.warning : ''));
 				jQuery('#sc_codek').focus();
 				return;
 			}
-			tr.find('td').eq(5).html('created <span class="fa fa-clock-o" style="color:#b26a00"></span>');
+			tr.find('td').eq(4).html('created <span class="fa fa-clock-o" style="color:#b26a00"></span>');
 			tr.find('a.sc_create').replaceWith('<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + crRow + '" data-ean="' + (jQuery('#sc_cr_ean').text().match(/EAN : (\S+)/) || ['',''])[1].replace('—','') + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>');
 			var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text());
 			var u = jQuery('#sc_unkbadge'); var n = Math.max(0, (parseInt(u.find('a').text()) || 1) - 1); u.find('a').text(n + ' inconnus'); if (!n) u.addClass('zero');
@@ -681,7 +690,7 @@ jQuery(function() {
 		var a = jQuery(this); var row = a.data('row'); var tr = a.closest('tr');
 		openPad(a.data('qty') + '', function(nq) {
 			jQuery.getJSON(base + 'updaterow.php', {what: 'qty', rowid: row, qty: nq, token: token}, function(r) {
-				if (r.ok) { tr.find('td').eq(3).text(r.qty); tr.find('td').eq(7).html(scEcartHtml(r.qty, tr.attr('data-sb'))); a.data('qty', r.qty); }
+				if (r.ok) { tr.find('td').eq(7).text(r.qty); tr.find('td').eq(6).html(scEcartHtml(r.qty, tr.attr('data-sb'))); a.data('qty', r.qty); }
 			});
 		});
 	});
@@ -691,7 +700,7 @@ jQuery(function() {
 		jQuery('#sc_rows tr').not('.liste_titre').each(function() {
 			var tr = jQuery(this);
 			var okT = !scFilterText || tr.text().toLowerCase().indexOf(scFilterText) !== -1;
-			var okS = !scFilterStat || tr.find('td').eq(5).text().trim() === scFilterStat;
+			var okS = !scFilterStat || tr.find('td').eq(4).text().trim() === scFilterStat;
 			tr.toggle(okT && okS);
 		});
 	}
