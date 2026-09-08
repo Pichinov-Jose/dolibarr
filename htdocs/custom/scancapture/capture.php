@@ -339,6 +339,11 @@ jQuery(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
 			if (!r.ok) { setLive('multi', 'Erreur'); return; }
+			if (r.status == 'notkezia') {
+				setLive('multi', '<b style="color:#b71c1c"><span class="fa fa-exclamation-triangle"></span> Ce n\'est pas un code Kezia !</b><br>Le code ' + (r.code || '') + ' est l\'EAN du produit <b>' + (r.label || r.ref || '') + '</b>.<br>Scannez l\'<b>étiquette Kezia</b> dans le 1er champ — ou laissez-le vide et scannez l\'EAN dans le 2e champ.');
+				jQuery('#sc_codek').val('').focus();
+				return;
+			}
 			if (r.status == 'dup') {
 				scDupPending = {dup: r.dup, params: params};
 				setLive('multi', '<b><span class="fa fa-copy"></span> D&eacute;j&agrave; scann&eacute; aujourd\'hui</b> : ' + (r.label || '') + ' (ligne ' + r.dup + ', qt&eacute; ' + r.dup_qty + ')' +

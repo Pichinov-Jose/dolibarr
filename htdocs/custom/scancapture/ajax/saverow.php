@@ -28,6 +28,19 @@ $candidates = array();
 foreach (array_merge($ce, $ck) as $cand) $candidates[$cand['rowid']] = $cand; // EAN candidates first
 $candidates = array_values($candidates);
 
+// field 1 must hold a TRUE Kezia label code (Jose 08/09): a value that only resolves as a product
+// EAN (barcode/supplier barcode) was scanned in the wrong field — refuse it with a clear message
+if ($codek !== '' && count($ck) && !$forced_product) {
+	$isKezia = false;
+	foreach ($ck as $c) {
+		if (in_array($c['source'], array('ean_kezia', 'multicode', 'assoc'))) { $isKezia = true; }
+	}
+	if (!$isKezia) {
+		print json_encode(array('ok' => true, 'status' => 'notkezia', 'label' => $ck[0]['label'], 'ref' => $ck[0]['ref'], 'code' => $codek));
+		exit;
+	}
+}
+
 $fk_product = 0; $label = ''; $source = ''; $status = 'unknown'; $mismatch = 0; $eanIsKnown = (count($ce) > 0);
 if ($forced_product > 0) {
 	foreach ($candidates as $c) if ($c['rowid'] == $forced_product) { $fk_product = $c['rowid']; $label = $c['label']; $source = $c['source']; }
@@ -90,12 +103,6 @@ if (!$force && !$replace_row && in_array($status, array('matched', 'unknown'))) 
 		print json_encode(array('ok' => true, 'dup' => (int) $d->rowid, 'dup_qty' => price2num($d->qty), 'label' => ($label !== '' ? $label : (string) $d->product_label), 'status' => 'dup'));
 		exit;
 	}
-}
-
-// Kezia labels print the article's main barcode: when that is a real EAN (single scan matching a product
-// barcode), the value is BOTH the label code and the EAN — keep it in both columns
-if ($ean === '' && $codek !== '' && $status == 'matched' && $source == 'barcode') {
-	$ean = $codek;
 }
 
 // product origin badges for the operator choice (Kezia migration / scanner-AI creation / Dolibarr-PS)
