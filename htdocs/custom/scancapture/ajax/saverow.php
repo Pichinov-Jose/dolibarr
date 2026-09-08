@@ -32,8 +32,16 @@ $candidates = array_values($candidates);
 // EAN (barcode/supplier barcode) was scanned in the wrong field — refuse it with a clear message
 if ($codek !== '' && count($ck) && !$forced_product) {
 	$isKezia = false;
+	$barcodeHits = array();
 	foreach ($ck as $c) {
 		if (in_array($c['source'], array('ean_kezia', 'multicode', 'assoc'))) { $isKezia = true; }
+		if (in_array($c['source'], array('barcode', 'pfp'))) { $barcodeHits[] = (int) $c['rowid']; }
+	}
+	if (!$isKezia && $barcodeHits) {
+		// Kezia-migrated products carry their label code in llx_product.barcode → a barcode hit on a
+		// kezia_idart product IS a label scan; a hit on a PS/Dolibarr product is a misplaced EAN
+		$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."product_extrafields WHERE fk_object IN (".implode(',', $barcodeHits).") AND kezia_idart IS NOT NULL");
+		if ($resql && ($x = $db->fetch_object($resql)) && (int) $x->n > 0) { $isKezia = true; }
 	}
 	if (!$isKezia) {
 		print json_encode(array('ok' => true, 'status' => 'notkezia', 'label' => $ck[0]['label'], 'ref' => $ck[0]['ref'], 'code' => $codek));
