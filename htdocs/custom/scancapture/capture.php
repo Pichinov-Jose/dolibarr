@@ -158,6 +158,8 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="row sc_cr_block" id="sc_cr_fam" style="display:none"></div>
 	<div class="row sc_cr_block" id="sc_cr_enrich" style="display:none"></div>
 	<div class="row" id="sc_cr_decl_wrap" style="display:none"><label>Déclinaison (site fabricant)</label><div id="sc_cr_decls"></div></div>
+	<div class="row"><label>Déclinaison (coloris / taille) <span class="opacitymedium sc_src" id="sc_cr_declm_src"></span></label>
+	<input type="text" id="sc_cr_declm" placeholder="ex : Rouge, 0,28 mm — ajoutée au libellé, exclue du nom de famille" style="width:100%;font-size:1.05em;padding:8px;box-sizing:border-box"></div>
 	<div class="row" id="sc_cr_parent_wrap">
 		<label>Rattacher la variante à</label>
 		<label style="font-weight:normal;display:block" id="sc_cr_pfam_opt"><input type="radio" name="sc_cr_parent" value="family" checked> Famille <b id="sc_cr_pfam"></b></label>
@@ -503,6 +505,7 @@ jQuery(function() {
 			var k = keys[i], v = sp[k];
 			if (v === null || v === '' || typeof v === 'object') { continue; }
 			var axis = /coloris|couleur|taille|size|color/i.test(k);
+			if (axis && !jQuery('#sc_cr_declm').val()) { jQuery('#sc_cr_declm').val(String(v)); scSetSrc('sc_cr_declm_src', source); }
 			var row = jQuery('<div class="sc_spec"></div>')
 				.append(jQuery('<span class="kv"></span>').html('<b>' + scEsc(k) + '</b> : ' + scEsc(v)))
 				.append(jQuery('<input type="checkbox" class="sc_spec_keep" checked title="Garder sur la fiche produit">'))
@@ -534,6 +537,8 @@ jQuery(function() {
 	function scPickDecl(el) {
 		jQuery('#sc_cr_decls .sc_decl').removeClass('sel'); el.addClass('sel');
 		crDecl = {code: el.attr('data-code'), lib: el.attr('data-lib')};
+		jQuery('#sc_cr_declm').val(((crDecl.lib || '') + (crDecl.code ? ' (' + crDecl.code + ')' : '')).trim());
+		scSetSrc('sc_cr_declm_src', 'fabricant');
 		if (crLabelBase === '') { crLabelBase = jQuery('#sc_cr_label').val(); }
 		if (crMpnBase === '') { crMpnBase = jQuery('#sc_cr_mpn').val(); }
 		var lb = crLabelBase;
@@ -557,10 +562,11 @@ jQuery(function() {
 			if (!base) {
 				var esc = function(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
 				base = jQuery('#sc_cr_label').val() || '';
-				if (crDecl) {
-					if (crDecl.lib) { base = base.replace(new RegExp(esc(crDecl.lib), 'ig'), ' '); }
-					if (crDecl.code) { base = base.replace(new RegExp(esc(crDecl.code), 'ig'), ' '); }
-				}
+				var dparts = [];
+				if (crDecl) { if (crDecl.lib) { dparts.push(crDecl.lib); } if (crDecl.code) { dparts.push(crDecl.code); } }
+				var dmv = jQuery('#sc_cr_declm').val().trim();
+				if (dmv) { dparts.push(dmv); dmv.replace(/\s*\([^)]*\)\s*/g, ' ').split(/\s{2,}|,/).forEach(function(t) { if (t.trim().length > 1) { dparts.push(t.trim()); } }); }
+				dparts.forEach(function(d) { base = base.replace(new RegExp(esc(d), 'ig'), ' '); });
 				base = base.replace(/\(\s*\)/g, ' ').replace(/\s{2,}/g, ' ').replace(/[\s\-–·,]+$/g, '').trim();
 			}
 			jQuery('#sc_cr_parent_label').val(base).focus().select();
@@ -594,6 +600,7 @@ jQuery(function() {
 		jQuery('#sc_cr_enrich').hide().empty();
 		scCands = []; jQuery('#sc_cr_cands').empty(); jQuery('#sc_cr_cands_wrap').hide();
 		crLabelBase = ''; crMpnBase = ''; crDecl = null; crFamProposal = '';
+		jQuery('#sc_cr_declm').val(''); scSetSrc('sc_cr_declm_src', '');
 		jQuery('#sc_cr_specs').empty(); jQuery('#sc_cr_specs_wrap').hide();
 		jQuery('.sc_src').text('');
 		jQuery('#sc_cr_decls').empty(); jQuery('#sc_cr_decl_wrap').hide();
@@ -674,6 +681,12 @@ jQuery(function() {
 				if (lb.val().toLowerCase().indexOf(String(v).toLowerCase()) < 0) { lb.val((lb.val() + ' ' + v).trim()); }
 			}
 		});
+		// manual declination: always usable, even when no spec/chip was returned by the sources
+		var dm = jQuery('#sc_cr_declm').val().trim();
+		if (dm) {
+			var lbm = jQuery('#sc_cr_label');
+			if (lbm.val().toLowerCase().indexOf(dm.toLowerCase()) < 0) { lbm.val((lbm.val() + ' ' + dm).trim()); }
+		}
 		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), token: token}).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
