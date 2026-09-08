@@ -81,4 +81,19 @@ if ($parentref !== '') {
 		);
 	}
 }
+// sibling fallback: another scan of the same Kezia label whose cache carries specs (shown when this row has none)
+if (!empty($row->code_kezia)) {
+	$ownspecs = (is_object($out['info']) && !empty($out['info']->specs));
+	if (!$ownspecs) {
+		$resql = $db->query("SELECT ean, product_label, ean_info FROM ".MAIN_DB_PREFIX."scan_capture
+			WHERE code_kezia = '".$db->escape((string) $row->code_kezia)."' AND rowid != ".((int) $row->rowid)."
+			AND ean_info LIKE '%\"specs\"%' ORDER BY rowid DESC LIMIT 1");
+		if ($resql && ($o = $db->fetch_object($resql))) {
+			$si = json_decode($o->ean_info, true);
+			if (!empty($si['specs'])) {
+				$out['sibling'] = array('ean' => (string) $o->ean, 'label' => (string) $o->product_label, 'specs' => $si['specs']);
+			}
+		}
+	}
+}
 print json_encode($out);

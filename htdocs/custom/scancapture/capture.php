@@ -157,6 +157,7 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="row"><span class="opacitymedium" id="sc_cr_ean"></span></div>
 	<div class="row sc_cr_block" id="sc_cr_fam" style="display:none"></div>
 	<div class="row sc_cr_block" id="sc_cr_enrich" style="display:none"></div>
+	<div class="row right"><a href="#" id="sc_cr_rescan" style="font-size:0.92em;color:#666"><span class="fa fa-refresh paddingright"></span>Relancer le scan complet (sources + IA)</a></div>
 	<div class="row" id="sc_cr_decl_wrap" style="display:none"><label>Déclinaison (site fabricant)</label><div id="sc_cr_decls"></div></div>
 	<div class="row"><label>Déclinaison (coloris / taille) <span class="opacitymedium sc_src" id="sc_cr_declm_src"></span></label>
 	<input type="text" id="sc_cr_declm" placeholder="ex : Rouge, 0,28 mm — ajoutée au libellé, exclue du nom de famille" style="width:100%;font-size:1.05em;padding:8px;box-sizing:border-box"></div>
@@ -630,6 +631,9 @@ jQuery(function() {
 		if (a.data('label')) { scAddCand(String(a.data('label')), mode == 'update' ? 'actuel' : 'scan'); scSetSrc('sc_cr_label_src', mode == 'update' ? 'actuel' : 'scan'); }
 		jQuery.getJSON(base + 'createinfo.php', {rowid: crRow, token: token}, function(ci) {
 			if (!(ci && ci.ok)) { return; }
+			if (ci.sibling && ci.sibling.specs && !jQuery('#sc_cr_specs').children().length) {
+				scRenderSpecs({specs: ci.sibling.specs}, 'frère ' + (ci.sibling.ean || ''));
+			}
 			jQuery('#sc_cr_ean').text('EAN : ' + (ci.ean || '—') + (ci.code_kezia ? ' · Code Kezia : ' + ci.code_kezia : '') + (ci.datec ? ' · scanné le ' + ci.datec : ''));
 			if (crMode == 'update' && ci.product) {
 				var p = ci.product;
@@ -659,7 +663,11 @@ jQuery(function() {
 				scSetSrc('sc_cr_mpn_src', 'famille ' + ci.family.ref + ', à ajuster');
 			}
 		});
-		jQuery.getJSON(base + 'enrich.php', {rowid: crRow, token: token}, function(r) {
+		scRunEnrich(false);
+		jQuery('#sc_cr_label').focus();
+	}
+	function scRunEnrich(refresh) {
+		jQuery.getJSON(base + 'enrich.php', {rowid: crRow, token: token, refresh: refresh ? 1 : 0}, function(r) {
 			var upcFound = scApplyInfo(r, 'base UPC');
 			jQuery.getJSON(base + 'enrich_ebay.php', {rowid: crRow, token: token}, function(r2) {
 				var ebayFound = scApplyInfo(r2, 'eBay');
@@ -667,8 +675,17 @@ jQuery(function() {
 				jQuery.getJSON(base + 'enrich_ai.php', {rowid: crRow, token: token}, function(r3) { scApplyInfo(r3, 'IA'); });
 			});
 		});
-		jQuery('#sc_cr_label').focus();
 	}
+	jQuery(document).on('click', '#sc_cr_rescan', function(ev) {
+		ev.preventDefault();
+		if (!crRow) { return; }
+		jQuery('#sc_cr_enrich').show().html('<span class="tit"><span class="fa fa-refresh fa-spin paddingright"></span>Scan complet relancé — sources puis IA, jusqu\'à ~1 min…</span>');
+		jQuery('#sc_cr_specs').empty(); jQuery('#sc_cr_specs_wrap').hide();
+		jQuery('#sc_cr_decls').empty(); jQuery('#sc_cr_decl_wrap').hide();
+		jQuery.getJSON(base + 'updaterow.php', {what: 'clearinfo', rowid: crRow, token: token}, function(r) {
+			if (r && r.ok) { scRunEnrich(true); }
+		});
+	});
 	jQuery(document).on('click', '.sc_create', function(ev) { ev.preventDefault(); scOpenPopup(jQuery(this), 'create'); });
 	jQuery(document).on('click', '.sc_enrich', function(ev) { ev.preventDefault(); scOpenPopup(jQuery(this), 'update'); });
 	jQuery(document).on('click', '.sc_resolve', function(ev) {

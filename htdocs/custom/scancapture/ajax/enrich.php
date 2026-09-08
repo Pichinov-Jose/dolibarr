@@ -12,7 +12,7 @@ $rowid = GETPOSTINT('rowid');
 $resql = $db->query("SELECT rowid, ean, ean_info FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
 if (!$row || empty($row->ean)) { print json_encode(array('ok' => false, 'error' => 'row/ean not found')); exit; }
-if (empty($row->ean_info)) {
+if (empty($row->ean_info) && !GETPOSTINT('refresh')) {
 	// same EAN already enriched on another scan row: reuse that cache instead of burning quotas again
 	$resql = $db->query("SELECT ean_info FROM ".MAIN_DB_PREFIX."scan_capture WHERE ean = '".$db->escape($row->ean)."' AND rowid != ".((int) $row->rowid)." AND ean_info IS NOT NULL AND ean_info != '' AND ean_info != '{\"title\":\"\"}' ORDER BY rowid DESC LIMIT 1");
 	if ($resql && ($o = $db->fetch_object($resql))) {

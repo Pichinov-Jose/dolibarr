@@ -27,15 +27,25 @@ dolibarr_set_const($db, $kday, (string) ($count + 1), 'chaine', 0, '', 1);
 
 $context = '';
 // sibling scans (same Kezia label) already identified: strong hint that this EAN is another declination of the same model
-$resql = $db->query("SELECT ean, product_label FROM ".MAIN_DB_PREFIX."scan_capture
+$resql = $db->query("SELECT ean, product_label, ean_info FROM ".MAIN_DB_PREFIX."scan_capture
 	WHERE code_kezia = '".$db->escape((string) $row->code_kezia)."' AND rowid != ".((int) $row->rowid)."
 	AND code_kezia IS NOT NULL AND code_kezia != '' AND product_label IS NOT NULL AND product_label != ''
 	AND status IN ('matched', 'created') ORDER BY rowid DESC LIMIT 3");
 if ($resql) {
-	$sib = array();
-	while ($o = $db->fetch_object($resql)) { $sib[] = 'EAN '.$o->ean.' = "'.$o->product_label.'"'; }
+	$sib = array(); $sibspecs = '';
+	while ($o = $db->fetch_object($resql)) {
+		$sib[] = 'EAN '.$o->ean.' = "'.$o->product_label.'"';
+		if ($sibspecs === '' && !empty($o->ean_info)) {
+			$si = json_decode($o->ean_info, true);
+			if (!empty($si['specs']) && is_array($si['specs'])) {
+				$pairs = array();
+				foreach ($si['specs'] as $k => $v) { if (is_scalar($v)) { $pairs[] = $k.'='.$v; } }
+				if ($pairs) { $sibspecs = ' Caracteristiques du frere '.$o->ean.' : '.implode(', ', array_slice($pairs, 0, 10)).' — fournis les MEMES cles de specs pour l\'EAN recherche, avec les valeurs propres a sa declinaison.'; }
+			}
+		}
+	}
 	if ($sib) {
-		$context .= " Produits FRERES du meme rayon (meme etiquette famille, autres declinaisons deja identifiees) : ".implode(' ; ', $sib).". L'EAN recherche est tres probablement une autre declinaison (diametre/coloris/taille) du MEME modele.";
+		$context .= " Produits FRERES du meme rayon (meme etiquette famille, autres declinaisons deja identifiees) : ".implode(' ; ', $sib).". L'EAN recherche est tres probablement une autre declinaison (diametre/coloris/taille) du MEME modele.".$sibspecs;
 	}
 }
 if ($row->product_label && strpos((string) $row->match_source, 'variantof:') !== 0) {

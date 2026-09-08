@@ -27,6 +27,13 @@ if ($what == 'del') {
 	print json_encode(array('ok' => true, 'deleted' => $rowid));
 	exit;
 }
+if ($what == 'clearinfo') {
+	// full rescan requested from the popup: drop the enrichment cache so the chain re-queries every source
+	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = NULL WHERE rowid = ".((int) $rowid));
+	$db->commit();
+	print json_encode(array('ok' => true, 'cleared' => $rowid));
+	exit;
+}
 if ($what == 'qty') {
 	if ($row->sent_to_inv) {
 		$db->rollback();
