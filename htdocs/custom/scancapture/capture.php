@@ -73,6 +73,8 @@ body { padding-bottom: 76px !important; }
 .sc_cand:hover { background: #e6dcf7; }
 .sc_cand .src { float: right; color: #7a6aa5; font-size: 0.85em; margin-left: 8px; }
 .sc_src { font-weight: normal; font-size: 0.85em; }
+.sc_kbd_toggle { float: right; color: #999; text-decoration: none; padding: 0 8px; font-size: 1.15em; }
+.sc_kbd_toggle.kbdon { color: #1976d2; }
 .sc_spec { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 0.92em; }
 .sc_spec .kv { flex: 1; }
 .sc_spec input[type=checkbox] { width: 18px; height: 18px; }
@@ -126,9 +128,9 @@ html.scfs #id-container { width: 100% !important; }
 	<a href="#" id="sc_gear" title="<?php print $langs->trans('Settings'); ?>"><span class="fa fa-cog"></span></a>
 </div>
 <div id="sc_fields">
-	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?></label>
+	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_codek" title="Afficher/masquer le clavier"><span class="fa fa-keyboard-o"></span></a></label>
 	<input type="text" id="sc_codek" autocomplete="off" inputmode="none" autofocus placeholder="<?php print $langs->trans('ScanHere'); ?>"></div>
-	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?></label>
+	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_ean" title="Afficher/masquer le clavier"><span class="fa fa-keyboard-o"></span></a></label>
 	<input type="text" id="sc_ean" autocomplete="off" inputmode="none" placeholder="<?php print $langs->trans('ScanOrSkip'); ?>"></div>
 	<div class="sc_field sc_qtyf"><label><?php print $langs->trans('Qty'); ?></label>
 	<input type="number" id="sc_qty" step="any" inputmode="decimal" value="1"></div>
@@ -146,7 +148,7 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="row"><label style="display:inline"><input type="checkbox" id="sc_autocreate"> <?php print $langs->trans('AutoCreateUnknown'); ?></label></div>
 	<div class="row"><label><?php print $langs->trans('DefaultQty'); ?></label>
 	<input type="number" id="sc_defqty" value="1" step="any"></div>
-	<div class="row"><label style="display:inline"><input type="checkbox" id="sc_auto" checked> <?php print $langs->trans('AutoSubmitAfterEan'); ?></label></div>
+	<div class="row"><label style="display:inline"><input type="checkbox" id="sc_auto"> <?php print $langs->trans('AutoSubmitAfterEan'); ?></label></div>
 	<div class="row"><label style="display:inline"><input type="checkbox" id="sc_kbdchk"> <?php print $langs->trans('ManualKeyboardHelp'); ?></label></div>
 	<div class="center"><button type="button" class="button sc_btn" id="sc_set_ok" style="width:100%"><?php print $langs->trans('ScCloseSettings'); ?></button></div>
 </div></div>
@@ -280,7 +282,17 @@ jQuery(function() {
 		});
 	});
 	jQuery('#sc_defqty').on('change', function() { jQuery('#sc_qty').val(jQuery(this).val() || 1); });
-	jQuery('#sc_kbdchk').on('change', function() { jQuery('#sc_codek,#sc_ean').attr('inputmode', this.checked ? 'text' : 'none'); });
+	jQuery('#sc_kbdchk').on('change', function() { jQuery('#sc_codek,#sc_ean').attr('inputmode', this.checked ? 'text' : 'none'); jQuery('.sc_kbd_toggle').removeClass('kbdon'); });
+	// per-field keyboard toggle: summon the numeric keyboard to type digits, tap again to dismiss it
+	jQuery(document).on('click', '.sc_kbd_toggle', function(ev) {
+		ev.preventDefault();
+		var f = jQuery('#' + jQuery(this).data('for'));
+		var show = f.attr('inputmode') === 'none';
+		f.attr('inputmode', show ? 'numeric' : 'none');
+		jQuery(this).toggleClass('kbdon', show);
+		f.blur();
+		setTimeout(function() { f.focus(); }, 60);
+	});
 	refreshChips();
 	// numpad
 	var npCb = null;
@@ -436,6 +448,8 @@ jQuery(function() {
 	// operator settings survive the page reloads (auto-validate, default qty, keyboard mode, target inventory)
 	try {
 		var scS = JSON.parse(localStorage.getItem('sc_settings') || 'null');
+		var scMigrated = (scS && scS.v === undefined);
+		if (scMigrated) { scS.auto = false; } // migration 11/09 : la validation auto passe décochée partout une fois
 		if (scS) {
 			jQuery('#sc_auto').prop('checked', !!scS.auto);
 			jQuery('#sc_autocreate').prop('checked', !!scS.autocreate);
@@ -445,8 +459,9 @@ jQuery(function() {
 		}
 	} catch (e) {}
 	jQuery('#sc_auto, #sc_autocreate, #sc_defqty, #sc_kbdchk, #sc_inv').on('change', function() {
-		try { localStorage.setItem('sc_settings', JSON.stringify({auto: jQuery('#sc_auto').is(':checked'), autocreate: jQuery('#sc_autocreate').is(':checked'), defqty: jQuery('#sc_defqty').val(), kbd: jQuery('#sc_kbdchk').is(':checked'), inv: jQuery('#sc_inv').val()})); } catch (e) {}
+		try { localStorage.setItem('sc_settings', JSON.stringify({v: 2, auto: jQuery('#sc_auto').is(':checked'), autocreate: jQuery('#sc_autocreate').is(':checked'), defqty: jQuery('#sc_defqty').val(), kbd: jQuery('#sc_kbdchk').is(':checked'), inv: jQuery('#sc_inv').val()})); } catch (e) {}
 	});
+	if (typeof scMigrated !== 'undefined' && scMigrated) { jQuery('#sc_auto').trigger('change'); }
 	// banner survives the post-creation reload
 	try {
 		var scRL = JSON.parse(sessionStorage.getItem('sc_relive') || 'null');
