@@ -339,7 +339,7 @@ jQuery(function() {
 			tr.find('td').eq(6).html(scEcartHtml(r.qty, r.stock_before !== undefined && r.stock_before !== null ? r.stock_before : tr.attr('data-sb')));
 			setLive('ok', '<span class="fa fa-compress"></span> ' + (r.label || '') + ' &mdash; quantit&eacute; cumul&eacute;e : <b>' + r.qty + '</b> (ligne ' + r.merged + ')');
 			scDupPending = null;
-			jQuery('#sc_codek').focus();
+			scReloadKeeping(400);
 		});
 	});
 	jQuery(document).on('click', '.sc_dup_new', function(ev) {
@@ -404,6 +404,8 @@ jQuery(function() {
 			}
 			applyFilter();
 			clearFields();
+			// reload after a validated scan: counters, stock and écart come back fresh from the server
+			scReloadKeeping(400);
 		});
 	}
 	function clearFields() {
@@ -450,9 +452,9 @@ jQuery(function() {
 		var scRL = JSON.parse(sessionStorage.getItem('sc_relive') || 'null');
 		if (scRL) { sessionStorage.removeItem('sc_relive'); setLive(scRL.cls, scRL.html); }
 	} catch (e) {}
-	function scReloadKeeping() {
+	function scReloadKeeping(delay) {
 		try { sessionStorage.setItem('sc_relive', JSON.stringify({cls: jQuery('#sc_live').attr('class'), html: jQuery('#sc_live').html()})); } catch (e) {}
-		setTimeout(function() { window.location.reload(); }, 800);
+		setTimeout(function() { window.location.reload(); }, delay || 800);
 	}
 	jQuery('#sc_codek').on('keydown', function(e) { if (e.key == 'Enter') { e.preventDefault(); liveLookup(); jQuery('#sc_ean').focus(); } });
 	jQuery('#sc_ean').on('keydown', function(e) {
