@@ -128,9 +128,9 @@ html.scfs #id-container { width: 100% !important; }
 	<a href="#" id="sc_gear" title="<?php print $langs->trans('Settings'); ?>"><span class="fa fa-cog"></span></a>
 </div>
 <div id="sc_fields">
-	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_codek" title="Afficher/masquer le clavier"><span class="fa fa-keyboard-o"></span></a></label>
+	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_codek" title="Afficher/masquer le clavier">⌨</a></label>
 	<input type="text" id="sc_codek" autocomplete="off" inputmode="none" autofocus placeholder="<?php print $langs->trans('ScanHere'); ?>"></div>
-	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_ean" title="Afficher/masquer le clavier"><span class="fa fa-keyboard-o"></span></a></label>
+	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_ean" title="Afficher/masquer le clavier">⌨</a></label>
 	<input type="text" id="sc_ean" autocomplete="off" inputmode="none" placeholder="<?php print $langs->trans('ScanOrSkip'); ?>"></div>
 	<div class="sc_field sc_qtyf"><label><?php print $langs->trans('Qty'); ?></label>
 	<input type="number" id="sc_qty" step="any" inputmode="decimal" value="1"></div>
@@ -287,11 +287,14 @@ jQuery(function() {
 	jQuery(document).on('click', '.sc_kbd_toggle', function(ev) {
 		ev.preventDefault();
 		var f = jQuery('#' + jQuery(this).data('for'));
+		var el = f[0];
 		var show = f.attr('inputmode') === 'none';
 		f.attr('inputmode', show ? 'numeric' : 'none');
 		jQuery(this).toggleClass('kbdon', show);
-		f.blur();
-		setTimeout(function() { f.focus(); }, 60);
+		// tout doit rester SYNCHRONE dans le geste utilisateur, sinon Android refuse d'ouvrir le clavier
+		el.blur();
+		el.focus();
+		if (show && el.setSelectionRange) { try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} }
 	});
 	refreshChips();
 	// numpad
