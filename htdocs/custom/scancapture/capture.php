@@ -431,6 +431,29 @@ jQuery(function() {
 		});
 	});
 	jQuery('#sc_clear, .sc_a_clear').on('click', function(e) { e.preventDefault(); jQuery('#sc_codek,#sc_ean').val(''); jQuery('#sc_qty').val(jQuery('#sc_defqty').val() || 1); setLive('', ''); jQuery('#sc_codek').focus(); });
+	// operator settings survive the page reloads (auto-validate, default qty, keyboard mode, target inventory)
+	try {
+		var scS = JSON.parse(localStorage.getItem('sc_settings') || 'null');
+		if (scS) {
+			jQuery('#sc_auto').prop('checked', !!scS.auto);
+			jQuery('#sc_autocreate').prop('checked', !!scS.autocreate);
+			if (scS.defqty) { jQuery('#sc_defqty').val(scS.defqty); }
+			jQuery('#sc_kbdchk').prop('checked', !!scS.kbd).trigger('change');
+			if (scS.inv !== undefined && jQuery('#sc_inv option[value="' + scS.inv + '"]').length) { jQuery('#sc_inv').val(scS.inv); refreshChips(); }
+		}
+	} catch (e) {}
+	jQuery('#sc_auto, #sc_autocreate, #sc_defqty, #sc_kbdchk, #sc_inv').on('change', function() {
+		try { localStorage.setItem('sc_settings', JSON.stringify({auto: jQuery('#sc_auto').is(':checked'), autocreate: jQuery('#sc_autocreate').is(':checked'), defqty: jQuery('#sc_defqty').val(), kbd: jQuery('#sc_kbdchk').is(':checked'), inv: jQuery('#sc_inv').val()})); } catch (e) {}
+	});
+	// banner survives the post-creation reload
+	try {
+		var scRL = JSON.parse(sessionStorage.getItem('sc_relive') || 'null');
+		if (scRL) { sessionStorage.removeItem('sc_relive'); setLive(scRL.cls, scRL.html); }
+	} catch (e) {}
+	function scReloadKeeping() {
+		try { sessionStorage.setItem('sc_relive', JSON.stringify({cls: jQuery('#sc_live').attr('class'), html: jQuery('#sc_live').html()})); } catch (e) {}
+		setTimeout(function() { window.location.reload(); }, 800);
+	}
 	jQuery('#sc_codek').on('keydown', function(e) { if (e.key == 'Enter') { e.preventDefault(); liveLookup(); jQuery('#sc_ean').focus(); } });
 	jQuery('#sc_ean').on('keydown', function(e) {
 		if (e.key == 'Enter') {
@@ -735,7 +758,7 @@ jQuery(function() {
 			}
 			if (crMode == 'update') {
 				setLive(r.warning ? 'multi' : 'ok', '<span class="fa fa-magic"></span> ' + r.ref + ' &mdash; ' + r.label + ' &middot; mis à jour : ' + ((r.done && r.done.length) ? r.done.join(', ') : 'rien à changer') + (r.warning ? '<br><span class="fa fa-exclamation-triangle"></span> ' + r.warning : ''));
-				jQuery('#sc_codek').focus();
+				scReloadKeeping();
 				return;
 			}
 			tr.find('td').eq(4).html('created <span class="fa fa-clock-o" style="color:#b26a00"></span>');
@@ -743,7 +766,7 @@ jQuery(function() {
 			var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text());
 			var u = jQuery('#sc_unkbadge'); var n = Math.max(0, (parseInt(u.find('a').text()) || 1) - 1); u.find('a').text(n + ' inconnus'); if (!n) u.addClass('zero');
 			setLive(r.warning ? 'multi' : 'ok', '<span class="fa fa-check"></span> ' + r.ref + ' &mdash; ' + r.label + (r.family ? ' [famille ' + r.family + ']' : '') + ' &middot; <?php print dol_escape_js($langs->trans('CreatedPending')); ?>' + (r.warning ? '<br><span class="fa fa-exclamation-triangle"></span> ' + r.warning : ''));
-			jQuery('#sc_codek').focus();
+			scReloadKeeping();
 		});
 	});
 	jQuery(document).on('click', '.sc_del', function(ev) {
