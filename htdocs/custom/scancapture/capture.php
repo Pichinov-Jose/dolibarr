@@ -73,8 +73,8 @@ body { padding-bottom: 76px !important; }
 .sc_cand:hover { background: #e6dcf7; }
 .sc_cand .src { float: right; color: #7a6aa5; font-size: 0.85em; margin-left: 8px; }
 .sc_src { font-weight: normal; font-size: 0.85em; }
-.sc_kbd_toggle { float: right; color: #999; text-decoration: none; padding: 0 8px; font-size: 1.15em; }
-.sc_kbd_toggle.kbdon { color: #1976d2; }
+.sc_kbd_toggle { float: right; color: #555; background: #f0f2f5; border: 1px solid #b5bcc4; border-radius: 6px; text-decoration: none; padding: 2px 10px; font-size: 0.85em; font-weight: bold; line-height: 1.4; }
+.sc_kbd_toggle.kbdon { background: #1976d2; border-color: #1976d2; color: #fff; }
 .sc_spec { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 0.92em; }
 .sc_spec .kv { flex: 1; }
 .sc_spec input[type=checkbox] { width: 18px; height: 18px; }
@@ -128,9 +128,9 @@ html.scfs #id-container { width: 100% !important; }
 	<a href="#" id="sc_gear" title="<?php print $langs->trans('Settings'); ?>"><span class="fa fa-cog"></span></a>
 </div>
 <div id="sc_fields">
-	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_codek" title="Afficher/masquer le clavier">⌨</a></label>
+	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_codek" title="Afficher/masquer le clavier">123</a></label>
 	<input type="text" id="sc_codek" autocomplete="off" inputmode="none" autofocus placeholder="<?php print $langs->trans('ScanHere'); ?>"></div>
-	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_ean" title="Afficher/masquer le clavier">⌨</a></label>
+	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_ean" title="Afficher/masquer le clavier">123</a></label>
 	<input type="text" id="sc_ean" autocomplete="off" inputmode="none" placeholder="<?php print $langs->trans('ScanOrSkip'); ?>"></div>
 	<div class="sc_field sc_qtyf"><label><?php print $langs->trans('Qty'); ?></label>
 	<input type="number" id="sc_qty" step="any" inputmode="decimal" value="1"></div>
