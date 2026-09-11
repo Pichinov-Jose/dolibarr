@@ -16,7 +16,9 @@ $created = 0;
 if ($autocreate) {
 	// create products for unknown rows carrying an EAN, using internet info when available
 	require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
-	$resql = $db->query("SELECT rowid, ean, code_kezia, qty, ean_info, match_source, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND status = 'unknown' AND ean IS NOT NULL AND ean != ''");
+	// only this inventory's rows (capture-only rows, fk_inventory NULL, follow the chosen target) —
+	// several inventories can run in parallel without sweeping each other's scans
+	$resql = $db->query("SELECT rowid, ean, code_kezia, qty, ean_info, match_source, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND status = 'unknown' AND ean IS NOT NULL AND ean != '' AND (fk_inventory = ".((int) $fk_inventory)." OR fk_inventory IS NULL)");
 	$unk = array();
 	while ($resql && ($o = $db->fetch_object($resql))) { $unk[] = $o; }
 	foreach ($unk as $u) {
@@ -54,7 +56,7 @@ if ($autocreate) {
 }
 
 // all pending resolved lines, whatever target they were captured with
-$resql = $db->query("SELECT rowid, fk_product, qty FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created')");
+$resql = $db->query("SELECT rowid, fk_product, qty FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created') AND (fk_inventory = ".((int) $fk_inventory)." OR fk_inventory IS NULL)");
 $rows = array();
 while ($resql && ($o = $db->fetch_object($resql))) { $rows[] = $o; }
 $db->begin();
