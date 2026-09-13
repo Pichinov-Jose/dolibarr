@@ -556,6 +556,7 @@ function getAiChatAssistantConfig()
 
 	$keys = array(
 		// Table header labels for common API fields (see FIELD_LABELS in ai_assistant.js)
+		'AIAttachmentBlockedByPrivacy', 'MissingInformation', 'CouldYouClarify',
 		'AIAttachmentBlockedByPrivacy',
 		'Ref', 'Label', 'ThirdParty', 'Customer', 'Paid', 'Status', 'Type', 'Email', 'Town', 'Date',
 		'DateInvoice', 'DateMaxPayment', 'AmountHT', 'AmountTTC', 'AmountVAT', 'RemainderToPay',
