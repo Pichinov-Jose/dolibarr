@@ -251,9 +251,10 @@ if ($action == 'applycredit' && $discountid > 0 && empty($error)) {
 		<?php } else { ?>
 			<?php if ($willSplit) {
 				$remainder = price2num($creditamount - $remaintopay, 'MT');
-				// @phan-suppress-next-line PhanPluginPrintfVariableFormatString
-				echo '<p class="warning">'.sprintf(
-					$langs->transnoentities('TakeposCreditSplitAuto'),
+				// Params must go THROUGH transnoentities(): Dolibarr's trans() runs its own sprintf
+				// with empty defaults, so an outer sprintf receives a string whose %s are already gone.
+				echo '<p class="warning">'.$langs->transnoentities(
+					'TakeposCreditSplitAuto',
 					'<strong>'.price($remaintopay, 1, $langs, 1, -1, -1, $conf->currency).'</strong>',
 					'<strong>'.price($remainder, 1, $langs, 1, -1, -1, $conf->currency).'</strong>'
 				).'</p>';
