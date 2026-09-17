@@ -226,3 +226,5 @@ TakeposAmount2=Montant 2 (automatique)
 TakeposCreditSplitSuccess=Crédit fractionné avec succès
 TakeposCreditSplitError=Erreur lors du fractionnement : la somme des deux montants doit être égale au montant d'origine (%s)
 DeleteSale=Supprimer la vente
+TakeposTerminalDisabled=Terminal désactivé
+TakeposTerminalDisabledHelp=Si activé, ce terminal n'est plus proposé sur l'écran de sélection des caisses. Ses factures existantes et sa numérotation sont conservées.
