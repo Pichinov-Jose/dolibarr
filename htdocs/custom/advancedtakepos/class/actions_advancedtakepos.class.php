@@ -528,7 +528,8 @@ class ActionsAdvancedTakepos
 		$button = array(
 			'title'  => '<span class="fa fa-trash-alt paddingrightonly"></span><div class="trunc">'.dol_escape_htmltag($langs->trans('AdvTakeposDeleteSale')).'</div>',
 			'action' => 'advtpDeleteSale();',
-			'style'  => 'background-color:#d9534f;color:#fff;',
+			// !important : le theme TakePOS "colorful" impose background:#FFB100 !important sur .actionbutton.
+			'style'  => 'background-color:#d9534f !important;color:#000 !important;',
 		);
 		$this->results = array(array($button));
 		return 0;
