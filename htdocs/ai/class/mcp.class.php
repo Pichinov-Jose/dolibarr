@@ -176,8 +176,11 @@ class McpHandler
 	 *
 	 * @return void
 	 */
-	private function loadTools()
+	public function loadTools()
 	{
+		if (!empty($this->loadedTools)) {
+			return; // Already loaded (v24 constructor auto-loads; explicit calls from develop-aligned callers are no-ops)
+		}
 		$this->loadNativeTools();
 		$this->loadExternalTools();
 	}
