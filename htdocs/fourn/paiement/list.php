@@ -95,7 +95,9 @@ if (!$sortorder) {
 	$sortorder = "DESC";
 }
 if (!$sortfield) {
-	$sortfield = "p.datep";
+	// rowid is needed as a tiebreaker: many payments share the same date, and without it
+	// the order of those rows is undefined, so paging can repeat or skip records.
+	$sortfield = "p.datep,p.rowid";
 }
 
 $search_all = trim(GETPOST('search_all', 'alphanohtml'));
@@ -149,6 +151,8 @@ if ((!$user->hasRight("fournisseur", "facture", "lire") && !getDolGlobalString('
 	accessforbidden();
 }
 
+$arrayofselected = !empty($arrayofselected) && is_array($arrayofselected) ? $arrayofselected : array();
+
 
 /*
  * Actions
@@ -184,9 +188,11 @@ if (empty($reshook)) {
 	}
 }
 
+
 /*
  * View
  */
+
 $title = $langs->trans('ListPayment');
 $help_url = '';
 

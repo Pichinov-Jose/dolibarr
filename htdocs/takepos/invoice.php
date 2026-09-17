@@ -281,7 +281,8 @@ if (empty($reshook)) {
 	$tmpcurrentday = dol_getdate(dol_now());
 
 	$sql = "SELECT MIN(ref) as firstref FROM ".MAIN_DB_PREFIX."pos_cash_fence";
-	$sql .= " WHERE posnumber = ".((int) $takeposterminal);
+	$sql .= " WHERE entity = ".((int) $conf->entity);
+	$sql .= " AND posnumber = ".((int) $takeposterminal);
 	$sql .= " AND year_close = ".((int) $tmpcurrentday['year']);
 	$sql .= " AND (";
 	$sql .= " (month_close IS NULL AND day_close IS NULL)";
@@ -307,7 +308,7 @@ if (empty($reshook)) {
 	}
 
 	// Action to record a payment on a TakePOS invoice
-	if ($action == 'valid' && $user->hasRight('facture', 'creer')) {
+	if ($action == 'valid' && $user->hasRight('takepos', 'run')) {
 		$bankaccount = 0;
 		$error = 0;
 
@@ -535,7 +536,7 @@ if (empty($reshook)) {
 	}
 
 	$creditnote = null;
-	if ($action == 'creditnote' && $user->hasRight('facture', 'creer')) {
+	if ($action == 'creditnote' && $user->hasRight('takepos', 'run')) {
 		$db->begin();
 
 		$creditnote = new Facture($db);

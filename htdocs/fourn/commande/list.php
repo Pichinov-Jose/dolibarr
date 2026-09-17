@@ -237,7 +237,7 @@ foreach ($object->fields as $key => $val) {
 }
 // Extra fields
 include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_array_fields.tpl.php';
-// Add hook to complete $arrayfield
+// Add hook to complete $arrayfields
 $parameters = array('arrayfields' => &$arrayfields);
 $reshook = $hookmanager->executeHooks('completeArrayFields', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 
@@ -920,6 +920,10 @@ if ($search_status != '' && $search_status != '-1') {
 }
 if ($search_option == 'late') {
 	$sql .= " AND cf.date_commande < '".$db->idate(dol_now() - $conf->order->fournisseur->warning_delay)."'";
+}
+if ($search_option == 'recv_late') {
+	// Same rule as FournisseurCommande::hasDelay() for the ordered and partially received status
+	$sql .= " AND cf.date_livraison < '".$db->idate(dol_now() - $conf->order->fournisseur->warning_delay)."'";
 }
 if ($search_date_order_start) {
 	$sql .= " AND cf.date_commande >= '".$db->idate($search_date_order_start)."'";

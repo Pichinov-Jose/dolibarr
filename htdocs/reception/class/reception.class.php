@@ -1183,7 +1183,7 @@ class Reception extends CommonObject
 			}
 
 			$qty = (float) $qty;
-			$description = trim($description);
+			$description = trim((string) $description);
 
 			// Fetch current line from the database and then clone the object and set it in $oldline property
 			$line = new ReceptionLineBatch($this->db);
@@ -1259,8 +1259,6 @@ class Reception extends CommonObject
 	public function fetch_lines_free()
 	{
 		// phpcs:enable
-		global $mysoc;
-
 		$this->lines = array();
 
 		$sql = 'SELECT rc.rowid, rc.fk_reception, rc.fk_entrepot, rc.fk_product, rc.fk_unit, rc.description, rc.fk_elementdet, rc.fk_element, rc.element_type, rc.qty, rc.rang, rc.cost_price, rc.ref_fourn, rc.batch, rc.eatby, rc.sellby';
@@ -1303,8 +1301,6 @@ class Reception extends CommonObject
 				$line->fk_elementdet 	= $objp->fk_elementdet;
 				$line->fk_element_type	= $objp->element_type;
 				$line->fetch_optionals();
-
-
 
 				$this->lines[$i] = $line;
 
@@ -2133,7 +2129,7 @@ class Reception extends CommonObject
 
 						$qty = $obj->qty;
 
-						if ($qty <= 0) {
+						if ($qty == 0 || ($qty < 0 && !getDolGlobalInt('RECEPTION_ALLOW_NEGATIVE_QTY'))) {
 							continue;
 						}
 
@@ -2293,7 +2289,7 @@ class Reception extends CommonObject
 
 						$qty = $obj->qty;
 
-						if ($qty <= 0) {
+						if ($qty == 0 || ($qty < 0 && !getDolGlobalInt('RECEPTION_ALLOW_NEGATIVE_QTY'))) {
 							continue;
 						}
 						dol_syslog(get_class($this)."::reopen reception movement index ".$i." ed.rowid=".$obj->rowid);
@@ -2381,7 +2377,7 @@ class Reception extends CommonObject
 	public function setDraft($user)
 	{
 		// phpcs:enable
-		global $conf, $langs;
+		global $langs;
 
 		$error = 0;
 
@@ -2431,7 +2427,7 @@ class Reception extends CommonObject
 
 						$qty = $obj->qty;
 
-						if ($qty <= 0) {
+						if ($qty == 0 || ($qty < 0 && !getDolGlobalInt('RECEPTION_ALLOW_NEGATIVE_QTY'))) {
 							continue;
 						}
 

@@ -1,7 +1,8 @@
 ---
 name: skill-doli-code-review
-description: >
-  Reviews Dolibarr PHP code for compliance with coding standards and security best practices, and fixes identified issues. Use when the user asks to review, audit, fix, or update code for Dolibarr, or mentions code quality, security vulnerabilities, or PSR-12 compliance.
+description:
+  Reviews Dolibarr PHP code for compliance with coding standards and security best practices, and fixes identified issues. 
+  Use when the user asks to review, audit, fix, or update code for Dolibarr, or mentions code quality, security vulnerabilities, or PSR-12 compliance.
 license: MIT
 user-invocable: true
 allowed-tools:
@@ -15,6 +16,23 @@ allowed-tools:
 ## When to Use This Skill
 
 Use this skill whenever the user asks to review, audit, or fix Dolibarr code to match best practices.
+
+
+## Relationship with AGENTS.md
+
+The instructions in this file are **complementary to** the instructions defined in `AGENTS.md`.
+
+- `AGENTS.md` contains the general instructions and rules for the project.
+- `SKILLS.md` contains additional instructions specific to skills.
+- Unless explicitly stated otherwise, the instructions from both files apply.
+- `SKILLS.md` does not replace or override `AGENTS.md`.
+- If an instruction in `SKILLS.md` conflicts with `AGENTS.md`, follow the rules defined by `AGENTS.md`.
+
+
+## Critical Rules (DO NOT VIOLATE)
+
+-  Never commit or push anything unless the user explicitly asks for it. This overrides any default behavior of the agent. Make the changes, report them, and wait for the user to say "commit" or "push".
+
 
 ## Inputs
 
@@ -40,7 +58,7 @@ The user request should contain, when available:
 
 When generating code:
 
-- provide only the relevant PHP code
+- provide only the relevant PHP code 7.2+
 - preserve the existing file formatting, never change the copyright or licence header, never remove existing cast 
 - do not rewrite unrelated methods
 - explain briefly what is being fixed
