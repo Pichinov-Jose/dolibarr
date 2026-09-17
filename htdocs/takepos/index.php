@@ -687,12 +687,12 @@ function deleteline() {
 	ClearSearch(false);
 }
 
-function editbatch(lineid, idproduct) {
-	$("#poslines").load("invoice.php?action=editbatch_popup&token=<?php echo newToken(); ?>&place="+place+"&idline="+lineid+"&idproduct="+idproduct+"&invoiceid="+invoiceid, function() {});
+function editbatch(lineid, idproduct, clonebatch) {
+	$("#poslines").load("invoice.php?action=editbatch_popup&token=<?php echo newToken(); ?>&place="+place+"&idline="+lineid+"&idproduct="+idproduct+"&invoiceid="+invoiceid+(clonebatch ? '&clonebatch=1' : ''), function() {});
 }
 
-function updatebatch(batch, warehouseid, lineid) {
-	$("#poslines").load("invoice.php?action=setbatch&token=<?php echo newToken(); ?>&place="+place+"&idline="+lineid+"&batch="+encodeURIComponent(batch)+"&warehouseid="+warehouseid+"&invoiceid="+invoiceid, function() {});
+function updatebatch(batch, warehouseid, lineid, clonebatch) {
+	$("#poslines").load("invoice.php?action=setbatch&token=<?php echo newToken(); ?>&place="+place+"&idline="+lineid+"&batch="+encodeURIComponent(batch)+"&warehouseid="+warehouseid+"&invoiceid="+invoiceid+(clonebatch ? '&clonebatch=1' : ''), function() {});
 }
 
 function Customer() {
@@ -711,10 +711,51 @@ function History()
 	$.colorbox({href:"../compta/facture/list.php?contextpage=poslist&search_module_source=takepos", width:"90%", height:"80%", transition:"none", iframe:"true", title:"<?php echo $langs->trans("History"); ?>"});
 }
 
+function CloneTicket(sourceinvoiceid) {
+	if (!sourceinvoiceid) {
+		sourceinvoiceid = invoiceid;
+	}
+	if (!sourceinvoiceid) {
+		return false;
+	}
+	$.getJSON("<?php print DOL_URL_ROOT; ?>/takepos/invoice.php?action=cloneticket&format=json&token=<?php echo currentToken(); ?>&sourceinvoiceid="+sourceinvoiceid)
+		.done(function(data) {
+			if (!data.success) {
+				alert(data.message || '<?php echo dol_escape_js($langs->trans('ErrorFailedToCloneTicket')); ?>');
+				return;
+			}
+
+			place = data.place;
+			invoiceid = data.invoiceid;
+			if (data.batchlineid > 0) {
+				editbatch(data.batchlineid, data.batchproductid, 1);
+			} else {
+				$("#poslines").load("invoice.php?place="+place+"&invoiceid="+invoiceid, function() {});
+			}
+		})
+		.fail(function() {
+			alert('<?php echo dol_escape_js($langs->trans('ErrorFailedToCloneTicket')); ?>');
+		});
+	return true;
+}
+
 function Reduction() {
 	invoiceid = $("#invoiceid").val();
 	console.log("Open popup to enter reduction on invoiceid="+invoiceid);
 	$.colorbox({href:"reduction.php?place="+place+"&invoiceid="+invoiceid, width:"80%", height:"90%", transition:"none", iframe:"true", title:""});
+}
+
+function CreditList() {
+	invoiceid = $("#invoiceid").val();
+	console.log("Open popup to manage customer credits for invoiceid="+invoiceid);
+	$.colorbox({
+		href: "creditnote_apply.php?place="+place+"&invoiceid="+invoiceid+"&token=<?php echo currentToken(); ?>",
+		width: "80%",
+		height: "85%",
+		transition: "none",
+		iframe: "true",
+		title: <?php echo "'".dol_escape_js($langs->trans('TakeposManageCredits'))."'"; ?>
+	});
 }
 
 var closeBillParams="";
@@ -1602,6 +1643,9 @@ if (getDolGlobalString('TAKEPOS_BAR_RESTAURANT')) {
 
 // Add a discount
 $menus[$r++] = array('title' => '<span class="fa fa-percent paddingrightonly"></span><div class="trunc">'.$langs->trans("InvoiceDiscountShort").'</div>', 'action' => 'Reduction();');
+
+// Manage available customer credits (credit notes converted to credit, deposits, etc.)
+$menus[$r++] = array('title' => '<span class="fa fa-wallet paddingrightonly"></span><div class="trunc">'.$langs->trans("TakeposAvailableCredits").'</div>', 'action' => 'CreditList();');
 
 if (!getDolGlobalString('TAKEPOS_NO_SPLIT_SALE')) {
 	$menus[$r++] = array('title' => '<span class="fas fa-cut paddingrightonly"></span><div class="trunc">'.$langs->trans("SplitSale").'</div>', 'action' => 'Split();');
