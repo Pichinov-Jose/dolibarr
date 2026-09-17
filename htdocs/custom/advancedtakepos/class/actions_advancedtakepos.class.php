@@ -511,8 +511,17 @@ class ActionsAdvancedTakepos
 			return 0;
 		}
 		// Si la PR coeur (#39745) est appliquee, le bouton natif existe deja : on evite le doublon.
+		// La version mergee du coeur n'est PAS gardee par une constante : on detecte le bouton
+		// lui-meme dans la barre recue par le hook, quel que soit son mode d'activation.
 		if (getDolGlobalInt('TAKEPOS_SHOW_DELETE_SALE') == 1) {
 			return 0;
+		}
+		if (!empty($parameters['menus']) && is_array($parameters['menus'])) {
+			foreach ($parameters['menus'] as $m) {
+				if (!empty($m['action']) && strpos((string) $m['action'], 'DeleteSale();') === 0) {
+					return 0;
+				}
+			}
 		}
 		global $langs;
 		$langs->load('advancedtakepos@advancedtakepos');

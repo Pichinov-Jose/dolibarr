@@ -225,3 +225,4 @@ TakeposAmount1=Montant 1
 TakeposAmount2=Montant 2 (automatique)
 TakeposCreditSplitSuccess=Crédit fractionné avec succès
 TakeposCreditSplitError=Erreur lors du fractionnement : la somme des deux montants doit être égale au montant d'origine (%s)
+DeleteSale=Supprimer la vente
