@@ -133,7 +133,7 @@ class mod_takepos_ref_simple extends ModeleNumRefTakepos
 		$pryymm = '';
 		$posindice = strlen($this->prefixcreditnote.$pos_source.'-____-') + 1;	// So posindice is position after TCX-YYMM-
 
-		$sql  = "SELECT MAX(CAST(SUBSTRING(ref FROM ".$posindice.") AS SIGNED)) as max";
+		$sql  = "SELECT MAX(CAST(SUBSTRING(ref FROM ".((int) $posindice).") AS SIGNED)) as max";
 		$sql .= " FROM ".MAIN_DB_PREFIX."facture";
 		$sql .= " WHERE ref LIKE '".$db->escape($this->prefixcreditnote.$pos_source."-____-%")."'";
 		$sql .= " AND entity = ".$conf->entity;
