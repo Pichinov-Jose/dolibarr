@@ -1,0 +1,41 @@
+# Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+GiftVoucherDescription=Bearer gift vouchers / store credits with barcode
+GiftVoucherDescriptionLong=Emission (sold or return credit), scanned redemption at POS or on invoice, double-use blocking, consumption and expiry tracking. Kezia history import.
+GiftVoucher=Gift voucher
+GiftVouchers=Gift vouchers
+NewGiftVoucher=New gift voucher
+GiftVoucherScan=Scan a voucher
+GiftVoucherScanPlaceholder=Scan or type the voucher code…
+GiftVoucherCode=Voucher code
+GiftVoucherCodeAuto=(auto: numbering mask)
+GiftVoucherCodeMask=Code mask
+GiftVoucherTypeGift=Gift cheque
+GiftVoucherTypeCredit=Return credit
+GiftVoucherDateEmission=Emission date
+GiftVoucherDateValidite=Valid until
+GiftVoucherDateExerce=Redeemed on
+GiftVoucherValidityAuto=empty = computed from default duration
+GiftVoucherValidityGift=Gift cheques validity (months)
+GiftVoucherValidityCredit=Return credits validity (months)
+GiftVoucherPaymentModeId=Voucher payment mode
+GiftVoucherPaymentModeIdHelp=llx_c_paiement id (109 = BONACH). A customer payment of this mode carrying a voucher code in the "Number" field redeems the voucher automatically (and is blocked if the voucher is invalid).
+GiftVoucherStatusOpen=Open
+GiftVoucherStatusUsed=Redeemed
+GiftVoucherStatusExpired=Expired
+GiftVoucherStatusCanceled=Canceled
+GiftVoucherRedeem=Redeem
+GiftVoucherRedeemExpired=Redeem despite expiry (commercial gesture)
+GiftVoucherRedeemed=Voucher %s redeemed (%s)
+GiftVoucherConfirmRedeem=Confirm redemption of voucher %s (%s)?
+GiftVoucherConfirmCancel=Cancel voucher %s?
+GiftVoucherConfirmReopen=Reopen voucher %s (reverts its redemption)?
+GiftVoucherNotFound=No voucher with code "%s"
+GiftVoucherAlreadyUsed=Voucher already redeemed
+GiftVoucherCanceled=Voucher canceled
+GiftVoucherExpired=Voucher expired
+GiftVoucherInvoiceRefOptional=Invoice ref (optional)
+GiftVoucherSetup=Gift vouchers setup
+GiftVoucherProductId=Gift voucher product (auto generation)
+GiftVoucherProductIdHelp=Product/service id sold at POS or on invoice: on validation, one voucher per unit sold is created, valued at the line incl-tax amount (0 = disabled).
+GiftVoucherAutoCreated=%s gift voucher(s) generated: %s
+PrintButton=Print

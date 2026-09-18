@@ -1,0 +1,41 @@
+# Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+GiftVoucherDescription=Bons d'achat / chèques cadeaux au porteur avec code-barres
+GiftVoucherDescriptionLong=Émission (vente ou avoir), encaissement scanné en caisse ou sur facture, blocage du double emploi, suivi de consommation et d'expiration. Reprise de l'historique Kezia.
+GiftVoucher=Bon d'achat
+GiftVouchers=Bons d'achat
+NewGiftVoucher=Nouveau bon d'achat
+GiftVoucherScan=Scanner un bon
+GiftVoucherScanPlaceholder=Scannez ou saisissez le code du bon…
+GiftVoucherCode=Code du bon
+GiftVoucherCodeAuto=(auto : masque de numérotation)
+GiftVoucherCodeMask=Masque des codes
+GiftVoucherTypeGift=Chèque cadeau
+GiftVoucherTypeCredit=Avoir / bon de retour
+GiftVoucherDateEmission=Date d'émission
+GiftVoucherDateValidite=Valable jusqu'au
+GiftVoucherDateExerce=Consommé le
+GiftVoucherValidityAuto=vide = calculée depuis la durée par défaut
+GiftVoucherValidityGift=Validité des chèques cadeaux (mois)
+GiftVoucherValidityCredit=Validité des avoirs (mois)
+GiftVoucherPaymentModeId=Mode de règlement « bon d'achat »
+GiftVoucherPaymentModeIdHelp=id llx_c_paiement (109 = BONACH). Un règlement client de ce mode portant un code de bon dans le champ « Numéro » consomme automatiquement le bon (et se bloque si le bon est invalide).
+GiftVoucherStatusOpen=En cours
+GiftVoucherStatusUsed=Consommé
+GiftVoucherStatusExpired=Expiré
+GiftVoucherStatusCanceled=Annulé
+GiftVoucherRedeem=Consommer
+GiftVoucherRedeemExpired=Consommer malgré l'expiration (geste commercial)
+GiftVoucherRedeemed=Bon %s consommé (%s)
+GiftVoucherConfirmRedeem=Confirmer la consommation du bon %s (%s) ?
+GiftVoucherConfirmCancel=Annuler le bon %s ?
+GiftVoucherConfirmReopen=Réactiver le bon %s (annule sa consommation) ?
+GiftVoucherNotFound=Aucun bon avec le code « %s »
+GiftVoucherAlreadyUsed=Bon déjà consommé
+GiftVoucherCanceled=Bon annulé
+GiftVoucherExpired=Bon expiré
+GiftVoucherInvoiceRefOptional=Réf. facture (optionnel)
+GiftVoucherSetup=Configuration des bons d'achat
+GiftVoucherProductId=Produit « chèque cadeau » (génération auto)
+GiftVoucherProductIdHelp=id du produit/service vendu en caisse ou sur facture : à la validation, un bon est créé automatiquement par unité vendue, du montant TTC de la ligne (0 = désactivé).
+GiftVoucherAutoCreated=%s bon(s) d'achat généré(s) : %s
+PrintButton=Imprimer
