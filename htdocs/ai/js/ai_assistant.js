@@ -1249,7 +1249,7 @@ export function initAiAssistant(container) {
                 pin.type = 'button';
                 pin.className = 'ctx-pin';
                 pin.title = t('AIContextPin');
-                pin.innerHTML = '<span class="fa fa-thumb-tack"></span>';
+                pin.innerHTML = '<span class="fa fa-thumbtack"></span>';
                 pin.onclick = (ev) => {
                     ev.stopPropagation();
                     div.classList.toggle('ctx-pinned');
