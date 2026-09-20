@@ -7923,6 +7923,9 @@ function price2num($amount, $rounding = '', $option = 0)
 			$nbofdectoround = getDolGlobalInt('MAIN_MAX_DECIMALS_CURRENCY_UNIT', getDolGlobalInt('MAIN_MAX_DECIMALS_UNIT'));	// TODO Use param of currency
 		} elseif ($rounding == 'CT') {
 			$nbofdectoround = getDolGlobalInt('MAIN_MAX_DECIMALS_CURRENCY_TOT', getDolGlobalInt('MAIN_MAX_DECIMALS_TOT'));		// TODO Use param of currency
+		} elseif ($rounding == 'CR') {
+			// Minimal backport of the 'CR' rounding mode of develop (#39054): accuracy of a currency exchange rate
+			$nbofdectoround = getDolGlobalInt('MAIN_MAX_DECIMALS_CURRENCY_RATE', 8);
 		} elseif (is_numeric($rounding)) {
 			$nbofdectoround = (int) $rounding;
 		}
