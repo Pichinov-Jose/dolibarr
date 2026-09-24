@@ -417,9 +417,11 @@ function aiTruncateForLog($text, $max = 60000)
  * @param-out int                   $logId
  * @return  int									Return 0
  */
-function ai_log_request($db, $user, $query, array $response, $provider, float $time, float $confidence, $status, $error = '', $rawReq = '', $rawRes = '')
+function ai_log_request($db, $user, $query, array $response, $provider, float $time, float $confidence, $status, $error = '', $rawReq = '', $rawRes = '', array $context = array(), &$logId = null)
 {
 	global $conf;
+
+	$logId = 0;
 
 	if (!getDolGlobalInt('AI_LOG_REQUESTS')) {
 		return 0;
@@ -474,6 +476,9 @@ function ai_log_request($db, $user, $query, array $response, $provider, float $t
 	$sql .= ")";
 
 	$resql = $db->query($sql);
+	if ($resql) {
+		$logId = (int) $db->last_insert_id(MAIN_DB_PREFIX."ai_request_log");
+	}
 	if (!$resql) {
 		dol_print_error($db);
 	}
@@ -543,21 +548,21 @@ function aiAdminPrepareHead()
 	$head[$h][2] = 'custom';
 	$h++;
 
-	if (getDolGlobalString("MAIN_FEATURES_LEVEL") >= 2) {
+	if (getDolGlobalString("MAIN_FEATURES_LEVEL") >= 1) {
 		$head[$h][0] = dol_buildpath("/ai/admin/assistant.php", 1);
 		$head[$h][1] = $langs->trans("Assistant");
 		$head[$h][2] = 'assistant';
 		$h++;
 	}
 
-	if (getDolGlobalString("MAIN_FEATURES_LEVEL") >= 2) {
+	if (getDolGlobalString("MAIN_FEATURES_LEVEL") >= 1) {
 		$head[$h][0] = dol_buildpath("/ai/admin/server_mcp.php", 1);
 		$head[$h][1] = $langs->trans("MCPServer");
 		$head[$h][2] = 'servermcp';
 		$h++;
 	}
 
-	if (getDolGlobalString("MAIN_FEATURES_LEVEL") >= 2) {
+	if (getDolGlobalString("MAIN_FEATURES_LEVEL") >= 1) {
 		$head[$h][0] = dol_buildpath("/ai/admin/configure_tools.php", 1);
 		$head[$h][1] = $langs->trans("ToolAccessControl");
 		$head[$h][2] = 'tools';
