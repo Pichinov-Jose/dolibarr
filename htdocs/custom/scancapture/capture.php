@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com> — GPL v3+ */
+/* Copyright (C) 2026 Jose Martinez <jose.martinez@pichinov.com> — GPL v3+ */
 $res = 0;
 if (!$res && file_exists('../../main.inc.php')) $res = @include '../../main.inc.php';
 if (!$res && file_exists('../../../main.inc.php')) $res = @include '../../../main.inc.php';
@@ -75,6 +75,16 @@ body { padding-bottom: 76px !important; }
 .sc_src { font-weight: normal; font-size: 0.85em; }
 .sc_kbd_toggle { float: right; color: #555; background: #f0f2f5; border: 1px solid #b5bcc4; border-radius: 6px; text-decoration: none; padding: 2px 10px; font-size: 0.85em; font-weight: bold; line-height: 1.4; }
 .sc_kbd_toggle.kbdon { background: #1976d2; border-color: #1976d2; color: #fff; }
+.sc_cam_btn { float: right; margin-right: 8px; color: #555; background: #f0f2f5; border: 1px solid #b5bcc4; border-radius: 6px; text-decoration: none; padding: 2px 10px; font-size: 0.85em; line-height: 1.4; }
+.sc_cam_btn svg { width: 16px; height: 14px; vertical-align: -2px; }
+#sc_cam { display: none; position: fixed; inset: 0; background: #000; z-index: 2000; }
+#sc_cam video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#sc_cam .aim { position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%); width: min(80vw, 440px); height: 150px; border: 2px solid rgba(255,255,255,0.9); border-radius: 10px; box-shadow: 0 0 0 100vmax rgba(0,0,0,0.35); }
+#sc_cam .aim:before { content: ''; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: rgba(229,57,53,0.85); }
+#sc_cam_msg { position: absolute; left: 0; right: 0; top: max(16px, env(safe-area-inset-top)); text-align: center; color: #fff; font-size: 1.05em; padding: 0 16px; text-shadow: 0 1px 3px #000; z-index: 1; }
+#sc_cam .ctl { position: absolute; left: 0; right: 0; bottom: max(20px, env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 22px; z-index: 1; }
+#sc_cam .ctl button { background: rgba(255,255,255,0.16); color: #fff; border: 1px solid rgba(255,255,255,0.6); border-radius: 50%; width: 64px; height: 64px; font-size: 1.6em; line-height: 1; cursor: pointer; }
+#sc_cam .ctl button.on { background: #fbc02d; border-color: #fbc02d; color: #000; }
 .sc_spec { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 0.92em; }
 .sc_spec .kv { flex: 1; }
 .sc_spec input[type=checkbox] { width: 18px; height: 18px; }
@@ -128,9 +138,13 @@ html.scfs #id-container { width: 100% !important; }
 	<a href="#" id="sc_gear" title="<?php print $langs->trans('Settings'); ?>"><span class="fa fa-cog"></span></a>
 </div>
 <div id="sc_fields">
-	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_codek" title="Afficher/masquer le clavier">123</a></label>
+	<?php
+	// camera button: inline SVG only (the DT50 terminal fonts miss most emoji glyphs)
+	$camsvg = '<svg viewBox="0 0 24 20" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.5A1.5 1.5 0 0 1 3.5 5H7l1.6-2.4A1.5 1.5 0 0 1 9.8 2h4.4a1.5 1.5 0 0 1 1.2.6L17 5h3.5A1.5 1.5 0 0 1 22 6.5v10a1.5 1.5 0 0 1-1.5 1.5h-17A1.5 1.5 0 0 1 2 16.5v-10Z"/><circle cx="12" cy="11" r="3.5"/></svg>';
+	?>
+	<div class="sc_field"><label><?php print $langs->trans('KeziaCode'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_codek" title="Afficher/masquer le clavier">123</a><a href="#" class="sc_cam_btn" data-for="sc_codek" title="Scanner avec la caméra"><?php print $camsvg; ?></a></label>
 	<input type="text" id="sc_codek" autocomplete="off" inputmode="none" autofocus placeholder="<?php print $langs->trans('ScanHere'); ?>"></div>
-	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_ean" title="Afficher/masquer le clavier">123</a></label>
+	<div class="sc_field"><label><?php print $langs->trans('ProductEan'); ?> <a href="#" class="sc_kbd_toggle" data-for="sc_ean" title="Afficher/masquer le clavier">123</a><a href="#" class="sc_cam_btn" data-for="sc_ean" title="Scanner avec la caméra"><?php print $camsvg; ?></a></label>
 	<input type="text" id="sc_ean" autocomplete="off" inputmode="none" placeholder="<?php print $langs->trans('ScanOrSkip'); ?>"></div>
 	<div class="sc_field sc_qtyf"><label><?php print $langs->trans('Qty'); ?></label>
 	<input type="number" id="sc_qty" step="any" inputmode="decimal" value="1"></div>
@@ -200,6 +214,16 @@ html.scfs #id-container { width: 100% !important; }
 		<button type="button" class="ok" data-k="OK">OK</button><button type="button" data-k="X"><span class="fa fa-times"></span></button>
 	</div>
 </div></div>
+
+<div id="sc_cam">
+	<video id="sc_cam_video" playsinline muted autoplay></video>
+	<div class="aim"></div>
+	<div id="sc_cam_msg"></div>
+	<div class="ctl">
+		<button type="button" id="sc_cam_torch" style="display:none" title="Torche"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 5 13h5l-1 9 8-11h-5l1-9Z"/></svg></button>
+		<button type="button" id="sc_cam_close" title="Fermer">&times;</button>
+	</div>
+</div>
 
 <div id="sc_livewrap"><span id="sc_live"><?php print $langs->trans('ScanHint'); ?></span></div>
 
@@ -297,6 +321,122 @@ jQuery(function() {
 		if (show && el.setSelectionRange) { try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} }
 	});
 	refreshChips();
+	// ---- lecture code-barres par caméra (iOS Safari / Android Chrome) ----
+	var camSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+	if (!camSupported) { jQuery('.sc_cam_btn').hide(); }
+	else if (navigator.mediaDevices.enumerateDevices) {
+		navigator.mediaDevices.enumerateDevices().then(function(devs) {
+			if (!devs.some(function(d) { return d.kind === 'videoinput'; })) { jQuery('.sc_cam_btn').hide(); }
+		}).catch(function() {});
+	}
+	var camTarget = null, camStop = null, camAudio = null, camTrack = null;
+	function camBeep() {
+		try {
+			if (!camAudio) { camAudio = new (window.AudioContext || window.webkitAudioContext)(); }
+			if (camAudio.state === 'suspended') { camAudio.resume(); }
+			var o = camAudio.createOscillator(), g = camAudio.createGain();
+			o.type = 'square'; o.frequency.value = 1400; g.gain.value = 0.15;
+			o.connect(g); g.connect(camAudio.destination);
+			o.start(); o.stop(camAudio.currentTime + 0.12);
+		} catch (e) {}
+		if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
+	}
+	function camLoadZXing() {
+		// lazy : ~330 Ko vendorés dans le module, chargés seulement au 1er usage caméra
+		return new Promise(function(res, rej) {
+			if (window.ZXing) { res(); return; }
+			var s = document.createElement('script');
+			s.src = '<?php print dol_buildpath('/scancapture/js/zxing-library.min.js', 1); ?>';
+			s.onload = res;
+			s.onerror = function() { rej(new Error('Librairie ZXing introuvable (js/zxing-library.min.js)')); };
+			document.head.appendChild(s);
+		});
+	}
+	// Point d'extension décodeur : scStartDecoder(videoEl, onResult) démarre caméra + décodage
+	// continu et retourne {stop: fn, ready: Promise}. onResult(text, format) à chaque lecture,
+	// format en minuscules style BarcodeDetector ('ean_13', 'upc_a', 'code_128'…).
+	// Implémentation par défaut : ZXing. Un moteur natif peut se poser sur window.scStartDecoder
+	// AVANT ce script (détection de capacité) sans toucher à l'UI.
+	window.scStartDecoder = window.scStartDecoder || function(videoEl, onResult) {
+		var stopped = false, reader = null;
+		var ready = camLoadZXing().then(function() {
+			if (stopped) { return; }
+			var hints = new Map();
+			hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.CODE_128]);
+			hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+			reader = new ZXing.BrowserMultiFormatReader(hints);
+			return reader.decodeFromConstraints(
+				{audio: false, video: {facingMode: {ideal: 'environment'}, width: {ideal: 1280}, height: {ideal: 720}}},
+				videoEl,
+				function(result) {
+					if (result && !stopped) { onResult(result.getText(), String(ZXing.BarcodeFormat[result.getBarcodeFormat()] || '').toLowerCase()); }
+				}
+			);
+		});
+		return {
+			stop: function() { stopped = true; if (reader) { try { reader.reset(); } catch (e) {} } },
+			ready: ready
+		};
+	};
+	function camClose() {
+		if (camStop && camStop.stop) { try { camStop.stop(); } catch (e) {} }
+		camStop = null; camTrack = null;
+		var v = document.getElementById('sc_cam_video');
+		if (v && v.srcObject) { try { v.srcObject.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {} v.srcObject = null; }
+		jQuery('#sc_cam').hide();
+		jQuery('#sc_cam_torch').hide().removeClass('on');
+	}
+	function camFail(e) {
+		var n = (e && e.name) || '';
+		var m;
+		if (n === 'NotAllowedError' || n === 'SecurityError') { m = 'Accès caméra refusé. Autorisez la caméra pour ce site — iPhone : bouton AA/[...] dans la barre Safari > Réglages du site web > Caméra : Autoriser (ou Réglages > Apps > Safari > Caméra).'; }
+		else if (n === 'NotFoundError' || n === 'OverconstrainedError') { m = 'Aucune caméra détectée sur cet appareil.'; }
+		else if (n === 'NotReadableError') { m = 'Caméra déjà utilisée par une autre application.'; }
+		else { m = 'Caméra indisponible : ' + ((e && e.message) || n || 'erreur inconnue'); }
+		jQuery('#sc_cam_msg').html('<span class="fa fa-exclamation-triangle"></span> ' + m);
+		if (n === 'NotFoundError') { jQuery('.sc_cam_btn').hide(); }
+	}
+	function camFill(fieldId, text, format) {
+		var f = jQuery('#' + fieldId);
+		f.val(text);
+		// même traitement que la touche Entrée du champ (liveLookup + focus suivant / auto-submit)
+		f.trigger(jQuery.Event('keydown', {key: 'Enter'}));
+	}
+	function camOpen(fieldId) {
+		camTarget = fieldId;
+		var got = false;
+		jQuery('#sc_cam_msg').text('Démarrage de la caméra…');
+		jQuery('#sc_cam').show();
+		try { if (!camAudio) { camAudio = new (window.AudioContext || window.webkitAudioContext)(); } } catch (e) {} // débloqué dans le geste utilisateur (iOS)
+		var video = document.getElementById('sc_cam_video');
+		video.onplaying = function() {
+			jQuery('#sc_cam_msg').text(fieldId === 'sc_codek' ? 'Visez l\'étiquette Kezia (Code 128)' : 'Visez le code-barres produit (EAN)');
+			try {
+				camTrack = video.srcObject && video.srcObject.getVideoTracks()[0];
+				var caps = camTrack && camTrack.getCapabilities ? camTrack.getCapabilities() : {};
+				if (caps.torch) { jQuery('#sc_cam_torch').show(); }
+			} catch (e) {}
+		};
+		try {
+			camStop = window.scStartDecoder(video, function(text, format) {
+				if (got || !text) { return; }
+				got = true;
+				camBeep();
+				camClose();
+				camFill(camTarget, text, format);
+			});
+		} catch (e) { camFail(e); return; }
+		if (camStop && camStop.ready && camStop.ready.catch) { camStop.ready.catch(camFail); }
+	}
+	jQuery(document).on('click', '.sc_cam_btn', function(ev) { ev.preventDefault(); camOpen(jQuery(this).data('for')); });
+	jQuery('#sc_cam_close').on('click', function(ev) { ev.preventDefault(); camClose(); jQuery('#' + (camTarget || 'sc_codek')).focus(); });
+	jQuery('#sc_cam_torch').on('click', function(ev) {
+		ev.preventDefault();
+		if (!camTrack) { return; }
+		var on = !jQuery(this).hasClass('on');
+		camTrack.applyConstraints({advanced: [{torch: on}]}).then(function() { jQuery('#sc_cam_torch').toggleClass('on', on); }).catch(function() {});
+	});
+	jQuery(document).on('keydown', function(e) { if (e.key === 'Escape' && jQuery('#sc_cam').is(':visible')) { camClose(); } });
 	// numpad
 	var npCb = null;
 	function openPad(initial, cb) {
