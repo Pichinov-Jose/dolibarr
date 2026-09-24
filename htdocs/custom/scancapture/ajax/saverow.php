@@ -8,6 +8,45 @@ require_once dol_buildpath('/scancapture/lib/scancapture.lib.php');
 if (!$user->admin && !$user->hasRight('stock', 'creer')) accessforbidden();
 top_httphead('application/json');
 
+// idempotence (file hors-ligne) : clé UUID générée client, réclamée dans le registre AVANT toute
+// écriture — un rejeu (réponse perdue, renvoi de la file) est reconnu et répond sans réécrire.
+// Format strictement validé : une clé arbitraire (client buggé, valeur fixe) verrouillerait tous
+// les scans suivants en « replay » — hors format UUID, on la traite comme absente
+$idem = GETPOST('idem', 'alphanohtml');
+if (!preg_match('/^[0-9a-f-]{36}$/i', $idem)) { $idem = ''; }
+function scIdemClaim($db, $idem, $action)
+{
+	// true = clé réclamée ; array('rowid'=>N) = rejeu absorbé ; array('pending'=>1) = l'envoi
+	// d'origine est encore en vol (le client doit GARDER l'entrée en file, PAS un succès) ;
+	// null = registre indisponible (instance sans le DDL → on continue SANS protection plutôt
+	// que de bloquer le comptage)
+	for ($try = 0; $try < 2; $try++) {
+		$resql = $db->query("INSERT INTO ".MAIN_DB_PREFIX."scan_idempotency (idempotency_key, action, datec) VALUES ('".$db->escape($idem)."', '".$db->escape($action)."', NOW())");
+		if ($resql) { return true; }
+		if ($db->lasterrno() !== 'DB_ERROR_RECORD_ALREADY_EXISTS') { return null; }
+		$r = $db->query("SELECT fk_scan_capture, datec FROM ".MAIN_DB_PREFIX."scan_idempotency WHERE idempotency_key = '".$db->escape($idem)."'");
+		$o = $r ? $db->fetch_object($r) : null;
+		if ($o && $o->fk_scan_capture !== null) {
+			// vrai rejeu absorbé — compté (preuve d'exploitation que la protection a servi)
+			$db->query("UPDATE ".MAIN_DB_PREFIX."scan_idempotency SET replay_count = replay_count + 1 WHERE idempotency_key = '".$db->escape($idem)."'");
+			return array('rowid' => (int) $o->fk_scan_capture);
+		}
+		// réclamée mais jamais aboutie : répondre « succès » ici perdrait le scan pour toujours.
+		// Récente = l'original est peut-être encore en vol → pending. Périmée = l'original est
+		// mort avant d'écrire → on libère et on re-réclame (auto-réparation).
+		if ($o && $db->jdate($o->datec) > dol_now() - 300) { return array('pending' => 1); }
+		$db->query("DELETE FROM ".MAIN_DB_PREFIX."scan_idempotency WHERE idempotency_key = '".$db->escape($idem)."' AND fk_scan_capture IS NULL");
+	}
+	return null;
+}
+function scIdemSettle($db, $idem, $rowid)
+{
+	// clé réclamée : on la relie à la ligne écrite, ou on la LIBÈRE si le travail a échoué
+	// (sinon la clé serait brûlée et le client rejouerait à vide pour toujours)
+	if ($rowid > 0) { $db->query("UPDATE ".MAIN_DB_PREFIX."scan_idempotency SET fk_scan_capture = ".((int) $rowid)." WHERE idempotency_key = '".$db->escape($idem)."'"); }
+	else { $db->query("DELETE FROM ".MAIN_DB_PREFIX."scan_idempotency WHERE idempotency_key = '".$db->escape($idem)."'"); }
+}
+
 $codek = scNormalize(GETPOST('code_kezia', 'alphanohtml'));
 $ean = scNormalize(GETPOST('ean', 'alphanohtml'));
 $qty = (float) price2num(GETPOST('qty', 'alpha'), 'MS');
@@ -94,9 +133,24 @@ if ($forced_product > 0) {
 $force = GETPOSTINT('force');
 $merge_row = GETPOSTINT('merge_row');
 if ($merge_row > 0) {
+	// la fusion est un UPDATE : l'unicité de la table ne peut PAS l'intercepter, seul le registre
+	// protège du rejeu (qty ajoutée deux fois en silence — le pire des doublons)
+	$claim = ($idem !== '') ? scIdemClaim($db, $idem, 'merge') : null;
+	if (is_array($claim) && !empty($claim['pending'])) {
+		print json_encode(array('ok' => false, 'status' => 'pending', 'error' => 'original request still in flight'));
+		exit;
+	}
+	if (is_array($claim)) {
+		$rid = ($claim['rowid'] > 0) ? $claim['rowid'] : $merge_row;
+		$resql = $db->query("SELECT rowid, qty, product_label, stock_before FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rid));
+		$m = $resql ? $db->fetch_object($resql) : null;
+		print json_encode(array('ok' => (bool) $m, 'merged' => (int) $rid, 'rowid' => (int) $rid, 'qty' => ($m ? price2num($m->qty) : 0), 'label' => ($m ? $m->product_label : ''), 'status' => 'replay', 'stock_before' => ($m && $m->stock_before !== null ? (float) $m->stock_before : null)));
+		exit;
+	}
 	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET qty = qty + ".((float) $qty)." WHERE rowid = ".((int) $merge_row)." AND sent_to_inv IS NULL");
 	$resql = $db->query("SELECT rowid, qty, product_label, stock_before FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $merge_row));
 	$m = $resql ? $db->fetch_object($resql) : null;
+	if ($claim === true) { scIdemSettle($db, $idem, $m ? (int) $merge_row : 0); }
 	print json_encode(array('ok' => (bool) $m, 'merged' => (int) $merge_row, 'qty' => ($m ? price2num($m->qty) : 0), 'label' => ($m ? $m->product_label : ''), 'status' => 'merged', 'stock_before' => ($m && $m->stock_before !== null ? (float) $m->stock_before : null)));
 	exit;
 }
@@ -132,6 +186,28 @@ if (in_array($status, array('mismatch', 'ambiguous'))) {
 	foreach ($ce as $i => $c) { $ce[$i]['origin'] = $scOrigin($c['rowid']); }
 }
 
+// réclamation de la clé APRÈS les sorties sans écriture (notkezia, annonce dup) — elles ne
+// consomment pas la clé, la re-soumission interactive (force/choix produit) la réclamera —
+// et AVANT la transaction qui écrit (assoc, remplacement, insert)
+$idemClaimed = false;
+if ($idem !== '') {
+	$claim = scIdemClaim($db, $idem, 'insert');
+	if (is_array($claim) && !empty($claim['pending'])) {
+		// le client garde l'entrée en file (traité comme un échec réseau) et retentera
+		print json_encode(array('ok' => false, 'status' => 'pending', 'error' => 'original request still in flight'));
+		exit;
+	}
+	if (is_array($claim)) {
+		$prev = null;
+		if ($claim['rowid'] > 0) {
+			$r = $db->query("SELECT rowid, status, product_label, qty, fk_product, stock_before FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $claim['rowid']));
+			$prev = $r ? $db->fetch_object($r) : null;
+		}
+		print json_encode(array('ok' => true, 'status' => 'replay', 'rowid' => (int) $claim['rowid'], 'label' => ($prev ? (string) $prev->product_label : ''), 'fk_product' => ($prev ? (int) $prev->fk_product : 0), 'qty' => ($prev ? price2num($prev->qty) : 0), 'stock_before' => ($prev && $prev->stock_before !== null ? (float) $prev->stock_before : null)));
+		exit;
+	}
+	$idemClaimed = ($claim === true);
+}
 $assoc = ''; $kassoc = '';
 $db->begin();
 // reverse association: EAN identified the product but the scanned Kezia label is unknown
@@ -173,6 +249,9 @@ if ($fk_product > 0 && $status == 'matched') {
 	$resql = $db->query("SELECT SUM(reel) AS s FROM ".MAIN_DB_PREFIX."product_stock WHERE fk_product = ".((int) $fk_product).($wh > 0 ? " AND fk_entrepot = ".$wh : ""));
 	$stock_before = ($resql && ($x = $db->fetch_object($resql)) && $x->s !== null) ? (float) $x->s : 0.0;
 }
+// la clé n'est PAS écrite dans scan_capture : le registre porte le lien (fk_scan_capture) et la
+// colonne n'existe pas sur toutes les instances (Argonaute) — une colonne inconditionnelle ici
+// ferait échouer TOUS les scans là où le DDL n'est pas passé
 $sql = "INSERT INTO ".MAIN_DB_PREFIX."scan_capture (datec, fk_user, code_kezia, ean, qty, fk_product, match_source, product_label, candidates, status, fk_inventory, stock_before, import_key) VALUES (";
 $sql .= "NOW(), ".((int) $user->id).", ".($codek !== '' ? "'".$db->escape($codek)."'" : "NULL").", ".($ean !== '' ? "'".$db->escape($ean)."'" : "NULL").", ".((float) $qty).", ";
 $sql .= ($fk_product > 0 ? (int) $fk_product : "NULL").", ".($source !== '' ? "'".$db->escape($source)."'" : "NULL").", ".($label !== '' ? "'".$db->escape($label)."'" : "NULL").", ";
@@ -180,4 +259,5 @@ $sql .= (count($candidates) > 1 || $status == 'mismatch' ? "'".$db->escape(json_
 $resql = $db->query($sql);
 $rowid = $resql ? $db->last_insert_id(MAIN_DB_PREFIX.'scan_capture') : 0;
 $db->commit();
+if ($idemClaimed) { scIdemSettle($db, $idem, $resql ? (int) $rowid : 0); }
 print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc, 'stock_before' => $stock_before, 'learned' => $learned));

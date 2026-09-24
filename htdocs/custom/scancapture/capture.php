@@ -132,6 +132,7 @@ html.scfs #id-container { width: 100% !important; }
 	<h2><span class="fa fa-barcode paddingright"></span><?php print $langs->trans('ScanCaptureTitle2'); ?></h2>
 	<span class="sc_chip inv" id="sc_invchip"></span>
 	<span class="sc_chip" id="sc_count"><?php print $nbToday; ?> scans</span>
+	<span class="sc_chip warn" id="sc_offline" style="display:none;cursor:pointer" title="Scans en attente de renvoi — toucher pour renvoyer maintenant"></span>
 	<span class="sc_chip warn" id="sc_unknowncount" <?php print $nbUnknown ? '' : 'style="display:none"'; ?>><a href="<?php print dol_buildpath('/scancapture/review.php', 1); ?>" style="text-decoration:none"><?php print $nbUnknown; ?> <?php print $langs->trans('UnknownShort'); ?></a></span>
 	<a href="<?php print DOL_URL_ROOT; ?>/index.php?mainmenu=home" id="sc_home" title="Dolibarr" style="font-size:1.7em;color:#555;text-decoration:none;padding:6px 4px"><span class="fa fa-home"></span></a>
 	<a href="#" id="sc_fs" title="<?php print $langs->trans('FullScreen'); ?>" style="font-size:1.7em;color:#555;text-decoration:none;padding:6px 4px"><span class="fa fa-expand"></span></a>
@@ -562,14 +563,16 @@ jQuery(function() {
 	function liveLookup(cb) {
 		var codes = [jQuery('#sc_codek').val(), jQuery('#sc_ean').val()].filter(function(c) { return c.trim() !== ''; });
 		if (!codes.length) { setLive('', ''); if (cb) cb(); return; }
-		var done = {}; var parts = []; var pend = codes.length;
+		var done = {}; var parts = []; var pend = codes.length; var offline = false;
 		codes.forEach(function(c) {
 			jQuery.getJSON(base + 'lookup.php', {code: c, token: token}, function(r) {
 				r.candidates.forEach(function(p) { if (!done[p.rowid]) { done[p.rowid] = 1; parts.push(p.ref + ' — ' + p.label + ' (stock ' + p.stock + ')'); } });
-			}).always(function() {
+			}).fail(function(xhr, st) { if (scNetKind(xhr, st) !== 'other') { offline = true; } }).always(function() {
 				pend--;
 				if (!pend) {
 					if (parts.length) setLive(parts.length > 1 ? 'multi' : 'ok', '<span class="fa fa-check"></span> ' + parts.join('<br>'));
+					// coupure ≠ produit inconnu : ne pas faire croire à l'opérateur que le produit n'existe pas
+					else if (offline) setLive('unknown', '<span class="fa fa-cloud-upload"></span> Hors-ligne — contrôle différé, le scan sera mis en file puis renvoyé');
 					else setLive('unknown', '? <?php print dol_escape_js($langs->trans('UnknownWillCapture')); ?>');
 					if (cb) cb();
 				}
@@ -592,8 +595,18 @@ jQuery(function() {
 		ev.preventDefault();
 		if (!scDupPending) { return; }
 		var p = jQuery.extend({}, scDupPending.params, {merge_row: scDupPending.dup});
-		jQuery.getJSON(base + 'saverow.php', p).done(function(r) {
-			if (!r.ok) { setLive('multi', 'Erreur fusion'); return; }
+		// la fusion (UPDATE de qty) passe aussi par la file + la clé : un rejeu de fusion
+		// doublerait la quantité en silence — le serveur répond 'replay' sans réécrire
+		if (!p.idem) { p.idem = scUuid(); }
+		scInflight[p.idem] = 1;
+		var stored = jQuery.extend({}, p); delete stored.token;
+		scOutbox.put({idem: p.idem, params: stored, ts: Date.now()}).then(scOutboxBadge);
+		jQuery.getJSON(base + 'saverow.php', p).fail(function(xhr, st) {
+			scQueueFail(p.idem, xhr, st, function() { scDupPending = null; clearFields(); });
+		}).done(function(r) {
+			delete scInflight[p.idem];
+			if (!r.ok) { scOutboxBadge(); setLive('multi', 'Erreur fusion — conservée en file'); return; }
+			scOutbox.drop(p.idem).then(scOutboxBadge);
 			var tr = jQuery('#sc_rows tr[data-id="' + r.merged + '"]');
 			tr.find('td').eq(7).text(r.qty);
 			tr.find('td').eq(6).html(scEcartHtml(r.qty, r.stock_before !== undefined && r.stock_before !== null ? r.stock_before : tr.attr('data-sb')));
@@ -608,6 +621,111 @@ jQuery(function() {
 		var p = scDupPending; scDupPending = null;
 		submitRowParams(jQuery.extend({}, p.params, {force: 1}));
 	});
+	// ---- file hors-ligne : aucun scan perdu quand la connexion Dolibarr tombe ----
+	// chaque envoi est écrit D'ABORD dans une file locale persistante (IndexedDB, repli
+	// localStorage), puis retiré sur toute réponse du serveur ; clé d'idempotence UUID par
+	// scan → au renvoi, le serveur reconnaît une clé déjà traitée (status 'replay') et ne
+	// réécrit rien : la file est rejouable sans risque de double comptage
+	function scUuid() {
+		try { if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); } } catch (e) {}
+		return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random() * 16 | 0; return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16); });
+	}
+	var scOutbox = (function() {
+		var dbp = null;
+		function idb() {
+			if (!dbp) {
+				dbp = new Promise(function(res) {
+					try {
+						var rq = indexedDB.open('scancapture', 1);
+						rq.onupgradeneeded = function() { rq.result.createObjectStore('outbox', {keyPath: 'idem'}); };
+						rq.onsuccess = function() { res(rq.result); };
+						rq.onerror = function() { res(null); };
+					} catch (e) { res(null); }
+				});
+			}
+			return dbp;
+		}
+		function lsAll() { try { return JSON.parse(localStorage.getItem('sc_outbox') || '[]'); } catch (e) { return []; } }
+		function lsSave(a) { try { localStorage.setItem('sc_outbox', JSON.stringify(a)); } catch (e) {} }
+		function tx(mode, fn) {
+			return idb().then(function(d) {
+				if (!d) { return null; }
+				return new Promise(function(res) {
+					try {
+						var t = d.transaction('outbox', mode); var rq = fn(t.objectStore('outbox'));
+						t.oncomplete = function() { res(rq && rq.result !== undefined ? rq.result : true); };
+						t.onerror = function() { res(null); };
+					} catch (e) { res(null); }
+				});
+			});
+		}
+		return {
+			put: function(e) { return tx('readwrite', function(s) { s.put(e); }).then(function(ok) { if (ok === null) { var a = lsAll().filter(function(x) { return x.idem !== e.idem; }); a.push(e); lsSave(a); } }); },
+			drop: function(k) { return tx('readwrite', function(s) { s.delete(k); }).then(function(ok) { if (ok === null) { lsSave(lsAll().filter(function(x) { return x.idem !== k; })); } }); },
+			all: function() { return tx('readonly', function(s) { return s.getAll(); }).then(function(r) { return (r === null || r === true) ? lsAll() : (r || []); }); }
+		};
+	})();
+	function scOutboxBadge() {
+		scOutbox.all().then(function(items) {
+			var n = items.length;
+			jQuery('#sc_offline').toggle(n > 0).html('<span class="fa fa-cloud-upload"></span> ' + n + ' à renvoyer');
+		});
+	}
+	function scNetKind(xhr, st) {
+		if (xhr && xhr.status === 0) { return 'net'; }
+		if (xhr && (xhr.status === 401 || xhr.status === 403)) { return 'session'; }
+		if (st === 'parsererror') { return 'session'; } // du HTML (page de login) à la place du JSON
+		return 'other';
+	}
+	function scOfflineMsg(kind, n) {
+		var m = '<b><span class="fa fa-cloud-upload"></span> Scan mis en file (' + n + ' en attente)</b> — renvoi automatique dès que le serveur répond.';
+		if (kind === 'session') { return m + '<br><span class="fa fa-exclamation-triangle"></span> Session Dolibarr expirée : <a href="' + window.location.href + '" target="_blank">reconnectez-vous</a> puis revenez, la file repartira seule.'; }
+		if (kind === 'other') { return m + '<br><span class="fa fa-exclamation-triangle"></span> Erreur serveur inattendue — le scan reste en file.'; }
+		return m + ' Continuez à scanner.';
+	}
+	function scQueueFail(idem, xhr, st, after) {
+		delete scInflight[idem];
+		var kind = scNetKind(xhr, st);
+		scOutbox.all().then(function(items) { setLive(kind === 'net' ? 'unknown' : 'multi', scOfflineMsg(kind, items.length)); scOutboxBadge(); });
+		if (after) { after(); }
+	}
+	var scInflight = {}; var scFlushing = false;
+	function scFlushOutbox() {
+		if (scFlushing) { return; }
+		scFlushing = true;
+		scOutbox.all().then(function(items) {
+			items = items.filter(function(e) { return !scInflight[e.idem]; }).sort(function(a, b) { return (a.ts || 0) - (b.ts || 0); });
+			if (!items.length) { scFlushing = false; scOutboxBadge(); return; }
+			var i = 0, sent = 0, rejected = [];
+			function finish() {
+				scFlushing = false;
+				scOutboxBadge();
+				if (rejected.length) { setLive('multi', '<b><span class="fa fa-exclamation-triangle"></span> ' + rejected.length + ' scan(s) de la file rejeté(s)</b> (pas un code Kezia) : ' + rejected.join(', ')); }
+				else if (sent && !jQuery('.sc_modal:visible').length) { setLive('ok', '<span class="fa fa-check"></span> ' + sent + ' scan(s) de la file renvoyé(s)'); scReloadKeeping(600); }
+			}
+			function next() {
+				if (i >= items.length) { finish(); return; }
+				var e = items[i++];
+				// token COURANT de la page (jamais celui d'origine, périmable) ; force:1 = les
+				// décisions interactives (doublon du jour) ne peuvent pas être posées en différé ;
+				// la clé du keyPath fait foi : une entrée ne part JAMAIS sans son idempotence
+				var p = jQuery.extend({}, e.params, {token: token, force: 1, idem: e.idem});
+				jQuery.getJSON(base + 'saverow.php', p).done(function(r) {
+					if (r && r.ok) {
+						scOutbox.drop(e.idem).then(function() {
+							if (r.status === 'notkezia') { rejected.push(e.params.code_kezia || '?'); } else { sent++; }
+							next();
+						});
+					} else { next(); } // erreur applicative : entrée conservée pour le cycle suivant
+				}).fail(function() { finish(); }); // réseau/session : on arrête, retry au prochain cycle
+			}
+			next();
+		});
+	}
+	jQuery('#sc_offline').on('click', function() { scFlushOutbox(); });
+	window.addEventListener('online', function() { scFlushOutbox(); });
+	setInterval(scFlushOutbox, 15000);
+	scFlushOutbox(); // au chargement : la file survit aux reloads et aux fermetures du navigateur
 	function submitRow(forced, replaceRow) {
 		var q = jQuery('#sc_qty').val() || jQuery('#sc_defqty').val() || 1;
 		var params = {code_kezia: jQuery('#sc_codek').val(), ean: jQuery('#sc_ean').val(), qty: q, fk_inventory: jQuery('#sc_inv').val(), token: token};
@@ -618,10 +736,27 @@ jQuery(function() {
 	}
 	function submitRowParams(params, forced) {
 		var q = params.qty;
-		jQuery.getJSON(base + 'saverow.php', params).fail(function() {
-			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
+		// une clé par scan logique : elle traverse la résolution interactive (dup → fusion ou
+		// nouvelle ligne réutilisent le même objet params, donc la même clé)
+		if (!params.idem) { params.idem = scUuid(); }
+		scInflight[params.idem] = 1;
+		var stored = jQuery.extend({}, params); delete stored.token;
+		scOutbox.put({idem: params.idem, params: stored, ts: Date.now()}).then(scOutboxBadge);
+		jQuery.getJSON(base + 'saverow.php', params).fail(function(xhr, st) {
+			// le scan est DÉJÀ en file : on libère la saisie pour continuer à scanner
+			scQueueFail(params.idem, xhr, st, clearFields);
 		}).done(function(r) {
-			if (!r.ok) { setLive('multi', 'Erreur'); return; }
+			delete scInflight[params.idem];
+			// pending = l'envoi d'origine de cette clé est peut-être encore en vol : surtout ne pas
+			// dequeue (ce serait perdre le scan s'il n'a pas abouti) — l'entrée repartira au cycle suivant
+			if (!r.ok) { scOutboxBadge(); setLive('multi', r.status === 'pending' ? '<span class="fa fa-hourglass-half"></span> Envoi déjà en cours pour ce scan — nouvel essai automatique dans un instant' : 'Erreur — scan conservé en file'); return; }
+			scOutbox.drop(params.idem).then(scOutboxBadge);
+			if (r.status == 'replay') {
+				setLive('ok', '<span class="fa fa-check"></span> Déjà enregistré (ligne ' + (r.rowid || '?') + ') — renvoi ignoré');
+				clearFields();
+				scReloadKeeping(400);
+				return;
+			}
 			if (r.status == 'notkezia') {
 				setLive('multi', '<b style="color:#b71c1c"><span class="fa fa-exclamation-triangle"></span> Ce n\'est pas un code Kezia !</b><br>Le code ' + (r.code || '') + ' est l\'EAN du produit <b>' + (r.label || r.ref || '') + '</b>.<br>Scannez l\'<b>étiquette Kezia</b> dans le 1er champ — ou laissez-le vide et scannez l\'EAN dans le 2e champ.');
 				jQuery('#sc_codek').val('').focus();
