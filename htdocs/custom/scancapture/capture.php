@@ -352,6 +352,20 @@ jQuery(function() {
 			document.head.appendChild(s);
 		});
 	}
+	function camAimRegion(videoEl) {
+		// cadre de visée (+ marge) -> coordonnées du flux natif, en tenant compte
+		// du recadrage object-fit: cover du plein écran — partagé par les 2 moteurs
+		var vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+		if (!vw || !vh) { return null; }
+		var dw = videoEl.clientWidth || window.innerWidth, dh = videoEl.clientHeight || window.innerHeight;
+		var scale = Math.max(dw / vw, dh / vh);
+		var offX = (vw - dw / scale) / 2, offY = (vh - dh / scale) / 2;
+		var aim = document.querySelector('#sc_cam .aim');
+		var r = aim ? aim.getBoundingClientRect() : {left: dw * 0.1, top: dh * 0.3, width: dw * 0.8, height: dh * 0.25};
+		var mx = r.width * 0.15, my = r.height * 0.35;
+		var x = Math.max(0, offX + (r.left - mx) / scale), y = Math.max(0, offY + (r.top - my) / scale);
+		return {x: x, y: y, w: Math.min(vw - x, (r.width + 2 * mx) / scale), h: Math.min(vh - y, (r.height + 2 * my) / scale)};
+	}
 	// Point d'extension décodeur : scStartDecoder(videoEl, onResult) démarre caméra + décodage
 	// continu et retourne {stop: fn, ready: Promise}. onResult(text, format) à chaque lecture,
 	// format en minuscules style BarcodeDetector ('ean_13', 'upc_a', 'code_128'…).
@@ -375,23 +389,9 @@ jQuery(function() {
 			reader.setHints(hints);
 			var canvas = document.createElement('canvas');
 			var ctx = canvas.getContext('2d', {willReadFrequently: true});
-			var aim = document.querySelector('#sc_cam .aim');
-			function region() {
-				// cadre de visée (+ marge) -> coordonnées du flux natif, en tenant compte
-				// du recadrage object-fit: cover du plein écran
-				var vw = videoEl.videoWidth, vh = videoEl.videoHeight;
-				if (!vw || !vh) { return null; }
-				var dw = videoEl.clientWidth || window.innerWidth, dh = videoEl.clientHeight || window.innerHeight;
-				var scale = Math.max(dw / vw, dh / vh);
-				var offX = (vw - dw / scale) / 2, offY = (vh - dh / scale) / 2;
-				var r = aim ? aim.getBoundingClientRect() : {left: dw * 0.1, top: dh * 0.3, width: dw * 0.8, height: dh * 0.25};
-				var mx = r.width * 0.15, my = r.height * 0.35;
-				var x = Math.max(0, offX + (r.left - mx) / scale), y = Math.max(0, offY + (r.top - my) / scale);
-				return {x: x, y: y, w: Math.min(vw - x, (r.width + 2 * mx) / scale), h: Math.min(vh - y, (r.height + 2 * my) / scale)};
-			}
 			function tick() {
 				if (stopped) { return; }
-				var rg = region();
+				var rg = camAimRegion(videoEl);
 				if (rg && rg.w > 50 && rg.h > 20) {
 					canvas.width = Math.round(rg.w); canvas.height = Math.round(rg.h);
 					ctx.drawImage(videoEl, rg.x, rg.y, rg.w, rg.h, 0, 0, canvas.width, canvas.height);
@@ -416,6 +416,67 @@ jQuery(function() {
 			ready: ready
 		};
 	};
+	// Moteur natif Android (BarcodeDetector de Chrome) : enveloppe le point d'extension ci-dessus.
+	// La capacité se vérifie en asynchrone (getSupportedFormats), donc la décision se prend à
+	// l'appel : natif si C128 + EAN/UPC décodables (étiquettes Kezia obligent), sinon repli
+	// transparent sur ZXing — une seule UI, deux moteurs. Même recadrage zone de visée : la
+	// détection sur trame entière rate aussi les codes petits dans l'image (validé côté ZXing).
+	(function() {
+		if (!('BarcodeDetector' in window)) { return; }
+		var zxingImpl = window.scStartDecoder;
+		var nativeFmts = null;
+		function nativeCheck() {
+			if (!nativeFmts) {
+				nativeFmts = window.BarcodeDetector.getSupportedFormats().then(function(f) {
+					var ok = ['ean_13', 'upc_a', 'ean_8', 'code_128'].filter(function(x) { return f.indexOf(x) !== -1; });
+					return (ok.indexOf('code_128') !== -1 && ok.length >= 2) ? ok : [];
+				}).catch(function() { return []; });
+			}
+			return nativeFmts;
+		}
+		nativeCheck(); // lancée au chargement : rien à attendre au 1er appui caméra
+		window.scStartDecoder = function(videoEl, onResult) {
+			var stopped = false, inner = null, timer = null, stream = null;
+			var ready = nativeCheck().then(function(fmts) {
+				if (stopped) { return; }
+				if (!fmts.length) { inner = zxingImpl(videoEl, onResult); return inner.ready; }
+				var det = new window.BarcodeDetector({formats: fmts});
+				return navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1080}}}).then(function(s) {
+					if (stopped) { s.getTracks().forEach(function(t) { t.stop(); }); return; }
+					stream = s;
+					videoEl.srcObject = s;
+					var canvas = document.createElement('canvas');
+					var ctx = canvas.getContext('2d', {willReadFrequently: true});
+					var busy = false;
+					function tick() {
+						if (stopped) { return; }
+						var rg = (videoEl.readyState >= 2) ? camAimRegion(videoEl) : null;
+						if (!busy && rg && rg.w > 50 && rg.h > 20) {
+							canvas.width = Math.round(rg.w); canvas.height = Math.round(rg.h);
+							ctx.drawImage(videoEl, rg.x, rg.y, rg.w, rg.h, 0, 0, canvas.width, canvas.height);
+							busy = true;
+							det.detect(canvas).then(function(codes) {
+								busy = false;
+								if (!stopped && codes && codes.length && codes[0].rawValue) { onResult(String(codes[0].rawValue).trim(), String(codes[0].format || '').toLowerCase()); }
+							}).catch(function() { busy = false; }); // détecteur natif KO sur une image : on retente à la suivante
+						}
+						timer = setTimeout(tick, 120);
+					}
+					videoEl.play().catch(function() {});
+					tick();
+				});
+			});
+			return {
+				stop: function() {
+					stopped = true;
+					if (timer) { clearTimeout(timer); }
+					if (inner) { try { inner.stop(); } catch (e) {} }
+					if (stream) { try { stream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {} }
+				},
+				ready: ready
+			};
+		};
+	})();
 	function camClose() {
 		if (camStop && camStop.stop) { try { camStop.stop(); } catch (e) {} }
 		camStop = null; camTrack = null;
