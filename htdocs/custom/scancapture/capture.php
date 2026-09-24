@@ -358,25 +358,61 @@ jQuery(function() {
 	// Implémentation par défaut : ZXing. Un moteur natif peut se poser sur window.scStartDecoder
 	// AVANT ce script (détection de capacité) sans toucher à l'UI.
 	window.scStartDecoder = window.scStartDecoder || function(videoEl, onResult) {
-		var stopped = false, reader = null;
+		// ZXing échoue sur la trame entière quand le code n'occupe qu'une petite fraction de
+		// l'image (validé sur photo d'étiquette : plein cadre KO, recadrage OK) → on décode
+		// UNIQUEMENT la zone du cadre de visée, recadrée à la résolution native du flux.
+		var stopped = false, timer = null, stream = null;
 		var ready = camLoadZXing().then(function() {
-			if (stopped) { return; }
+			return navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1080}}});
+		}).then(function(s) {
+			if (stopped) { s.getTracks().forEach(function(t) { t.stop(); }); return; }
+			stream = s;
+			videoEl.srcObject = s;
 			var hints = new Map();
 			hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.CODE_128]);
 			hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-			// 150 ms entre tentatives (défaut 500 : trop lent au poignet) ; 1080p indispensable
-			// aux codes 1D sur iPhone — en 720p les barres EAN sortent trop floues pour ZXing
-			reader = new ZXing.BrowserMultiFormatReader(hints, 150);
-			return reader.decodeFromConstraints(
-				{audio: false, video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1080}}},
-				videoEl,
-				function(result) {
-					if (result && !stopped) { onResult(result.getText(), String(ZXing.BarcodeFormat[result.getBarcodeFormat()] || '').toLowerCase()); }
+			var reader = new ZXing.MultiFormatReader();
+			reader.setHints(hints);
+			var canvas = document.createElement('canvas');
+			var ctx = canvas.getContext('2d', {willReadFrequently: true});
+			var aim = document.querySelector('#sc_cam .aim');
+			function region() {
+				// cadre de visée (+ marge) -> coordonnées du flux natif, en tenant compte
+				// du recadrage object-fit: cover du plein écran
+				var vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+				if (!vw || !vh) { return null; }
+				var dw = videoEl.clientWidth || window.innerWidth, dh = videoEl.clientHeight || window.innerHeight;
+				var scale = Math.max(dw / vw, dh / vh);
+				var offX = (vw - dw / scale) / 2, offY = (vh - dh / scale) / 2;
+				var r = aim ? aim.getBoundingClientRect() : {left: dw * 0.1, top: dh * 0.3, width: dw * 0.8, height: dh * 0.25};
+				var mx = r.width * 0.15, my = r.height * 0.35;
+				var x = Math.max(0, offX + (r.left - mx) / scale), y = Math.max(0, offY + (r.top - my) / scale);
+				return {x: x, y: y, w: Math.min(vw - x, (r.width + 2 * mx) / scale), h: Math.min(vh - y, (r.height + 2 * my) / scale)};
+			}
+			function tick() {
+				if (stopped) { return; }
+				var rg = region();
+				if (rg && rg.w > 50 && rg.h > 20) {
+					canvas.width = Math.round(rg.w); canvas.height = Math.round(rg.h);
+					ctx.drawImage(videoEl, rg.x, rg.y, rg.w, rg.h, 0, 0, canvas.width, canvas.height);
+					try {
+						var lum = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+						var res = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum)));
+						if (res && !stopped) { onResult(res.getText(), String(ZXing.BarcodeFormat[res.getBarcodeFormat()] || '').toLowerCase()); }
+					} catch (e) {} // NotFoundException sur chaque image sans code : normal
+					reader.reset();
 				}
-			);
+				timer = setTimeout(tick, 120);
+			}
+			videoEl.play().catch(function() {});
+			tick();
 		});
 		return {
-			stop: function() { stopped = true; if (reader) { try { reader.reset(); } catch (e) {} } },
+			stop: function() {
+				stopped = true;
+				if (timer) { clearTimeout(timer); }
+				if (stream) { try { stream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {} }
+			},
 			ready: ready
 		};
 	};
