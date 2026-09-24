@@ -2810,6 +2810,13 @@ function top_menu_ai()
         jQuery(document).ready(function() {
 	        jQuery(document).on("click", function(event) {
 				if (jQuery("#topmenu-ai-popover").hasClass("open")) {
+					// A click on a node removed from the DOM while the event was bubbling
+					// (e.g. a chat action button like "Yes, continue" that removes its own
+					// message bubble) must not be mistaken for a click outside the popover:
+					// .closest() cannot reach the popover from a detached node.
+					if (event.target instanceof Element && !event.target.isConnected) {
+						return;
+					}
 		    		if (!$(event.target).closest("#topmenu-ai-toggle").length && !$(event.target).closest("#topmenu-ai-popover").length) {
 						console.log("click close ai dropdown - we click outside");
 		                // Hide the dropdown.
@@ -2843,7 +2850,7 @@ function top_menu_ai()
 				})
 				.then(function (htmlcontent) {
 					body.innerHTML = htmlcontent;
-					return import("'.dol_escape_js($aijsurl).'").then(function (mod) {
+					return import(\''.dol_escape_js($aijsurl).'\').then(function (mod) {
 						mod.initAiAssistant(body.querySelector(".ai-chat-container"));
 					});
 				})
@@ -2853,7 +2860,7 @@ function top_menu_ai()
 				})
 				.catch(function (e) {
 					console.error("AI Assistant popover load failed", e);
-					body.innerHTML = "<div class=\"ai-popover-loading\">'.dol_escape_js($langs->trans('Error')).'</div>";
+					body.innerHTML = \'<div class="ai-popover-loading">'.dol_escape_js($langs->trans('Error')).'</div>\';
 				})
 				.finally(function () { loading = false; });
 		}
@@ -2863,6 +2870,9 @@ function top_menu_ai()
 			if (input) { input.focus(); }
 		}
 
+		// The expand button always opens the standalone full page
+		// (/ai/assistant/index.php) in the current tab. There is no small mode:
+		// the popover opens and stays in the large ("expanded") state.
 		toggle.addEventListener("click", function (event) {
 			console.log("Click on #topmenu-ai-toggle");
 			event.preventDefault();
@@ -2872,6 +2882,8 @@ function top_menu_ai()
 			positionPopover();
 			var isOpen = popover.classList.toggle("open");
 			if (isOpen) {
+				// Always open in the large ("expanded") state.
+				popover.classList.add("expanded");
 				loadChat();
 				if (loaded) { focusInput(); }
 			}
@@ -2884,10 +2896,9 @@ function top_menu_ai()
 			if (closeBtn) {
 				popover.classList.remove("open");
 			} else if (expandBtn) {
-				var expanded = popover.classList.toggle("expanded");
-				var icon = expandBtn.querySelector("i");
-				if (icon) { icon.className = expanded ? "fa fa-compress-alt" : "fa fa-expand-alt"; }
-				expandBtn.title = expanded ? (expandBtn.dataset.titleReduce || "") : (expandBtn.dataset.titleExpand || "");
+				// Open the standalone full page in the current tab.
+				var url = expandBtn.dataset.fullscreenUrl;
+				if (url) { window.location.href = url; }
 			}
 		});
 
