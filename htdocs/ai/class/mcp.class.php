@@ -1,7 +1,7 @@
 <?php
 /* Copyright (C) 2026   Laurent Destailleur     <eldy@users.sourceforge.net>
  * Copyright (C) 2026	Nick Fragoulis
- * Copyright (C) 2026		MDW						<mdeweerd@users.noreply.github.com>
+ * Copyright (C) 2026	MDW						<mdeweerd@users.noreply.github.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,13 +54,13 @@ class McpHandler
 	/**
 	 * @var McpTool[] Array of loaded tool instances, keyed by their base filename or class name.
 	 */
-	private $loadedTools = [];
+	public $loadedTools = [];
 
 	/**
 	 * @var McpTool[] Associative array mapping tool *names* (from schema) to their instances.
 	 * This provides O(1) lookup for execution.
 	 */
-	private $toolsByName = [];
+	public $toolsByName = [];
 
 
 	/**
@@ -90,8 +90,6 @@ class McpHandler
 		$this->conf = $conf_obj;
 
 		$this->toolcontext = (!empty($toolcontext)) ? $toolcontext : self::CTX_ASSISTANT;
-
-		$this->loadTools();
 	}
 
 	/**
@@ -131,7 +129,7 @@ class McpHandler
 			$constName = 'AI_ASSISTANT_ALLOWED_TOOLS';
 		}
 
-		$raw = getDolGlobalString($constName);
+		$raw = getDolGlobalString($constName);		// Return the list (separated by coma) of all enabled tools
 
 		if ($raw === '') {
 			// Constant not yet configured — allow everything
@@ -173,16 +171,14 @@ class McpHandler
 	 *
 	 * This method scans the ai/tools directory for native tools and executes the
 	 * 'addMcpTools' hook to allow external modules to register their own tools.
+	 * This fill array ->loadedTools and ->toolsByName
 	 *
 	 * @return void
 	 */
 	public function loadTools()
 	{
-		if (!empty($this->loadedTools)) {
-			return; // Already loaded (v24 constructor auto-loads; explicit calls from develop-aligned callers are no-ops)
-		}
-		$this->loadNativeTools();
-		$this->loadExternalTools();
+		$this->loadNativeTools();		// Tools found into directory ai/tools/
+		$this->loadExternalTools();		// Tools provided by external module and hook addMcpTools
 	}
 
 	/**
@@ -336,7 +332,9 @@ class McpHandler
 			foreach ($tool->getDefinitions() as $def) {
 				$def['is_system']  = $isSystem;
 				$def['class_name'] = $className;
-				$def['categories'] = $tool->getCategories();
+				if (empty($def['categories'])) {
+					$def['categories'] = $tool->getCategories();	// class-level fallback; a tool may set finer per-definition categories
+				}
 				$schema[] = $def;
 			}
 		}
@@ -358,7 +356,7 @@ class McpHandler
 	 */
 	public function getToolsSchema(): array
 	{
-		$allowed = $this->getAllowedToolsList();
+		$allowed = $this->getAllowedToolsList();	// Return list of "allowed" tools for the current context $this->toolcontext (Chat or MCP)
 		$schema  = [];
 
 		foreach ($this->loadedTools as $tool) {
@@ -373,7 +371,9 @@ class McpHandler
 					// for the validation check (executeTool must still be able to
 					// run respond_to_user, ask_for_clarification, etc.).
 					$def['is_system']  = true;
-					$def['categories'] = $tool->getCategories();
+					if (empty($def['categories'])) {
+						$def['categories'] = $tool->getCategories();	// class-level fallback; a tool may set finer per-definition categories
+					}
 					$schema[] = $def;
 					continue;
 				}
@@ -388,13 +388,17 @@ class McpHandler
 
 				if (empty($allowed)) {
 					// No restriction configured — include everything
-					$def['categories'] = $tool->getCategories();
+					if (empty($def['categories'])) {
+						$def['categories'] = $tool->getCategories();	// class-level fallback; a tool may set finer per-definition categories
+					}
 					$schema[] = $def;
 					continue;
 				}
 
 				if (in_array($name, $allowed, true)) {
-					$def['categories'] = $tool->getCategories();
+					if (empty($def['categories'])) {
+						$def['categories'] = $tool->getCategories();	// class-level fallback; a tool may set finer per-definition categories
+					}
 					$schema[] = $def;
 				}
 				// Not in $allowed — silently omitted; LLM never sees this tool
@@ -448,13 +452,17 @@ class McpHandler
 
 				if (empty($allowed)) {
 					// No restriction configured — include everything
-					$def['categories'] = $tool->getCategories();
+					if (empty($def['categories'])) {
+						$def['categories'] = $tool->getCategories();	// class-level fallback; a tool may set finer per-definition categories
+					}
 					$schema[] = $def;
 					continue;
 				}
 
 				if (in_array($name, $allowed, true)) {
-					$def['categories'] = $tool->getCategories();
+					if (empty($def['categories'])) {
+						$def['categories'] = $tool->getCategories();	// class-level fallback; a tool may set finer per-definition categories
+					}
 					$schema[] = $def;
 				}
 			}

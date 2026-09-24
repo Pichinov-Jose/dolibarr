@@ -279,7 +279,7 @@ if ($action == 'create') {
 	foreach ($arrayofaifeatures as $featurekey => $feature) {
 		$labelhtml = $langs->trans($arrayofaifeatures[$featurekey]['label']).($arrayofaifeatures[$featurekey]['status'] == 'notused' ? ' <span class="opacitymedium">('.$langs->trans("NotYetAvailable").')</span>' : "");
 		$labeltext = $langs->trans($arrayofaifeatures[$featurekey]['label']);
-		$out .= '<option value="'.dol_escape_js($featurekey).'" data-html="'.dol_escape_htmltag($labelhtml).'">'.dol_escape_htmltag($labeltext).'</option>';
+		$out .= '<option value="'.dolPrintHTMLForAttribute($featurekey).'" data-html="'.dolPrintHTMLForAttribute($labelhtml).'">'.dolPrintHTML($labeltext).'</option>';
 	}
 	$out .= '</select>';
 	$out .= ajax_combobox("functioncode");
@@ -291,10 +291,10 @@ if ($action == 'create') {
 				console.log(changedValue);
 				var arrayplaceholder = {';
 	foreach ($arrayofaifeatures as $featurekey => $feature) {
-		$out .= dol_escape_js($featurekey).': \''.dol_escape_js(empty($feature['placeholder']) ? '' : $feature['placeholder']).'\',';
+		$out .= dol_sanitizeKeyCode($featurekey).': \''.dol_escape_js(empty($feature['placeholder']) ? '' : $feature['placeholder']).'\',';
 	}
 	$out .= '}
-				jQuery("#prePromptInput'.dol_escape_js($key).'").val(arrayplaceholder[changedValue]);
+				jQuery("#prePromptInput'.dol_sanitizeKeyCode($key).'").val(arrayplaceholder[changedValue]);
 			});
 		});
 		</script>
@@ -446,6 +446,28 @@ if ($action == 'edit' || $action == 'create' || $action == 'deleteproperty') {
 	print '<br>';
 }
 
+// Availability alert: when the adapter recorded a runtime "model not found /
+// retired" provider error, warn on screen on the page where the models are
+// actually fixed, suggesting the closest model currently offered. Warn only —
+// nothing is changed automatically.
+$runfail = json_decode(getDolGlobalString('AI_MODEL_RUNTIME_FAILURE'), true);
+if (is_array($runfail) && !empty($runfail['model'])) {
+	$msg = $langs->trans(
+		"AIModelRuntimeFailureBanner",
+		dol_escape_htmltag((string) $runfail['model']),
+		dol_print_date((int) ($runfail['ts'] ?? 0), 'dayhour'),
+		dol_escape_htmltag((string) ($runfail['message'] ?? ''))
+	);
+	$modellist = getAiProviderModelList($db);
+	if (!empty($modellist['models'])) {
+		$suggest = aiSuggestClosestModel((string) $runfail['model'], $modellist['models']);
+		if ($suggest !== '') {
+			$msg .= ' '.dol_escape_htmltag($langs->trans("AIModelClosestAvailable", $suggest));
+		}
+	}
+	print info_admin($msg, 0, 0, 'warning');
+}
+
 // Custom models
 if ($action == 'edit' || $action == 'create' || $action == 'deleteproperty') {
 	print load_fiche_titre($langs->trans("AIModelForFeature", $arrayofai[$aiservice]['label']), '', '');
@@ -461,14 +483,37 @@ if (empty($setupnotempty)) {
 
 // Datalist of the provider's available model ids (fed by ajax/list_models.php,
 // cached 1h server-side): every *_MODEL_* text input gets autocompletion, which
-// avoids typos in the seven free-text model fields.
+// avoids typos in the seven free-text model fields. The fields stay plain free
+// text (a datalist only suggests, never constrains — required for local AI
+// providers with no model-listing API, where this whole block is a no-op).
+// Active check: a saved model absent from the provider's current list gets a
+// warning picto — warn only, never block, since a listing can be incomplete
+// (aliases, fine-tunes) while the value still works.
 print '<datalist id="ai-model-ids"></datalist>'."\n";
-print '<script>
+print '<script nonce="'.getNonce().'">
 fetch("'.dol_buildpath('/ai/ajax/list_models.php', 1).'").then(function (r) { return r.json(); }).then(function (j) {
 	if (!j || !j.models || !j.models.length) return;
 	var dl = document.getElementById("ai-model-ids");
 	j.models.forEach(function (id) { var o = document.createElement("option"); o.value = id; dl.appendChild(o); });
-	document.querySelectorAll("input[name*=\'_MODEL_\']").forEach(function (i) { i.setAttribute("list", "ai-model-ids"); });
+	document.querySelectorAll("input[name*=\'_MODEL_\']").forEach(function (i) {
+		i.setAttribute("list", "ai-model-ids");
+		if (i.value && j.models.indexOf(i.value) < 0) {
+			// Closest-match suggestion: longest shared prefix with an offered id
+			var v = i.value.toLowerCase(), best = "", bestlen = 0;
+			j.models.forEach(function (m) {
+				var b = m.toLowerCase(), n = 0;
+				while (n < v.length && n < b.length && v.charAt(n) === b.charAt(n)) n++;
+				if (n > bestlen) { bestlen = n; best = m; }
+			});
+			var w = document.createElement("span");
+			w.className = "fas fa-exclamation-triangle pictowarning paddingleft";
+			w.title = \''.dol_escape_js($langs->trans("AIModelNotInProviderList")).'\';
+			if (best && bestlen >= 4) {
+				w.title += \' \' + \''.dol_escape_js($langs->trans("AIModelClosestAvailable", '{m}')).'\'.replace("{m}", best);
+			}
+			i.insertAdjacentElement("afterend", w);
+		}
+	});
 }).catch(function () {});
 </script>'."\n";
 

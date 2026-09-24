@@ -71,14 +71,14 @@ class UniversalLLMAdapter
 	/**
 	 * Generate a response using the configured LLM provider
 	 *
+	 * Attachments are sent as NATIVE multimodal parts — instead of inlining base64 into
+	 * the text prompt — which is what allows the provider to actually see the file
+	 * (vision/document understanding).
+	 *
 	 * @param string $system   The system prompt/instruction
 	 * @param string $userMsg  The specific user query
 	 * @param string $mode     'json' for strict JSON (MCP), 'text' for legacy (default)
-	 * @param array<int,array{mime:string,data:string}> $attachments  Optional documents/images to
-	 *                         send along the message as NATIVE multimodal parts (each entry is
-	 *                         ['mime' => 'image/png', 'data' => '<base64>']). Passing them here —
-	 *                         instead of inlining base64 into the text prompt — is what allows the
-	 *                         provider to actually see the file (vision/document understanding).
+	 * @param array<int,array{mime:string,data:string}> $attachments Optional documents/images, each entry is array('mime' => 'image/png', 'data' => '<base64>')
 	 * @param array<int,array{role:string,text:string}> $history     Optional prior conversation turns (role 'user'|'assistant'), sent as native multi-turn messages before the current query. Caller sanitizes and caps them.
 	 * @return string|null     The text response from the AI or null on failure
 	 */
@@ -100,6 +100,7 @@ class UniversalLLMAdapter
 	 * @param string $sys System prompt
 	 * @param string $msg User message
 	 * @param string $mode 'json' or 'text'
+	 * @param array<int,array{mime:string,data:string}> $attachments Optional attachments sent as native multimodal parts
 	 * @param array<int,array{role:string,text:string}> $history Optional prior turns inserted before the current query
 	 * @return string|null Response content or null on failure
 	 */
@@ -170,6 +171,7 @@ class UniversalLLMAdapter
 	 * @param string $sys System prompt
 	 * @param string $msg User message
 	 * @param string $mode Response mode (default: text)
+	 * @param array<int,array{mime:string,data:string}> $attachments Optional attachments sent as native multimodal parts
 	 * @param array<int,array{role:string,text:string}> $history Optional prior turns inserted before the current query
 	 *
 	 * @return string|null Response content or null on failure
@@ -221,6 +223,7 @@ class UniversalLLMAdapter
 	 * @param string $sys System prompt
 	 * @param string $msg User message
 	 * @param string $mode Response mode (default: text)
+	 * @param array<int,array{mime:string,data:string}> $attachments Optional attachments sent as native multimodal parts
 	 * @param array<int,array{role:string,text:string}> $history Optional prior turns inserted before the current query
 	 *
 	 * @return string|null Response content or null on failure
@@ -272,6 +275,40 @@ class UniversalLLMAdapter
 		$this->lastRequest = $this->encodeRequestForLog($data);
 
 		return $this->curl($url, $data, array("Content-Type: application/json"), false, true);
+	}
+
+	/**
+	 * Record a "model not found / retired" type provider failure into the constant
+	 * AI_MODEL_RUNTIME_FAILURE, displayed as a warning banner on the models admin
+	 * page. Runtime is the only fully reliable signal for a retired model: a
+	 * provider's listing can be incomplete, and a listed model can still be
+	 * rejected at call time (e.g. models restricted to existing customers).
+	 *
+	 * @param int    $httpCode HTTP status returned by the provider
+	 * @param string $msg      Error message returned by the provider
+	 * @return void
+	 */
+	private function recordModelFailure(int $httpCode, string $msg)
+	{
+		global $db, $conf;
+
+		if (!is_object($db) || !is_object($conf)) {
+			return;	// no Dolibarr runtime (defensive: adapter may be unit-tested standalone)
+		}
+		// Only errors that talk about the model itself, not quota/auth/network ones.
+		if (!preg_match('/model/i', $msg)) {
+			return;
+		}
+		if (!preg_match('/not.?found|does not exist|not exist|unsupported|not supported|not available|unavailable|deprecated|no longer|retired|invalid/i', $msg)) {
+			return;
+		}
+		include_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+		dolibarr_set_const($db, 'AI_MODEL_RUNTIME_FAILURE', json_encode(array(
+			'model' => $this->model,
+			'ts' => dol_now(),
+			'http_code' => $httpCode,
+			'message' => dol_trunc($msg, 300)
+		)), 'chaine', 0, '', $conf->entity);
 	}
 
 	/**
@@ -363,6 +400,7 @@ class UniversalLLMAdapter
 
 		if (isset($json['error'])) {
 			$msg = $json['error']['message'] ?? json_encode($json['error']);
+			$this->recordModelFailure($httpCode, (string) $msg);
 			return "Error: API " . $msg;
 		}
 

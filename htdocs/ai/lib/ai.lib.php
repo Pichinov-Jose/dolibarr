@@ -433,10 +433,14 @@ function ai_log_request($db, $user, $query, array $response, $provider, float $t
 	// schemas (tens of kB, identical on every call) and ends with the system
 	// rules, the user query and the page context - the part anyone reads a
 	// log for. Cutting only the tail threw exactly that away.
-	$rawReq = aiTruncateForLog($rawReq, 60000);
-	$rawResStr = aiTruncateForLog((string) $rawRes, 60000);
+	// Structured tool output must remain valid JSON for subsequent reads.
+	$rawResStr = (string) $rawRes;
+	if (empty($context['preserve_payloads'])) {
+		$rawReq = aiTruncateForLog($rawReq, 60000);
+		$rawResStr = aiTruncateForLog($rawResStr, 60000);
+	}
 
-	$sql = "INSERT INTO " . MAIN_DB_PREFIX . "ai_request_log (";
+	$sql = "INSERT INTO " . $db->prefix() . "ai_request_log (";
 	$sql .= "entity, date_request, fk_user, query_text, tool_name, provider, ";
 	$sql .= "execution_time, confidence, status, error_msg, raw_request_payload, raw_response_payload";
 	// Each optional group keys on ITS OWN entries, so a caller passing only
@@ -476,11 +480,10 @@ function ai_log_request($db, $user, $query, array $response, $provider, float $t
 	$sql .= ")";
 
 	$resql = $db->query($sql);
-	if ($resql) {
-		$logId = (int) $db->last_insert_id(MAIN_DB_PREFIX."ai_request_log");
-	}
 	if (!$resql) {
-		dol_print_error($db);
+		dol_syslog(__FUNCTION__.": ".$db->lasterror(), LOG_ERR);
+	} else {
+		$logId = (int) $db->last_insert_id($db->prefix()."ai_request_log");
 	}
 
 	return 0;
@@ -612,6 +615,123 @@ function getAiAssistantProviderLabel()
 }
 
 /**
+ * Return the list of model ids offered by the configured AI provider, with a
+ * 1-hour cache in the constant AI_MODELS_LIST_CACHE (Anthropic GET /models,
+ * Google GET /models, OpenAI-compatible GET /models). Shared by the AJAX
+ * endpoint ai/ajax/list_models.php (datalists, chat picker) and by the
+ * model-availability warning banner of the admin models page.
+ *
+ * @param DoliDB $db           Database handler (to store the cache constant)
+ * @param bool   $forcerefresh True to bypass the cache and query the live list
+ * @return array{service:string,models:string[]} Active service key and its sorted model ids (empty list when the provider is not configured, offers no listing API, or the call fails)
+ */
+function getAiProviderModelList($db, $forcerefresh = false)
+{
+	global $conf;
+
+	$serviceKey = getDolGlobalString('AI_API_SERVICE');
+	if (empty($serviceKey) || $serviceKey == '-1') {
+		return array('service' => '', 'models' => array());
+	}
+
+	if (!$forcerefresh) {
+		$cacheraw = getDolGlobalString('AI_MODELS_LIST_CACHE');
+		if ($cacheraw) {
+			$cache = json_decode($cacheraw, true);
+			if (is_array($cache) && !empty($cache['service']) && $cache['service'] === $serviceKey
+				&& !empty($cache['ts']) && (dol_now() - (int) $cache['ts']) < 3600
+				&& !empty($cache['models']) && is_array($cache['models'])) {
+				return array('service' => $serviceKey, 'models' => $cache['models']);
+			}
+		}
+	}
+
+	include_once DOL_DOCUMENT_ROOT.'/core/lib/geturl.lib.php';
+	include_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+
+	$servicesList = getListOfAIServices();
+	$adapterType = $servicesList[$serviceKey]['adapter_type'] ?? 'openai';
+	$defUrl = $servicesList[$serviceKey]['url'] ?? '';
+	$baseUrl = rtrim(getDolGlobalString('AI_API_'.strtoupper($serviceKey).'_URL') ?: $defUrl, '/');
+
+	$apiKey = getDolGlobalString('AI_API_'.strtoupper($serviceKey).'_KEY');
+	if (preg_match('/^crypt:/', $apiKey)) {
+		$apiKey = dolDecrypt($apiKey, $conf->file->instance_unique_id);
+	}
+	if (empty($apiKey) || empty($baseUrl)) {
+		return array('service' => $serviceKey, 'models' => array());
+	}
+
+	$models = array();
+	if ($adapterType === 'anthropic') {
+		$headers = array('x-api-key: '.$apiKey, 'anthropic-version: 2023-06-01');
+		$res = getURLContent($baseUrl.'/models?limit=100', 'GET', '', 1, $headers, array('http', 'https'), 2);
+		$json = json_decode($res['content'] ?? '', true);
+		foreach ((array) ($json['data'] ?? array()) as $m) {
+			if (!empty($m['id'])) {
+				$models[] = (string) $m['id'];
+			}
+		}
+	} elseif ($adapterType === 'google') {
+		$res = getURLContent($baseUrl.'/models?pageSize=200&key='.urlencode($apiKey), 'GET', '', 1, array(), array('http', 'https'), 2);
+		$json = json_decode($res['content'] ?? '', true);
+		foreach ((array) ($json['models'] ?? array()) as $m) {
+			if (!empty($m['name'])) {
+				$models[] = preg_replace('/^models\//', '', (string) $m['name']);
+			}
+		}
+	} else {
+		// OpenAI-compatible providers (OpenAI, Mistral, Groq, DeepSeek, custom...)
+		$headers = array('Authorization: Bearer '.$apiKey);
+		$res = getURLContent($baseUrl.'/models', 'GET', '', 1, $headers, array('http', 'https'), 2);
+		$json = json_decode($res['content'] ?? '', true);
+		foreach ((array) ($json['data'] ?? array()) as $m) {
+			if (!empty($m['id'])) {
+				$models[] = (string) $m['id'];
+			}
+		}
+	}
+
+	$models = array_values(array_unique($models));
+	sort($models);
+
+	if (count($models)) {
+		dolibarr_set_const($db, 'AI_MODELS_LIST_CACHE', json_encode(array('service' => $serviceKey, 'ts' => dol_now(), 'models' => $models)), 'chaine', 0, '', $conf->entity);
+	}
+
+	return array('service' => $serviceKey, 'models' => $models);
+}
+
+/**
+ * Suggest the closest available model id for a model that disappeared from the
+ * provider's list: same family first (shared leading token, e.g. 'gemini',
+ * 'gpt', 'claude'), then overall string similarity. Used by the warning banner
+ * of the admin models page to propose a replacement.
+ *
+ * @param string   $missing Configured model id that is no longer offered
+ * @param string[] $models  Model ids currently offered by the provider
+ * @return string Closest model id, or '' when nothing is similar enough to be a useful suggestion
+ */
+function aiSuggestClosestModel($missing, array $models)
+{
+	$best = '';
+	$bestScore = -1.0;
+	foreach ($models as $cand) {
+		$pct = 0.0;
+		similar_text(strtolower($missing), strtolower($cand), $pct);
+		$score = $pct;
+		if (strtok(strtolower($missing), '-') === strtok(strtolower($cand), '-')) {
+			$score += 15.0;	// same family beats a slightly closer string of another family
+		}
+		if ($score > $bestScore) {
+			$bestScore = $score;
+			$best = $cand;
+		}
+	}
+	return ($bestScore >= 50.0) ? $best : '';
+}
+
+/**
  * Build the configuration array consumed by the AI Assistant chat frontend (ai/js/ai_assistant.js).
  * It is serialized as JSON into the data-ai-config attribute of the chat container.
  *
@@ -719,7 +839,8 @@ function getAiChatAssistantConfig()
 		'AIModelAuto',
 		'AIModelFast',
 		'AIModelBalanced',
-		'AIModelDeep'
+		'AIModelDeep',
+		'AIModelSavedGone'
 	);
 
 	$ai_translations = array();
@@ -835,8 +956,6 @@ function getAiChatAssistantHtml($mode = 'page')
 	$out .= img_picto('', 'fa-trash').' <span class="ai-btn-label">'.$langs->trans("Clear").'</span>';
 	$out .= '</button>';
 	if ($mode === 'popover') {
-		// Window controls of the popover (handled by the bootstrap JS in main.inc.php)
-		$out .= '<button type="button" id="ai-expand-btn" class="icon-btn ai-window-btn" title="'.dol_escape_htmltag($langs->trans("AIExpandPanel")).'" data-title-expand="'.dol_escape_htmltag($langs->trans("AIExpandPanel")).'" data-title-reduce="'.dol_escape_htmltag($langs->trans("AIReducePanel")).'"><i class="fa fa-expand-alt"></i></button>';
 		// Window controls of the popover (handled by the bootstrap JS in main.inc.php).
 		// The expand button opens the standalone full page (/ai/assistant/index.php)
 		// in the current tab; the popover always stays in its large ("expanded") state.
@@ -985,6 +1104,9 @@ function aiCheckCsrfToken($context = '')
  * and the assistant tools that read array_options directly do the same.
  * This walks an already-serialized payload (single object or list) and drops
  * those keys, leaving everything else untouched.
+ *
+ * The per-element list is cached for the life of the process: a change to the
+ * personal_data flag is honored from the next request on.
  *
  * @param DoliDB              $db          Database handler.
  * @param array<mixed>|mixed  $payload     Serialized API output (object or list of objects).

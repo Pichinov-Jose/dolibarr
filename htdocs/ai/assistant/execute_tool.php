@@ -76,6 +76,7 @@ try {
 	// Initialize Handler with the private assistant context so that the correct
 	// allow-list (AI_ASSISTANT_ALLOWED_TOOLS) is enforced on both schema and execution.
 	$mcp = new McpHandler($db, $user, $conf, McpHandler::CTX_ASSISTANT);
+	$mcp->loadTools();
 
 	$tStart = microtime(true);
 	$result = $mcp->executeTool($input['tool'], $input['arguments'] ?? []);
