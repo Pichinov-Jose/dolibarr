@@ -82,6 +82,21 @@ class modScanCapture extends DolibarrModules
 				KEY idx_sasso_code (code),
 				KEY idx_sasso_prod (fk_product)
 			) ENGINE=innodb",
+			// registre d'idempotence de la file hors-ligne : la clé UUID de chaque scan y est
+			// réclamée avant toute écriture, ce qui rend le rejeu inoffensif sur TOUS les chemins
+			// (insert ET fusion de quantité, que l'unicité d'une colonne ne peut pas protéger) ;
+			// saverow.php est fail-open si la table manque — l'inclure ici la crée à l'activation
+			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."scan_idempotency (
+				rowid INTEGER AUTO_INCREMENT PRIMARY KEY,
+				idempotency_key VARCHAR(36) NOT NULL,
+				fk_scan_capture INTEGER NULL,
+				action VARCHAR(16) NULL,
+				datec DATETIME NOT NULL,
+				replay_count INTEGER NOT NULL DEFAULT 0,
+				tms TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				UNIQUE KEY uk_scan_idempotency_key (idempotency_key),
+				KEY idx_scan_idempotency_target (fk_scan_capture)
+			) ENGINE=innodb DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 		);
 		foreach ($sqls as $sql) {
 			$this->db->query($sql);
