@@ -364,9 +364,11 @@ jQuery(function() {
 			var hints = new Map();
 			hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.CODE_128]);
 			hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-			reader = new ZXing.BrowserMultiFormatReader(hints);
+			// 150 ms entre tentatives (défaut 500 : trop lent au poignet) ; 1080p indispensable
+			// aux codes 1D sur iPhone — en 720p les barres EAN sortent trop floues pour ZXing
+			reader = new ZXing.BrowserMultiFormatReader(hints, 150);
 			return reader.decodeFromConstraints(
-				{audio: false, video: {facingMode: {ideal: 'environment'}, width: {ideal: 1280}, height: {ideal: 720}}},
+				{audio: false, video: {facingMode: {ideal: 'environment'}, width: {ideal: 1920}, height: {ideal: 1080}}},
 				videoEl,
 				function(result) {
 					if (result && !stopped) { onResult(result.getText(), String(ZXing.BarcodeFormat[result.getBarcodeFormat()] || '').toLowerCase()); }
@@ -410,11 +412,17 @@ jQuery(function() {
 		try { if (!camAudio) { camAudio = new (window.AudioContext || window.webkitAudioContext)(); } } catch (e) {} // débloqué dans le geste utilisateur (iOS)
 		var video = document.getElementById('sc_cam_video');
 		video.onplaying = function() {
-			jQuery('#sc_cam_msg').text(fieldId === 'sc_codek' ? 'Visez l\'étiquette Kezia (Code 128)' : 'Visez le code-barres produit (EAN)');
+			jQuery('#sc_cam_msg').text((fieldId === 'sc_codek' ? 'Visez l\'étiquette Kezia (Code 128)' : 'Visez le code-barres produit (EAN)') + ' — stable, à 15-20 cm, code net dans le cadre');
 			try {
 				camTrack = video.srcObject && video.srcObject.getVideoTracks()[0];
 				var caps = camTrack && camTrack.getCapabilities ? camTrack.getCapabilities() : {};
 				if (caps.torch) { jQuery('#sc_cam_torch').show(); }
+				// netteté des codes 1D : focus continu + zoom x2 quand dispo (iPhone : force
+				// l'objectif principal et grossit les barres -> lecture possible à 15-20 cm)
+				var adv = [];
+				if (caps.focusMode && caps.focusMode.indexOf && caps.focusMode.indexOf('continuous') >= 0) { adv.push({focusMode: 'continuous'}); }
+				if (caps.zoom && caps.zoom.max >= 2) { adv.push({zoom: Math.max(caps.zoom.min || 1, Math.min(2, caps.zoom.max))}); }
+				if (adv.length) { camTrack.applyConstraints({advanced: adv}).catch(function() {}); }
 			} catch (e) {}
 		};
 		try {
