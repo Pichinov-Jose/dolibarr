@@ -124,6 +124,17 @@ if (in_array($mcp_wellknown, array('/.well-known/oauth-protected-resource', '/.w
 $headers = function_exists('getallheaders') ? getallheaders() : [];
 $headers = array_change_key_case($headers, CASE_LOWER);
 
+// Self-diagnosis, before any authentication: the admin page sends a request
+// carrying both "Authorization: Bearer <dummy>" and "X-Dolibarr-Probe: 1" and
+// asks one thing - did the Authorization header reach PHP? Apache in CGI/FPM
+// mode drops it unless CGIPassAuth is on, and the only symptom otherwise is a
+// 401 after a successful OAuth consent. The answer carries nothing else.
+if (!empty($headers['x-dolibarr-probe'])) {
+	header('Cache-Control: no-store');
+	echo json_encode(['probe' => 'authorization', 'authorization_seen' => McpAuth::seesAuthorizationHeader()]);
+	exit;
+}
+
 $mcpAuth = new McpAuth($db);
 
 if ($mcpAuth->authenticate() < 0) {

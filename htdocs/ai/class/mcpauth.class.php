@@ -1,5 +1,6 @@
 <?php
 /* Copyright (C) 2026	Morgan Demoulin			<morgan.demoulin@gmail.com>
+ * Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -174,6 +175,30 @@ class McpAuth
 		}
 
 		return dol_string_nounprintableascii((string) $credential, 1);
+	}
+
+	/**
+	 * Tell whether an Authorization header reached PHP, through any of the
+	 * sources getCredential() reads. Used by the probe of the admin page: on
+	 * Apache in CGI/FastCGI mode the header is dropped unless CGIPassAuth is
+	 * on, and the only symptom otherwise is a 401 after a successful consent.
+	 *
+	 * @param 	array<string,mixed>|null 	$server 	Server variables, defaults to $_SERVER
+	 * @return 	bool 									True when a non-empty Authorization header is visible
+	 */
+	public static function seesAuthorizationHeader($server = null)
+	{
+		if ($server === null) {
+			$server = $_SERVER;
+		}
+		if (!empty($server['HTTP_AUTHORIZATION']) || !empty($server['REDIRECT_HTTP_AUTHORIZATION'])) {
+			return true;
+		}
+		if (function_exists('getallheaders')) {
+			$headers = array_change_key_case(getallheaders(), CASE_LOWER);
+			return !empty($headers['authorization']);
+		}
+		return false;
 	}
 
 	/**

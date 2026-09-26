@@ -5,6 +5,7 @@
  * Copyright (C) 2024       Frédéric France             <frederic.france@free.fr>
  * Coryright (C) 2024		Alexandre Spangaro			<alexandre@inovea-conseil.com>
  * Copyright (C) 2026		Nick Fragoulis
+ * Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -152,6 +153,24 @@ if ($action == 'update_external') {
 }
 
 // Generate New API Key
+$probeauthorization = '';
+$probeauthorizationdetail = '';
+if ($action == 'probe_authorization') {
+	// Ask the MCP endpoint itself whether an Authorization header reaches it
+	// (see the probe branch in ai/server/mcp_server.php). Local addresses are
+	// allowed on purpose: the server calls its own public URL.
+	require_once DOL_DOCUMENT_ROOT.'/core/lib/geturl.lib.php';
+	$probeurl = dol_buildpath('/ai/server/mcp_server.php', 3);
+	$probe = getURLContent($probeurl, 'POST', '{}', 1, array('Content-Type: application/json', 'Accept: application/json, text/event-stream', 'Authorization: Bearer dolibarr-probe', 'X-Dolibarr-Probe: 1'), array('http', 'https'), 2, -1);
+	$probejson = (empty($probe['curl_error_no']) && !empty($probe['content'])) ? json_decode($probe['content'], true) : null;
+	if (is_array($probejson) && isset($probejson['authorization_seen'])) {
+		$probeauthorization = $probejson['authorization_seen'] ? 'seen' : 'lost';
+	} else {
+		$probeauthorization = 'unreachable';
+		$probeauthorizationdetail = !empty($probe['curl_error_msg']) ? $probe['curl_error_msg'] : 'HTTP '.(isset($probe['http_code']) ? $probe['http_code'] : '?');
+	}
+}
+
 if ($action == 'generate_key') {
 	$newKey = dolGetRandomBytes(64);
 
@@ -382,6 +401,28 @@ if (getDolGlobalString('AI_MCP_ENABLED')) {
 	print '<td>MCP Endpoint URL</td>';
 	print '<td>';
 	print '<input type="text" id="endpoint" value="'.$endpoint.'" readonly style="width:600px; border:none; background:transparent;">';
+	print '</td>';
+	print '</tr>';
+
+	// Does the Authorization header reach PHP? Apache running PHP as CGI/FastCGI
+	// drops it unless CGIPassAuth is on, and the OAuth flow then ends on a 401
+	// after a successful consent. Detected by asking the endpoint itself; the
+	// fix belongs to the web server configuration (a .htaccess is not supported).
+	print '<tr class="oddeven">';
+	print '<td>'.$form->textwithpicto($langs->trans('AiMcpProbeAuth'), $langs->trans('AiMcpProbeAuthHelp')).'</td>';
+	print '<td>';
+	print '<a class="button small smallpaddingimp" href="'.$_SERVER["PHP_SELF"].'?action=probe_authorization&token='.newToken().'">'.$langs->trans("AiMcpProbeAuthRun").'</a>';
+	if ($probeauthorization == 'seen') {
+		print ' <span class="badge badge-status4 badge-status">'.$langs->trans("AiMcpProbeAuthOk").'</span>';
+	} elseif ($probeauthorization == 'lost') {
+		print '<div class="warning" style="margin-top: 6px;">'.$langs->trans("AiMcpProbeAuthLost").'<br>';
+		print '<code>CGIPassAuth On</code> &nbsp;<span class="opacitymedium">'.$langs->trans("AiMcpProbeAuthApache").'</span><br>';
+		print '<code>SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1</code> &nbsp;<span class="opacitymedium">'.$langs->trans("AiMcpProbeAuthApacheAlt").'</span><br>';
+		print '<code>fastcgi_param HTTP_AUTHORIZATION $http_authorization;</code> &nbsp;<span class="opacitymedium">'.$langs->trans("AiMcpProbeAuthNginx").'</span>';
+		print '</div>';
+	} elseif ($probeauthorization == 'unreachable') {
+		print ' <span class="opacitymedium">'.$langs->trans("AiMcpProbeAuthUnreachable", dol_escape_htmltag($probeauthorizationdetail)).'</span>';
+	}
 	print '</td>';
 	print '</tr>';
 
