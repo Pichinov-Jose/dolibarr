@@ -15,14 +15,6 @@ AdvTakeposShowPublicPrice = Show public price of products
 AdvTakeposShowPublicPriceHelp = When the customer is on a price level other than the public one, shows the public price next to the price charged.
 AdvTakeposShowPriceDiff = Show sale/public price difference %
 AdvTakeposShowPriceDiffHelp = Appends the percentage difference between the price charged and the public price.
-AdvTakeposPublicPriceLevel = Price level used as reference
-AdvTakeposPublicPriceLevelHelp = The level whose price is shown as the "public price" next to the price charged, and used as the base for the difference percentage. Defaults to level 1. Change it when level 1 holds the current tariff and the recommended public price lives on another level.
-AdvTakeposLevelN = Level %s
-AdvTakeposPublicPriceShort = RRP
-AdvTakeposLinePublicPriceCol = Reference price column on receipt lines
-AdvTakeposLinePublicPriceColHelp = Adds a receipt column with the reference level price, **tax included** (the core unit price column is tax excluded). Its title uses the reference level name when one is set. A dash means the product has no price on that level.
-AdvTakeposLineAtPublicPrice = Charge the line at the reference price, gap as a discount
-AdvTakeposLineAtPublicPriceHelp = When a line is added, the unit price becomes the reference level price and the gap with the customer tariff is carried as a discount percentage. The net amount is unchanged; the receipt reads "reference price - discount = net" and discount statistics become usable. Inert while the reference level is the customer level, or when the line already carries a discount.
 AdvTakeposShowLevelInTitle = Show price level in the title bar
 AdvTakeposShowLevelInTitleHelp = Shows the terminal price level and its label in the top bar.
 AdvTakeposFullwidthNoCat = Full-width products when categories are hidden

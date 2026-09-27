@@ -8,7 +8,10 @@ Conçu pour Argonaute (reprise Kezia → Dolibarr), réutilisable sur toute inst
 
 - **Vendeur par vente** : popup à l'ouverture de la vente (obligatoire tant qu'aucun vendeur n'est choisi), enregistré sur la facture (extrafield `fk_vendeur`, filtrable en liste) et imprimé sur le ticket. Les vendeurs = utilisateurs actifs cochés « Vendeur (caisse) » (extrafield `user.vendeur`).
 - **Marge** : marge par ligne (taux de marque) et marge globale de la vente, affichées dans le panneau TakePOS.
+- **Colonne marge** : montant en gras coloré avec la devise, taux de marque en dessous, colonne centrée — même ordre sur les lignes et sur le total de l'en-tête.
 - **Code couleur** des lignes selon la marge : ≥ seuil vert → vert, ≥ seuil orange → orange, sinon rouge (seuils et couleurs configurables).
+- **Bandeau vendeur à gauche** : le bloc « Vendeur » est affiché dans la cellule de description de l'entête, et non plus dans une colonne dédiée — cela libère une colonne entière dans la zone des montants. La cellule vide correspondante a donc été retirée de chaque ligne du ticket.
+- **Ligne sélectionnée toujours visible** : la couleur de marge étant posée en style inline `!important`, elle masquait la surbrillance native de la classe `selected`. La ligne sélectionnée est désormais repeinte avec **sa propre couleur assombrie**, plus une **bordure bleue** à gauche et en haut/bas — repérable même quand la marge est inconnue.
 - **Cascade de sources de coût** configurable et ordonnable : PMP, coût de revient (`cost_price`), prix d'achat fournisseur (min), et un **extrafield produit** générique (`ef:<nom_champ>`, ex. `ef:kezia_cump`). Le calcul prend la première source > 0 dans l'ordre de priorité choisi (constante `TAKEPOSVENDEUR_COST_SOURCES`, CSV ordonné ; défaut = `pmp,cost_price,supplier_min`).
 
 ## Configuration

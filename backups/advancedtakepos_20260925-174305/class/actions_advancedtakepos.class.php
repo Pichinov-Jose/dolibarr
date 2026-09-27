@@ -43,9 +43,6 @@ class ActionsAdvancedTakepos
 	/** @var string[] */
 	public $errors = array();
 
-	/** @var array<int,float|null> Cache du prix TTC de reference par produit (evite une requete par ligne) */
-	private static $refpricecache = array();
-
 	/** @var array<int,int> Cache niveau de prix par tiers (evite un fetch par ligne) */
 	private static $levelcache = array();
 
@@ -73,88 +70,6 @@ class ActionsAdvancedTakepos
 			$socid = $this->terminalDefaultSocid();
 		}
 		return $this->priceLevelOfSocid($socid);
-	}
-
-	/**
-	 * Niveau de prix servant de reference "prix public" (prix affiche a cote et % d'ecart).
-	 * Par defaut le niveau 1 ; configurable par ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL quand le prix
-	 * public conseille ne vit pas sur le niveau 1. Borne au nombre de niveaux actifs.
-	 *
-	 * @return int niveau de prix (>= 1)
-	 */
-	private function publicPriceLevel()
-	{
-		$level = getDolGlobalInt('ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL', 1);
-		$max = getDolGlobalInt('PRODUIT_MULTIPRICES_LIMIT');
-		if ($max < 1) {
-			$max = 1;
-		}
-		if ($level < 1 || $level > $max) {
-			$level = 1;
-		}
-		return $level;
-	}
-
-	/**
-	 * Hook completeTakePosAddLine : facturer la ligne au prix de reference (le PPC) et porter
-	 * l'ecart en remise, pour que le ticket lise "PPC - remise = net" au lieu du seul net.
-	 * Le montant net est rigoureusement inchange : seule la presentation change, et les
-	 * statistiques de remise deviennent exploitables.
-	 *
-	 * Le coeur (takepos/invoice.php) remplace sa ligne par notre tableau quand le hook rend 0
-	 * et que resArray n'est pas vide ; on renseigne donc $this->results.
-	 *
-	 * @param  array<string,mixed>  $parameters  Contient 'prod' et 'line'
-	 * @param  CommonObject         $object      La facture en cours
-	 * @param  string               $action      Action
-	 * @param  HookManager          $hookmanager Gestionnaire de hooks
-	 * @return int                               0 (on laisse le coeur ajouter la ligne)
-	 */
-	public function completeTakePosAddLine($parameters, &$object, &$action, $hookmanager)
-	{
-		if (getDolGlobalInt('ADVANCEDTAKEPOS_LINE_AT_PUBLIC_PRICE') != 1) {
-			return 0;
-		}
-		$prod = isset($parameters['prod']) ? $parameters['prod'] : null;
-		$line = isset($parameters['line']) ? $parameters['line'] : null;
-		if (!is_object($prod) || !is_array($line)) {
-			return 0;
-		}
-		// Niveau du client de la vente : la facture porte le tiers, plus sur que le parametre d'URL.
-		$level = (is_object($object) && !empty($object->socid)) ? $this->priceLevelOfSocid($object->socid) : $this->getCustomerLevel();
-		$publevel = $this->publicPriceLevel();
-		if ($publevel == $level) {
-			return 0;	// rien a montrer : le prix de reference EST le prix applique
-		}
-		// Une remise deja posee (ligne libre, promotion) n'est jamais ecrasee.
-		if (!empty($line['remise_percent'])) {
-			return 0;
-		}
-		$pubht  = empty($prod->multiprices[$publevel]) ? 0 : (float) $prod->multiprices[$publevel];
-		$pubttc = empty($prod->multiprices_ttc[$publevel]) ? 0 : (float) $prod->multiprices_ttc[$publevel];
-		$netht  = (float) $line['price'];
-		$netttc = (float) $line['price_ttc'];
-		// On calcule le taux sur la base qui porte le prix, et seulement si le PPC est au-dessus.
-		if ($pubttc > 0 && $netttc > 0) {
-			if ($pubttc <= $netttc) {
-				return 0;
-			}
-			$remise = (1 - $netttc / $pubttc) * 100;
-		} elseif ($pubht > 0 && $netht > 0) {
-			if ($pubht <= $netht) {
-				return 0;
-			}
-			$remise = (1 - $netht / $pubht) * 100;
-		} else {
-			return 0;	// pas de prix de reference sur ce produit : on ne touche a rien
-		}
-
-		$line['price'] = $pubht > 0 ? $pubht : $line['price'];
-		$line['price_ttc'] = $pubttc > 0 ? $pubttc : $line['price_ttc'];
-		$line['remise_percent'] = round($remise, 4);
-
-		$this->results = $line;
-		return 0;
 	}
 
 	/**
@@ -245,7 +160,7 @@ class ActionsAdvancedTakepos
 
 	/**
 	 * Hook data : enrichit chaque ligne produit renvoyee par l'ajax TakePOS
-	 * (contexte takeposproductsearch) avec le prix public (niveau de reference configurable) + % d'ecart et le stock
+	 * (contexte takeposproductsearch) avec le prix public (niveau 1) + % d'ecart et le stock
 	 * (local a l'entrepot du terminal + total tous entrepots).
 	 *
 	 * @param  array<string,mixed>  $parameters  Contient 'row' et 'obj'
@@ -254,14 +169,6 @@ class ActionsAdvancedTakepos
 	 * @param  HookManager          $hookmanager Gestionnaire de hooks
 	 * @return int                               1 pour remplacer la ligne enrichie, 0 sinon
 	 */
-	public function takeposCompleteProductOrCategory($parameters, &$object, &$action, $hookmanager)
-	{
-		// Nom retenu par le coeur a partir de la 25.0 (PR Dolibarr #40810) : l ancien
-		// completeAjaxReturnArray ne disait rien de son contexte. On garde les deux methodes,
-		// le module devant servir les versions anterieures comme les suivantes.
-		return $this->completeAjaxReturnArray($parameters, $object, $action, $hookmanager);
-	}
-
 	public function completeAjaxReturnArray($parameters, &$object, &$action, $hookmanager)
 	{
 		if (empty($parameters['context']) || strpos($parameters['context'], 'takeposproductsearch') === false) {
@@ -289,12 +196,8 @@ class ActionsAdvancedTakepos
 			$p = new Product($this->db);
 			if ($p->fetch((int) $obj->rowid) > 0) {
 				$level = $this->getCustomerLevel();
-				// Le "prix public" de reference n'est pas forcement le niveau 1 : le niveau 1 est le defaut
-				// de tous les tiers, il peut donc porter le tarif courant (Internet) et le prix public
-				// conseille vivre sur un autre niveau. D'ou un niveau de reference configurable.
-				$publevel = $this->publicPriceLevel();
-				$pubttc  = !empty($p->multiprices_ttc[$publevel]) ? $p->multiprices_ttc[$publevel] : $p->price_ttc;
-				$pubht   = !empty($p->multiprices[$publevel]) ? $p->multiprices[$publevel] : $p->price;
+				$pubttc  = !empty($p->multiprices_ttc[1]) ? $p->multiprices_ttc[1] : $p->price_ttc;
+				$pubht   = !empty($p->multiprices[1]) ? $p->multiprices[1] : $p->price;
 				$salettc = !empty($p->multiprices_ttc[$level]) ? $p->multiprices_ttc[$level] : $p->price_ttc;
 				if ((float) $pubttc > 0 && abs((float) $pubttc - (float) $salettc) > 0.0001) {
 					// suffixe % d'ecart (extra Serious, gate a part)
@@ -303,8 +206,8 @@ class ActionsAdvancedTakepos
 						$pct = round((((float) $pubttc - (float) $salettc) / (float) $pubttc) * 100);
 						$pctsuffix = ' ('.($pct >= 0 ? '-' : '+').abs($pct).'%)';
 					}
-					$row['public_price_formated'] = price(price2num($pubht, 'MT'), 1, $langs, 1, -1, -1, $conf->currency).$pctsuffix;
-					$row['public_price_ttc_formated'] = price(price2num($pubttc, 'MT'), 1, $langs, 1, -1, -1, $conf->currency).$pctsuffix;
+					$row['public_price_formated'] = price($pubht, 1, $langs, 1, -1, -1, $conf->currency).$pctsuffix;
+					$row['public_price_ttc_formated'] = price($pubttc, 1, $langs, 1, -1, -1, $conf->currency).$pctsuffix;
 				}
 			}
 		}
@@ -465,73 +368,6 @@ class ActionsAdvancedTakepos
 	 * @param  HookManager          $hookmanager Gestionnaire de hooks
 	 * @return int                               0 (ajout via resprints)
 	 */
-	/**
-	 * Prix TTC du niveau de reference pour un produit, mis en cache.
-	 * Lecture directe de product_price : on evite un Product::fetch complet par ligne du ticket,
-	 * qui declencherait une requete par niveau de prix.
-	 *
-	 * @param  int        $fk_product  Identifiant produit
-	 * @return float|null              Prix TTC, ou null si le produit n a pas de prix sur ce niveau
-	 */
-	private function refPriceTtc($fk_product)
-	{
-		$fk_product = (int) $fk_product;
-		if ($fk_product <= 0) {
-			return null;
-		}
-		if (array_key_exists($fk_product, self::$refpricecache)) {
-			return self::$refpricecache[$fk_product];
-		}
-		$level = $this->publicPriceLevel();
-		$sql = "SELECT price_ttc FROM ".MAIN_DB_PREFIX."product_price";
-		$sql .= " WHERE fk_product = ".$fk_product." AND price_level = ".((int) $level);
-		$sql .= " AND entity IN (".getEntity('productprice').")";
-		$sql .= " ORDER BY date_price DESC, rowid DESC LIMIT 1";	// meme regle que Product::fetch
-		$val = null;
-		$res = $this->db->query($sql);
-		if ($res && ($o = $this->db->fetch_object($res)) && (float) $o->price_ttc > 0) {
-			$val = (float) $o->price_ttc;
-		}
-		self::$refpricecache[$fk_product] = $val;
-		return $val;
-	}
-
-	/**
-	 * Hook completeTakePosInvoiceLine : colonne du prix de reference (PPC) en TTC sur chaque ligne.
-	 * La cellule est TOUJOURS emise quand l option est active, meme vide : une cellule manquante
-	 * decalerait les colonnes du ticket.
-	 *
-	 * @param  array<string,mixed>  $parameters  Contient 'line'
-	 * @param  CommonObject         $object      Objet courant
-	 * @param  string               $action      Action
-	 * @param  HookManager          $hookmanager Gestionnaire de hooks
-	 * @return int                               0
-	 */
-	public function completeTakePosInvoiceLine($parameters, &$object, &$action, $hookmanager)
-	{
-		global $langs, $conf;
-
-		if (getDolGlobalInt('ADVANCEDTAKEPOS_LINE_PUBLIC_PRICE_COL') != 1) {
-			$this->resprints = '';
-			return 0;
-		}
-		$line = isset($parameters['line']) ? $parameters['line'] : null;
-		$ttc = is_object($line) && !empty($line->fk_product) ? $this->refPriceTtc($line->fk_product) : null;
-
-		$out = '<td class="linecolqty right advtpppc nowraponall">';
-		if ($ttc !== null) {
-			// price2num('MT') d'abord : sans arrondi a la devise, un prix de niveau a plus de deux
-			// decimales sortirait tel quel (35,375 EUR). Meme traitement que price_ttc_formated du coeur.
-			$out .= '<span class="advtpppcval">'.price(price2num($ttc, 'MT'), 1, $langs, 1, -1, -1, $conf->currency).'</span>';
-		} else {
-			$out .= '<span class="opacitymedium">-</span>';
-		}
-		$out .= '</td>';
-
-		$this->resprints = $out;
-		return 0;
-	}
-
 	public function completeTakePosInvoiceHeader($parameters, &$object, &$action, $hookmanager)
 	{
 		if (empty($parameters['context']) || strpos($parameters['context'], 'takeposinvoice') === false) {
@@ -649,18 +485,8 @@ class ActionsAdvancedTakepos
 			$js .= "if(window.advtpConfirm){window.advtpConfirm('".$confirm."',advtpDoDel);}else if(confirm('".$confirm."')){advtpDoDel();}};";
 		}
 
-		// Entete de la colonne du prix de reference : le libelle du niveau s il est nomme, sinon "PPC".
-		$head = '';
-		if (getDolGlobalInt('ADVANCEDTAKEPOS_LINE_PUBLIC_PRICE_COL') == 1) {
-			$lab = getDolGlobalString('PRODUIT_MULTIPRICES_LABEL'.$this->publicPriceLevel());
-			if ($lab === '') {
-				$lab = $langs->trans('AdvTakeposPublicPriceShort');
-			}
-			$head = '<td class="linecolqty right advtpppc"><span class="opacitymedium small">'.dol_escape_htmltag($lab).'</span></td>';
-		}
-
 		// invoice.php est charge via jQuery.load() qui execute les <script> inline.
-		$this->resprints = $head."<script>if(window.jQuery){".$js."}</script>";
+		$this->resprints = "<script>if(window.jQuery){".$js."}</script>";
 		return 0;
 	}
 
@@ -858,33 +684,21 @@ class ActionsAdvancedTakepos
 		// Badge stock : coin haut-gauche, 2 lignes (local / total), compact, borne a 45% : jamais de chevauchement.
 		// Polices ALIGNEES sur celles du prix : ligne 1 (local) = taille du prix de vente ; ligne 2 (total) = taille du prix public.
 		// Badge stock ALIGNE sur le prix (2em) : ligne 1 (local) = 2em comme le prix de vente ; ligne 2 (total)
-		// = 0.85em, comme le prix public. Meme structure => meme HAUTEUR que le badge prix.
+		// = 0.66em => 1.32em absolu, comme le prix public. Meme structure => meme HAUTEUR que le badge prix.
 		// Meme padding (4px 6px) et meme line-height (1.05) que le badge prix ci-dessous => hauteurs identiques.
 		$css .= '.productstock{position:absolute;top:5px;left:5px;max-width:46%;overflow:hidden;text-align:center;line-height:1.05;white-space:nowrap;background:var(--colorbackhmenu1);color:var(--colortextbackhmenu);font-size:2em;padding:4px 6px;border-radius:2px;opacity:0.9;z-index:5;}';
 		// Cas 2 lignes : display:block, STRICTEMENT la meme structure que .productpublicprice (2e ligne du prix) ;
 		// cas 1 ligne (prix sans public) : span INLINE, tout reste sur la ligne 1 comme le prix.
-		$css .= '.productstock .advtp-stocktotal{display:block;opacity:0.9;font-size:0.85em;}';
-		$css .= '.productstock .advtp-stockinline{opacity:0.9;font-size:0.85em;}';
+		$css .= '.productstock .advtp-stocktotal{display:block;opacity:0.85;font-size:0.66em;}';
+		$css .= '.productstock .advtp-stockinline{opacity:0.85;font-size:0.66em;}';
 		// Prix (coin haut-droite) : meme line-height que le stock ; borne a 55% (44+55 => pas de chevauchement).
 		$css .= '.productprice{max-width:55%;text-align:right;line-height:1.05;}';
-		// En disposition etroite la vignette devient une ligne : le badge prix, en position absolue a
-		// droite, recouvrait la fin du libelle (et l icone de fiche produit qui le suit). On borne donc
-		// le libelle pour lui reserver la gouttiere du badge, avec des points de suspension au besoin.
-		$css .= '@media screen and (max-width:767px){[id^="prodivdesc"]{max-width:calc(100% - 165px);overflow:hidden;text-overflow:ellipsis;}}';
 		// Prix public + % : 2e ligne sous le prix de vente, sur UNE SEULE ligne (nowrap) pour que le badge prix
 		// ait exactement 2 lignes, comme le badge stock => meme hauteur par construction (pas de mesure au pixel).
-		$css .= '.productpublicprice{display:block;font-size:0.85em;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}';
+		$css .= '.productpublicprice{display:block;font-size:0.66em;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}';
 		// (Masquage Devise + elargissement dynamique de la zone client : geres en JS dans completeTakePosInvoiceHeader,
 		//  car on doit MESURER la largeur liberee par les champs masques avant de la reporter sur la zone client.)
 		// Niveau de prix dans la barre de titre : couleur claire du menu (le bandeau est sombre) sinon invisible.
-		// Titres des colonnes du ticket centres. La cellule de description est exclue : elle porte le
-		// bloc vendeur, qui doit rester a gauche. Selecteur plus specifique que la classe .right du
-		// coeur, donc pas besoin de !important. Les valeurs des lignes gardent leur propre alignement.
-		$css .= '#poslines tr.liste_titre > td:not(.linecoldescription){text-align:center;}';
-		// Stock affiche dans la colonne quantite des lignes : le coeur met l icone en pictofixedwidth,
-		// soit 19 px de largeur imposee plus 3 px de marge pour un glyphe minuscule, ce qui etire la
-		// parenthese. On lui rend sa largeur naturelle : la parenthese passe de 35 a environ 22 px.
-		$css .= '#poslines tr.posinvoiceline .opacitylow .pictofixedwidth{width:auto;padding-right:2px;}';
 		$css .= '.advtakepos-level{display:inline-block;vertical-align:middle;padding:0 8px;font-weight:bold;color:var(--colortextbackhmenu);opacity:0.9;}';
 		// Police ADAPTATIVE sur les vignettes : suit la largeur du viewport (donc de la vignette),
 		// bornee pour rester lisible sans deborder. clamp(min, prefere-en-vw, max).
@@ -989,10 +803,6 @@ class ActionsAdvancedTakepos
 		// ligne du ticket (apres la description) et barre de titre (apres la zone client).
 		if (getDolGlobalInt('ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP') == 1 || getDolGlobalInt('ADVANCEDTAKEPOS_THIRDPARTY_CARD_POPUP') == 1) {
 			$css .= '.advtp-pinfo{position:absolute;bottom:4px;right:4px;z-index:6;font-size:1.5em;line-height:1;color:var(--colorbackhmenu1);background:rgba(255,255,255,.85);border-radius:50%;cursor:pointer;}';
-			// En disposition etroite la vignette devient une ligne d environ 40 px de haut : le coin
-			// bas-droit tombe alors DANS le badge prix, qui occupe toute la hauteur a droite. On sort
-			// donc l icone du positionnement absolu pour qu elle suive le libelle du produit.
-			$css .= '@media screen and (max-width:767px){.advtp-pinfo{position:static;bottom:auto;right:auto;margin-left:6px;vertical-align:middle;background:none;}}';
 			$css .= '.advtp-ref{cursor:pointer;}.advtp-ref:hover{text-decoration:underline;}';
 			$css .= '.advtp-natinfo,.advtp-natinfo span{cursor:pointer !important;}';
 			$css .= '.advtp-sinfo{display:inline-block;vertical-align:middle;cursor:pointer;color:var(--colortextbackhmenu);opacity:.9;padding:0 5px;font-size:1.1em;}';

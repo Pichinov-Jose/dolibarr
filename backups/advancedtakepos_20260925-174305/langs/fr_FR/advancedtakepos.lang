@@ -15,14 +15,6 @@ AdvTakeposShowPublicPrice = Afficher le prix public des produits
 AdvTakeposShowPublicPriceHelp = Quand le client est sur un niveau de prix autre que public, affiche le prix public à côté du prix appliqué.
 AdvTakeposShowPriceDiff = Afficher le % d'écart vente/public
 AdvTakeposShowPriceDiffHelp = Ajoute le pourcentage d'écart entre le prix appliqué et le prix public.
-AdvTakeposPublicPriceLevel = Niveau de prix servant de référence
-AdvTakeposPublicPriceLevelHelp = Niveau dont le prix est affiché comme « prix public » à côté du prix appliqué, et qui sert de base au pourcentage d'écart. Par défaut le niveau 1. À changer si le niveau 1 porte le tarif courant (Internet) et que le prix public conseillé vit sur un autre niveau.
-AdvTakeposLevelN = Niveau %s
-AdvTakeposPublicPriceShort = PPC
-AdvTakeposLinePublicPriceCol = Colonne du prix de référence sur les lignes du ticket
-AdvTakeposLinePublicPriceColHelp = Ajoute une colonne au ticket avec le prix du niveau de référence, **en TTC** (la colonne prix unitaire native du cœur, elle, est en HT). Son titre reprend le nom du niveau de référence quand il est renseigné. Un tiret indique que le produit n'a pas de prix sur ce niveau.
-AdvTakeposLineAtPublicPrice = Facturer la ligne au prix de référence, écart en remise
-AdvTakeposLineAtPublicPriceHelp = À l'ajout d'une ligne, le prix unitaire devient celui du niveau de référence (le PPC) et l'écart avec le tarif du client est porté en pourcentage de remise. Le montant net est inchangé ; le ticket affiche « PPC − remise = net » et les statistiques de remise deviennent exploitables. Sans effet tant que le niveau de référence est celui du client, ou si la ligne porte déjà une remise.
 AdvTakeposShowLevelInTitle = Afficher le niveau de prix dans la barre de titre
 AdvTakeposShowLevelInTitleHelp = Affiche le niveau de prix du terminal et son libellé dans la barre du haut.
 AdvTakeposFullwidthNoCat = Produits en pleine largeur quand les catégories sont masquées

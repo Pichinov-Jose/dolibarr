@@ -73,19 +73,11 @@ if ($action == 'saveparams') {
 	$preset = GETPOSTINT('ADVANCEDTAKEPOS_DESKTOP_PRESET');
 	$pagerpos = GETPOSTINT('ADVANCEDTAKEPOS_PAGER_POS');
 	$mode = GETPOSTINT('ADVANCEDTAKEPOS_PRICE_DISCOUNT_MODE');
-	$publevel = GETPOSTINT('ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL');
 	$gm = GETPOSTINT('ADVANCEDTAKEPOS_MAXPRODUCT_MOBILE');
 	$gt = GETPOSTINT('ADVANCEDTAKEPOS_MAXPRODUCT_TABLET');
 	$gd = GETPOSTINT('ADVANCEDTAKEPOS_MAXPRODUCT_DESKTOP');
 	$err = 0;
 	if (!in_array($mode, array(0, 1, 2)) || !in_array($imode, array(0, 1, 2, 3))) {
-		$err++;
-	}
-	$maxlevel = getDolGlobalInt('PRODUIT_MULTIPRICES_LIMIT');
-	if ($maxlevel < 1) {
-		$maxlevel = 1;
-	}
-	if ($publevel < 1 || $publevel > $maxlevel) {
 		$err++;
 	}
 	if (($gm != 0 && ($gm < 6 || $gm > 60)) || ($gt != 0 && ($gt < 6 || $gt > 60)) || ($gd != 0 && ($gd < 6 || $gd > 60))) {
@@ -110,7 +102,6 @@ if ($action == 'saveparams') {
 			dolibarr_set_const($db, 'ADVANCEDTAKEPOS_TILES_PER_ROW_DESKTOP', 0, 'chaine', 0, '', $conf->entity);
 		}
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_PRICE_DISCOUNT_MODE', $mode, 'chaine', 0, '', $conf->entity);
-		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL', $publevel, 'chaine', 0, '', $conf->entity);
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_MAXPRODUCT_MOBILE', $gm, 'chaine', 0, '', $conf->entity);
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_MAXPRODUCT_TABLET', $gt, 'chaine', 0, '', $conf->entity);
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_MAXPRODUCT_DESKTOP', $gd, 'chaine', 0, '', $conf->entity);
@@ -150,8 +141,6 @@ $toggles = array(
 	'ADVANCEDTAKEPOS_LIGHT_HEADER'        => array('AdvTakeposLightHeader', 'AdvTakeposLightHeaderHelp'),
 	'ADVANCEDTAKEPOS_PAGER'               => array('AdvTakeposPager', 'AdvTakeposPagerHelp'),
 	'ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP'  => array('AdvTakeposProductCardPopup', 'AdvTakeposProductCardPopupHelp'),
-	'ADVANCEDTAKEPOS_LINE_AT_PUBLIC_PRICE' => array('AdvTakeposLineAtPublicPrice', 'AdvTakeposLineAtPublicPriceHelp'),
-	'ADVANCEDTAKEPOS_LINE_PUBLIC_PRICE_COL' => array('AdvTakeposLinePublicPriceCol', 'AdvTakeposLinePublicPriceColHelp'),
 	'ADVANCEDTAKEPOS_THIRDPARTY_CARD_POPUP' => array('AdvTakeposThirdpartyCardPopup', 'AdvTakeposThirdpartyCardPopupHelp'),
 );
 
@@ -173,21 +162,6 @@ print $form->textwithpicto($langs->trans('AdvTakeposPriceDiscountMode'), $langs-
 print '</td><td class="center">';
 $modes = array(0 => $langs->trans('AdvTakeposPDModeNative'), 1 => $langs->trans('AdvTakeposPDModeReset'), 2 => $langs->trans('AdvTakeposPDModeConvert'));
 print $form->selectarray('ADVANCEDTAKEPOS_PRICE_DISCOUNT_MODE', $modes, getDolGlobalInt('ADVANCEDTAKEPOS_PRICE_DISCOUNT_MODE', 1), 0);
-print '</td></tr>';
-// Niveau de prix servant de reference au "prix public" affiche a cote du prix applique.
-$maxlevel = getDolGlobalInt('PRODUIT_MULTIPRICES_LIMIT');
-if ($maxlevel < 1) {
-	$maxlevel = 1;
-}
-$levels = array();
-for ($l = 1; $l <= $maxlevel; $l++) {
-	$lab = getDolGlobalString('PRODUIT_MULTIPRICES_LABEL'.$l);
-	$levels[$l] = $langs->trans('AdvTakeposLevelN', $l).($lab ? ' - '.$lab : '');
-}
-print '<tr class="oddeven"><td>';
-print $form->textwithpicto($langs->trans('AdvTakeposPublicPriceLevel'), $langs->trans('AdvTakeposPublicPriceLevelHelp'));
-print '</td><td class="center">';
-print $form->selectarray('ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL', $levels, getDolGlobalInt('ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL', 1), 0);
 print '</td></tr>';
 print '<tr class="oddeven"><td>';
 print $form->textwithpicto($langs->trans('AdvTakeposGridMobile'), $langs->trans('AdvTakeposGridHelp'));

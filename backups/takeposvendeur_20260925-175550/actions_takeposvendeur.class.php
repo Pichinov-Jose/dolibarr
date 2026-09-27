@@ -153,8 +153,7 @@ class ActionsTakeposvendeur
 	/** Formate un pourcentage de marge avec 1 décimale, quelle que soit la config décimales. */
 	private function fmtPct($pct)
 	{
-		// Pas d'espace avant le signe : "33,3%" et non "33,3 %", la colonne est etroite.
-		return price(price2num($pct, 2), 1, '', 1, -1, 1).'%';
+		return price(price2num($pct, 2), 1, '', 1, -1, 1);
 	}
 
 	/** Couleur de texte (foncée) assortie au niveau de marge. */
@@ -168,12 +167,11 @@ class ActionsTakeposvendeur
 
 	/**
 	 * Entête de la facture TakePOS (hook completeTakePosInvoiceHeader).
-	 * Bouton Vendeur (deplace a gauche, dans la cellule de description) + (option) colonne
-	 * Marge globale + script de coloration.
+	 * Bouton Vendeur + (option) colonne Marge globale + script de coloration.
 	 */
 	public function completeTakePosInvoiceHeader($parameters, &$object, &$action, $hookmanager)
 	{
-		global $db, $langs, $user, $conf;
+		global $db, $langs, $user;
 
 		$langs->load('takeposvendeur@takeposvendeur');
 
@@ -210,22 +208,9 @@ class ActionsTakeposvendeur
 			$btns .= '<button type="button" style="margin:5px;padding:14px 18px;font-size:1.15em;border:1px solid #ccc;border-radius:6px;cursor:pointer;'.$sel.'" onclick="tpvSet('.$id.')">'.dol_escape_htmltag($name).'</button>';
 		}
 
-		// Le bloc vendeur est rendu dans une cellule hote, puis deplace par JS dans la cellule de
-		// description : la grande zone vide a gauche de l'entete. Cela libere une colonne entiere
-		// dans la zone des montants, pour pouvoir y ajouter d'autres colonnes.
-		$blk  = '<span id="tpvVendorBlock" class="tpvvendorblock" style="display:inline-block;white-space:nowrap;">';
-		$blk .= '<span class="opacitymedium">'.$langs->trans('TpvVendor').'</span> ';
-		$blk .= '<button type="button" id="tpvBtn" style="font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;" onclick="document.getElementById(\'tpvModal\').style.display=\'flex\';return false;">'.dol_escape_htmltag($curname).'</button>';
-		$blk .= '</span>';
-
-		$h  = '<td class="tpvvendhost" style="text-align:left;white-space:nowrap;">'.$blk;
-		// La cellule de description est deja fermee quand ce hook s'execute : on deplace donc le bloc
-		// cote navigateur. Si elle est introuvable (version telephone), le bloc reste dans sa cellule.
-		$h .= '<script>(function(){var b=document.getElementById("tpvVendorBlock");if(!b)return;';
-		$h .= 'var host=b.parentNode;var tr=host?host.parentNode:null;';
-		$h .= 'var d=tr?tr.querySelector("td.linecoldescription"):null;';
-		$h .= 'if(!d)return;';
-		$h .= 'd.appendChild(b);host.style.display="none";})();</script>';
+		$h  = '<td class="linecoltotal" style="text-align:right;white-space:nowrap;">';
+		$h .= '<span class="opacitymedium">'.$langs->trans('TpvVendor').'</span> ';
+		$h .= '<button type="button" id="tpvBtn" style="font-weight:bold;padding:5px 12px;border-radius:6px;cursor:pointer;" onclick="document.getElementById(\'tpvModal\').style.display=\'flex\';return false;">'.dol_escape_htmltag($curname).'</button>';
 		$h .= '</td>';
 
 		// ---- Marge globale (option) ----
@@ -247,11 +232,10 @@ class ActionsTakeposvendeur
 			$g_marge = $g_pv - $g_cout;
 			$g_pct   = ($g_pv != 0) ? ($g_marge / $g_pv * 100) : 0;
 
-			$h .= '<td class="linecolqty center" style="white-space:nowrap;">';
+			$h .= '<td class="linecolqty right" style="white-space:nowrap;">';
 			$h .= '<span class="opacitymedium small">'.$langs->trans('TpvMargin').'</span><br>';
 			if ($g_connu) {
-				$h .= '<span style="font-weight:bold;color:'.$this->tpvTextColor($g_pct, true).';">'.price($g_marge, 1, $langs, 1, -1, -1, $conf->currency).'</span>';
-				$h .= '<br><span class="opacitymedium small">'.$this->fmtPct($g_pct).'</span>';
+				$h .= '<span style="font-weight:bold;color:'.$this->tpvTextColor($g_pct, true).';">'.price($g_marge).'<br>'.$this->fmtPct($g_pct).' %</span>';
 			} else {
 				$h .= '<span class="opacitymedium">-</span>';
 			}
@@ -283,62 +267,18 @@ class ActionsTakeposvendeur
 				if (typeof Refresh === "function") { Refresh(); }
 			});
 		}
-		/* La couleur de marge est posee en inline !important : elle bat toute feuille de style,
-		   donc la surbrillance native de la ligne selectionnee (classe "selected", posee par le
-		   coeur) devenait invisible. On repeint donc nous-memes la ligne selectionnee, en plus
-		   fonce, avec une bordure bleue : reperable meme quand la marge est inconnue. */
-		function tpvShade(c){
-			var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(c || "");
-			if (!m) { return null; }
-			var r = Math.round(parseInt(m[1],16)*0.76), g = Math.round(parseInt(m[2],16)*0.76), b = Math.round(parseInt(m[3],16)*0.76);
-			return "rgb("+r+","+g+","+b+")";
-		}
-		function tpvPaintRow(tr, c, sel){
-			if (!tr) { return; }
-			var tds = tr.getElementsByTagName("td");
-			if (c) {
-				var bg = sel ? (tpvShade(c) || c) : c;
-				tr.style.setProperty("background-color", bg, "important");
-				for (var j=0;j<tds.length;j++){ tds[j].style.setProperty("background-color", bg, "important"); }
-			}
-			for (var k=0;k<tds.length;k++){
-				tds[k].style.setProperty("box-shadow", sel ? "inset 0 2px 0 #1565c0, inset 0 -2px 0 #1565c0" : "none", "important");
-			}
-			if (tds.length) {
-				tds[0].style.setProperty("border-left", sel ? "5px solid #1565c0" : "none", "important");
-			}
-		}
-		function tpvIsSel(tr){ return (" "+(tr.className||"")+" ").indexOf(" selected ") >= 0; }
 		function tpvColorRows(){
-			var done = {};
 			var cells = document.querySelectorAll("td.tpvmarge[data-tpvcolor]");
 			for (var i=0;i<cells.length;i++){
+				var c = cells[i].getAttribute("data-tpvcolor");
 				var trid = cells[i].getAttribute("data-tpvtr");
 				var tr = trid ? document.getElementById(trid) : cells[i].parentNode;
-				if (!tr) { continue; }
-				done[tr.id || ("_"+i)] = 1;
-				tpvPaintRow(tr, cells[i].getAttribute("data-tpvcolor"), tpvIsSel(tr));
-			}
-			/* Lignes sans couleur de marge (cout inconnu) : seul le repere de selection */
-			var rows = document.querySelectorAll("tr.posinvoiceline");
-			for (var n=0;n<rows.length;n++){
-				if (!done[rows[n].id]) { tpvPaintRow(rows[n], "", tpvIsSel(rows[n])); }
-			}
-		}
-		/* Le coeur pose la classe "selected" dans son propre gestionnaire de clic : on repasse
-		   juste apres. Ecouteur pose une seule fois, il survit aux Refresh du panier. */
-		if (!window.tpvSelWatch) {
-			window.tpvSelWatch = 1;
-			document.addEventListener("click", function(e){
-				var t = e.target;
-				while (t && t !== document) {
-					if (t.className && (" "+t.className+" ").indexOf(" posinvoiceline ") >= 0) {
-						setTimeout(function(){ if (typeof tpvColorRows === "function") { tpvColorRows(); } }, 0);
-						return;
-					}
-					t = t.parentNode;
+				if (tr && c) {
+					tr.style.setProperty("background-color", c, "important");
+					var tds = tr.getElementsByTagName("td");
+					for (var j=0;j<tds.length;j++){ tds[j].style.setProperty("background-color", c, "important"); }
 				}
-			}, false);
+			}
 		}
 		tpvColorRows();
 		setTimeout(tpvColorRows, 60);
@@ -351,37 +291,31 @@ class ActionsTakeposvendeur
 
 	/**
 	 * Chaque ligne (hook completeTakePosInvoiceLine, contexte takeposinvoice).
-	 * Cellule Marge colorée + marquage pour la coloration du fond de la ligne.
+	 * Cellule vide (sous colonne Vendeur) + cellule Marge colorée, marquage pour coloration du fond.
 	 */
 	public function completeTakePosInvoiceLine($parameters, &$object, &$action, $hookmanager)
 	{
-		global $langs, $conf;
+		global $langs;
 
 		$langs->load('takeposvendeur@takeposvendeur');
 
 		$line = isset($parameters['line']) ? $parameters['line'] : null;
 		if (!is_object($line)) { $this->resprints = ''; return 0; }
 
-		// Le bloc vendeur a quitte la zone des colonnes, mais sa cellule hote reste dans l'en-tete
-		// (masquee en display:none : elle ne cree plus de colonne a l'ecran). On garde donc ici une
-		// cellule masquee symetrique, SANS QUOI LES INDEX DE COLONNES SE DECALENT : la popup de
-		// saisie d'advancedtakepos repere la colonne par son libelle dans l'en-tete, puis lit la
-		// cellule de MEME INDEX dans la ligne (cellIdx/currentVal). Une ligne plus courte que
-		// l'en-tete lui faisait lire la colonne voisine, d'ou une remise non reprise a l'ouverture.
-		$out = '<td class="tpvvendcol" style="display:none;"></td>';
+		// Toujours la cellule placeholder (aligne la colonne Vendeur de l'entête).
+		$out = '<td class="tpvvendcol"></td>';
 
 		if ($this->showMarge()) {
 			$m   = $this->tpvLineMarge($line);
 			$col = $this->tpvColor($m['pct'], $m['connu']);
 			$trid = (int) $line->id;
 
-			$out .= '<td class="center tpvmarge"';
+			$out .= '<td class="right tpvmarge"';
 			if ($col !== '') $out .= ' data-tpvcolor="'.$col.'"';
 			$out .= ' data-tpvtr="'.$trid.'">';
 			if ($m['connu']) {
-				// Meme ordre que le total de l'entete : le montant d'abord, le taux en dessous.
-				$out .= '<span style="color:'.$this->tpvTextColor($m['pct'], true).';font-weight:bold;white-space:nowrap;">'.price($m['marge'], 1, $langs, 1, -1, -1, $conf->currency).'</span>';
-				$out .= '<br><span class="opacitymedium small" style="white-space:nowrap;">'.$this->fmtPct($m['pct']).'</span>';
+				$out .= '<span style="color:'.$this->tpvTextColor($m['pct'], true).';font-weight:bold;white-space:nowrap;">'.$this->fmtPct($m['pct']).' %</span>';
+				$out .= '<br><span class="opacitymedium small" style="white-space:nowrap;">'.price($m['marge']).'</span>';
 			} else {
 				$out .= '<span class="opacitymedium">-</span>';
 			}
