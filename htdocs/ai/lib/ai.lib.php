@@ -756,7 +756,7 @@ function getAiChatAssistantConfig()
 		'Download',
 		'Show',
 		'Confirm',
-		'ConfirmAiAction',
+		'ConfirmAiAction', 'ConfirmAiWrite',
 		'ClearChatHistoryTitle',
 		'HistoryCleared',
 		'Send',
