@@ -2955,3 +2955,5 @@ AiMcpProbeAuthApache=Apache 2.4.13 or later, in the Directory or VirtualHost of 
 AiMcpProbeAuthApacheAlt=older Apache, needs mod_setenvif
 AiMcpProbeAuthNginx=nginx with PHP-FPM, in the location that passes .php to FastCGI
 AiMcpProbeAuthUnreachable=The server could not call its own endpoint (%s): the check is inconclusive, test from a client.
+AIChatTwoStepWrite=Complete a write after a search
+AIChatTwoStepWriteHelp=When a message asks for a write ("set the phone of X") and the AI answers with a search because it lacks the id, run that search and let the AI produce the write in the same turn - one extra AI call, never more. The write still goes through the confirmation. Off by default: the search result is sent to the AI provider, through the same privacy masking as the conversation context.
