@@ -1365,6 +1365,10 @@ export function initAiAssistant(container) {
     // =========================================================================
 
     function initConfirmationVoiceRecognition() {
+        // Text mode: the user answers with the buttons or the keyboard. Starting
+        // the microphone here anyway printed a bare "Error" line under the
+        // question whenever the browser refused or lacked it.
+        if (engineSelect.value === 'text') return;
         isConfirmationListening = true;
         if (engineSelect.value === 'whisper') {
             if (!whisperReady) { showVoiceFeedback(t('ModelLoading')); return; }
@@ -1379,7 +1383,7 @@ export function initAiAssistant(container) {
         confirmationRecognition = new SR();
         confirmationRecognition.lang = 'en-US';
         confirmationRecognition.onresult = (e) => { processConfirmationCommand(e.results[0][0].transcript); };
-        confirmationRecognition.onerror = (e) => { if (e.error !== 'no-speech') showVoiceFeedback(t('Error')); isConfirmationListening = false; };
+        confirmationRecognition.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') showVoiceFeedback(t('Error') + ' (' + escapeHtml(String(e.error)) + ')'); isConfirmationListening = false; };
         try { confirmationRecognition.start(); showVoiceFeedback(`<span class="fa fa-microphone"></span> ${t('Listening')} (${t('VoiceYesNo')})`); } catch (e) { console.error(e); }
     }
 
