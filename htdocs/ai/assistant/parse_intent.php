@@ -981,7 +981,14 @@ try {
 	// question, an error) ends the turn on the first answer, unchanged. There
 	// is no third call whatever the model answers.
 	$twoStepLabel = '';
-	if (getDolGlobalInt('AI_CHAT_TWO_STEP_WRITE') && is_array($intentJSON) && $toolName !== '' && isset($adapter) && is_object($adapter)) {
+	// Only on the model path: the shortcut paths above (classifier, page
+	// context...) answer without $adapter / $mcp / $history / $systemPrompt.
+	if (getDolGlobalInt('AI_CHAT_TWO_STEP_WRITE') && is_array($intentJSON) && $toolName !== '' && isset($adapter, $mcp, $history, $systemPrompt, $toolsSchema) && is_object($adapter) && is_object($mcp) && is_array($history) && is_array($toolsSchema)) {
+		/**
+		 * @param string              $name Tool name
+		 * @param array<string,mixed> $args Tool arguments
+		 * @return bool                     True when the tool writes
+		 */
 		$isWriteTool = function ($name, array $args) use ($mcp) {
 			if (preg_match('/(create|update|delete|add|remove|modify|edit|validate|pay|send)/i', $name)) {
 				return true;
@@ -1021,7 +1028,7 @@ try {
 					$usageContext = array(
 						'tokens_input' => (int) ($adapter->lastUsage['input'] ?? 0),
 						'tokens_output' => (int) ($adapter->lastUsage['output'] ?? 0),
-						'model' => (string) ($adapter->lastUsage['model'] ?? $model),
+						'model' => (string) ($adapter->lastUsage['model'] ?? (isset($model) ? $model : '')),
 					);
 				}
 
@@ -1045,7 +1052,7 @@ try {
 					dol_syslog("parse_intent.php two-step: read ".$toolName." then write ".$intent2['tool'], LOG_INFO);
 					$intentJSON = $intent2;
 					$toolName = $intent2['tool'];
-					$confidence = calculateConfidence($intentJSON, array_column($toolsSchema, null, 'name'), $rawResponse2);
+					$confidence = calculateConfidence($intentJSON, array_column($toolsSchema, null, 'name'), (string) $rawResponse2);
 					// The preview must name the object the read resolved, not an id.
 					$twoStepLabel = aiLabelOfResolvedObject($readResult, $args2);
 				} else {
@@ -1086,7 +1093,6 @@ try {
 				$action = $preview;
 			}
 		}
-
 		if (!empty($twoStepLabel)) {
 			// The id came from a read the user never saw: say which object it is.
 			$action .= ' - '.$twoStepLabel;
@@ -1173,24 +1179,6 @@ try {
 
 
 /**
- * Recursively unmask values in a dataset.
- *
- * This helper walks through an array structure and applies the appropriate
- * unmasking method on all string values. It ensures that any masked or
- * placeholder data is restored before being used in actual tool execution.
- *
- * Supported guard methods:
- * - unmask(string $value): string
- * - unmaskAiResponse(string $value): string
- *
- * If both methods exist, `unmask()` takes precedence.
- *
- * @param mixed $data  The input data (array, string, or scalar) to process.
- * @param PrivacyGuard|null $guard An object providing unmasking methods.
- *
- * @return mixed The data with all string values unmasked.
- */
-/**
  * Does the user's message ask for a write (create / update / delete / ...)?
  * Translated keys of the current language plus the short verbs users type in
  * French and English whatever the UI language; whole words only.
@@ -1213,8 +1201,11 @@ function aiQueryAsksForWrite($query, $langs)
 		'crée', 'cree', 'créer', 'creer', 'ajoute', 'ajouter', 'modifie', 'modifier', 'mets', 'met', 'mettre', 'change', 'changer', 'passe', 'passer',
 		'supprime', 'supprimer', 'efface', 'effacer', 'retire', 'retirer', 'valide', 'valider', 'envoie', 'envoyer', 'enregistre', 'enregistrer', 'renomme', 'renommer', 'clôture', 'cloture', 'annule', 'annuler'
 	));
-	$verbs = array_unique(array_filter($verbs));
-	$pattern = '/(^|[^\p{L}])('.implode('|', array_map(function ($v) { return preg_quote($v, '/'); }, $verbs)).')([^\p{L}]|$)/iu';
+	$escaped = array();
+	foreach (array_unique(array_filter($verbs)) as $verb) {
+		$escaped[] = preg_quote($verb, '/');
+	}
+	$pattern = '/(^|[^\p{L}])('.implode('|', $escaped).')([^\p{L}]|$)/iu';
 	return (bool) preg_match($pattern, dol_strtolower((string) $query));
 }
 
@@ -1260,6 +1251,24 @@ function aiLabelOfResolvedObject(array $readResult, array $writeArgs)
 	return '';
 }
 
+/**
+ * Recursively unmask values in a dataset.
+ *
+ * This helper walks through an array structure and applies the appropriate
+ * unmasking method on all string values. It ensures that any masked or
+ * placeholder data is restored before being used in actual tool execution.
+ *
+ * Supported guard methods:
+ * - unmask(string $value): string
+ * - unmaskAiResponse(string $value): string
+ *
+ * If both methods exist, `unmask()` takes precedence.
+ *
+ * @param mixed $data  The input data (array, string, or scalar) to process.
+ * @param PrivacyGuard|null $guard An object providing unmasking methods.
+ *
+ * @return mixed The data with all string values unmasked.
+ */
 function recursiveUnmaskValues($data, ?PrivacyGuard $guard)
 {
 	if ($guard === null) {
