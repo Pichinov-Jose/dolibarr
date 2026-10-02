@@ -1,3 +1,3 @@
-# Screenshots used in pull request comments
+# PR assets
 
-Images only, no code. Demo data.
+Screenshots referenced from pull request descriptions (not part of the code).
