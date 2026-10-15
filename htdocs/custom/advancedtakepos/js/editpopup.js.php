@@ -124,6 +124,17 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		var m = String(s).replace(/\u00a0/g, ' ').replace(/,/g, '.').match(/-?\d+(\.\d+)?/);
 		return m ? parseFloat(m[0]) : null;
 	}
+	// Prix de reference (PPC) de la ligne selectionnee, lu dans la colonne que pose le module.
+	// C'est la seule valeur qui fasse foi : deduire le catalogue du prix unitaire et de la remise
+	// donne un resultat faux des que la ligne n'est pas deja au prix de reference.
+	function ppcOfSelected() {
+		var row = document.getElementById(String(selectedline));
+		if (!row) { return 0; }
+		var el = row.querySelector('td.advtpppc .advtpppcval');
+		if (!el) { return 0; }
+		var v = num(el.textContent);
+		return (v && v > 0) ? v : 0;
+	}
 	function currentVal(k) {
 		var row = document.getElementById(String(selectedline));
 		if (!row || !row.cells) { return ''; }
@@ -182,8 +193,13 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		if (value === '' || typeof selectedline === 'undefined' || !selectedline) { close(); return; }
 		if (kind === 'p' && PDMODE === 2) {
 			// Convertir : le prix catalogue reste, le prix saisi devient un % de remise.
-			// catalogue = unitaire actuel net de remise / (1 - r/100) ; indeterminable si r=100.
-			var catal = (openR < 100 && openUnit > 0) ? (openUnit / (1 - openR / 100)) : 0;
+			// La base est TOUJOURS le prix de reference (PPC) affiche sur la ligne. A defaut de
+			// colonne PPC, on retombe sur l'ancien calcul : unitaire net de remise / (1 - r/100),
+			// indeterminable si r = 100.
+			var catal = ppcOfSelected();
+			if (!catal) {
+				catal = (openR < 100 && openUnit > 0) ? (openUnit / (1 - openR / 100)) : 0;
+			}
 			if (catal > 0) {
 				var nr = Math.min(100, Math.max(0, Math.round((1 - parseFloat(value) / catal) * 10000) / 100));
 				jQuery('#poslines').load(urlFor('r', String(nr)), function () { close(); });

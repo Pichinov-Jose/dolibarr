@@ -151,7 +151,13 @@ class ActionsAdvancedTakepos
 
 		$line['price'] = $pubht > 0 ? $pubht : $line['price'];
 		$line['price_ttc'] = $pubttc > 0 ? $pubttc : $line['price_ttc'];
-		$line['remise_percent'] = round($remise, 4);
+		// Un taux a deux decimales se lit sur un ecran de caisse, quatre non. Mais le net encaisse
+		// prime sur la presentation : on ne garde l'arrondi que s'il redonne exactement le meme
+		// montant, sinon on conserve la precision.
+		$base = ($pubttc > 0 && $netttc > 0) ? $pubttc : $pubht;
+		$cible = ($pubttc > 0 && $netttc > 0) ? $netttc : $netht;
+		$arrondi = round($remise, 2);
+		$line['remise_percent'] = (abs($base * (1 - $arrondi / 100) - $cible) < 0.005) ? $arrondi : round($remise, 4);
 
 		$this->results = $line;
 		return 0;
@@ -475,14 +481,27 @@ class ActionsAdvancedTakepos
 	 */
 	private function refPriceTtc($fk_product)
 	{
+		return $this->levelPriceTtc($fk_product, $this->publicPriceLevel());
+	}
+
+	/**
+	 * Prix TTC d un niveau donne pour un produit, mis en cache.
+	 *
+	 * @param  int        $fk_product  Identifiant produit
+	 * @param  int        $level       Niveau de prix
+	 * @return float|null              Prix TTC, ou null si le produit n a pas de prix sur ce niveau
+	 */
+	private function levelPriceTtc($fk_product, $level)
+	{
 		$fk_product = (int) $fk_product;
-		if ($fk_product <= 0) {
+		$level = (int) $level;
+		if ($fk_product <= 0 || $level <= 0) {
 			return null;
 		}
-		if (array_key_exists($fk_product, self::$refpricecache)) {
-			return self::$refpricecache[$fk_product];
+		$cle = $level.'-'.$fk_product;
+		if (array_key_exists($cle, self::$refpricecache)) {
+			return self::$refpricecache[$cle];
 		}
-		$level = $this->publicPriceLevel();
 		$sql = "SELECT price_ttc FROM ".MAIN_DB_PREFIX."product_price";
 		$sql .= " WHERE fk_product = ".$fk_product." AND price_level = ".((int) $level);
 		$sql .= " AND entity IN (".getEntity('productprice').")";
@@ -492,7 +511,7 @@ class ActionsAdvancedTakepos
 		if ($res && ($o = $this->db->fetch_object($res)) && (float) $o->price_ttc > 0) {
 			$val = (float) $o->price_ttc;
 		}
-		self::$refpricecache[$fk_product] = $val;
+		self::$refpricecache[$cle] = $val;
 		return $val;
 	}
 
@@ -518,7 +537,19 @@ class ActionsAdvancedTakepos
 		$line = isset($parameters['line']) ? $parameters['line'] : null;
 		$ttc = is_object($line) && !empty($line->fk_product) ? $this->refPriceTtc($line->fk_product) : null;
 
-		$out = '<td class="linecolqty right advtpppc nowraponall">';
+		// Remise "par defaut" : celle deduite du prix de reference par LINE_AT_PUBLIC_PRICE. On la
+		// reconnait a ce que le prix unitaire de la ligne EST le prix de reference. Une remise saisie
+		// par le caissier s'applique, elle, sur un prix unitaire quelconque.
+		$auto = 0;
+		if ($ttc !== null && is_object($line) && !empty($line->remise_percent) && !empty($line->fk_product)) {
+			$puttc = (float) $line->subprice * (1 + (float) $line->tva_tx / 100);
+			$net = $puttc * (1 - (float) $line->remise_percent / 100);
+			$niveau1 = $this->levelPriceTtc($line->fk_product, 1);
+			// deux conditions : le prix unitaire EST le prix de reference, et le net retombe
+			// exactement sur le niveau applique. Une remise accordee a la main descend plus bas.
+			$auto = ($niveau1 !== null && abs($puttc - (float) $ttc) < 0.011 && abs($net - (float) $niveau1) < 0.011) ? 1 : 0;
+		}
+		$out = '<td class="linecolqty right advtpppc nowraponall" data-advtp-auto="'.$auto.'">';
 		if ($ttc !== null) {
 			// price2num('MT') d'abord : sans arrondi a la devise, un prix de niveau a plus de deux
 			// decimales sortirait tel quel (35,375 EUR). Meme traitement que price_ttc_formated du coeur.
@@ -647,6 +678,22 @@ class ActionsAdvancedTakepos
 			$js .= "else{alert((d&&d.error)?d.error:'Erreur suppression du panier');}});};";
 			// Confirmation via la modale stylee si dispo (pattern vendeur), sinon confirm() natif.
 			$js .= "if(window.advtpConfirm){window.advtpConfirm('".$confirm."',advtpDoDel);}else if(confirm('".$confirm."')){advtpDoDel();}};";
+		}
+
+		// La remise deduite du prix de reference est mise en gras, pour la distinguer d'une remise
+		// accordee a la main. On repere la colonne par son libelle dans l'en-tete, comme le fait la
+		// popup de saisie, puis on stylise la cellule de MEME INDEX sur les lignes marquees.
+		if (getDolGlobalInt('ADVANCEDTAKEPOS_LINE_PUBLIC_PRICE_COL') == 1) {
+			$lblred = dol_escape_js($langs->transnoentitiesnoconv('ReductionShort'));
+			$js .= "window.advtpBoldAuto=function(){";
+			$js .= "var hs=jQuery('#poslines table tr:first td'),idx=-1;";
+			$js .= "hs.each(function(i){if(idx<0&&jQuery(this).text().indexOf('".$lblred."')>=0){idx=i;}});";
+			$js .= "if(idx<0)return;";
+			$js .= "jQuery('#poslines tr.posinvoiceline').each(function(){";
+			$js .= "var f=jQuery(this).find('td.advtpppc').attr('data-advtp-auto');";
+			$js .= "var c=this.cells[idx];if(!c)return;";
+			$js .= "c.style.fontWeight=(f==='1')?'bold':'';});};";
+			$js .= "window.advtpBoldAuto();";
 		}
 
 		// Entete de la colonne du prix de reference : le libelle du niveau s il est nomme, sinon "PPC".
