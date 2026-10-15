@@ -187,7 +187,7 @@ function pdf_getInstance($format = '', $metric = 'mm', $pagetype = 'P')
 	//$metric=$arrayformat['unit'];
 
 	//$pdfa = false; // PDF default version
-	$pdfa = getDolGlobalInt('PDF_USE_A', 0); 	// PDF/A-1 ou PDF/A-3
+	$pdfa = getDolGlobalInt('PDF_USE_A', 0); 	// 0=PDF 1.7, 1=PDF 1.4/A-1b ou 3=PDF 1.7/A-3b
 
 	if (!getDolGlobalString('MAIN_DISABLE_TCPDI') && class_exists('TCPDI')) {
 		$pdf = new TCPDI($pagetype, $metric, $format, true, 'UTF-8', false, $pdfa);
@@ -3358,6 +3358,13 @@ function pdf_render_subtotals(
 	} else {
 		$pdf->MultiCell($width, $pdf->getPageHeight() - $pdf->getBreakMargin() - $curY, '', 0, '', true);
 
+		// The page reached by the measuring pass above was discarded along with
+		// the transaction, and the MultiCell only recreates it when some room was
+		// left to fill. A line starting below the break margin leaves none, so
+		// the page must be added before it can be selected.
+		while ($pdf->getNumPages() < $pageAfter) {
+			$pdf->AddPage();
+		}
 		$pdf->setPage($pageAfter);
 		$pdf->SetXY($generator->marge_gauche, $pdf->getMargins()['top']);
 		$pdf->MultiCell($width, max(0, $yAfter - $pdf->getMargins()['top']), '', 0, '', true);

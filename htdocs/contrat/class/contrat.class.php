@@ -1587,7 +1587,7 @@ class Contrat extends CommonObject
 
 			// if buy price not defined, define buyprice as configured in margin admin
 			if ($pa_ht == 0) {
-				$result = $this->defineBuyPrice($pu_ht, $remise_percent, $fk_product);
+				$result = $this->defineBuyPrice($pu_ht, $remise_percent, $fk_product, $qty);
 				if ($result < 0) {
 					return -1;
 				} else {
@@ -1712,6 +1712,11 @@ class Contrat extends CommonObject
 	public function updateline($rowid, $desc, $pu, $qty, $remise_percent, $date_start, $date_end, $tvatx, $localtax1tx = 0.0, $localtax2tx = 0.0, $date_start_real = '', $date_end_real = '', $price_base_type = 'HT', $info_bits = 0, $fk_fournprice = null, $pa_ht = 0, $array_options = array(), $fk_unit = null, $rang = 0)
 	{
 		global $user, $langs, $mysoc;
+
+		if (!$this->isLineOfObject($rowid)) {
+			$this->error = 'ErrorLineIDDoesNotMatchWithObjectID';
+			return -1;
+		}
 
 		$error = 0;
 
@@ -1877,6 +1882,15 @@ class Contrat extends CommonObject
 		$error = 0;
 
 		if ($this->statut >= 0) {
+			if ($this->id > 0) {
+				// The line must belong to this contract
+				$contractline = new ContratLigne($this->db);
+				if ($contractline->fetch($idline) <= 0 || (int) $contractline->fk_contrat !== (int) $this->id) {
+					$this->error = 'ErrorLineIDDoesNotMatchWithObjectID';
+					return -1;
+				}
+			}
+
 			// Call trigger
 			$this->context['line_id'] = $idline;
 			$result = $this->call_trigger('LINECONTRACT_DELETE', $user);
@@ -2068,7 +2082,7 @@ class Contrat extends CommonObject
 			$datas['refcustomer'] = '<br><b>'.$langs->trans('RefCustomer').':</b> '. $this->ref_customer;
 			if (!$nofetch) {
 				$langs->load('project');
-				if (is_null($this->project) || (is_object($this->project) && $this->project->isEmpty())) {
+				if (is_null($this->project) || (is_object($this->project) && empty($this->project->id))) {
 					$res = $this->fetchProject();
 					if ($res > 0 && $this->project instanceof Project) {
 						$datas['project'] = '<br><b>'.$langs->trans('Project').':</b> '.$this->project->getNomUrl(1, '', 0, '1');

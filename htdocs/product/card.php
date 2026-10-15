@@ -111,10 +111,11 @@ $formbarcode = null;
 // Get parameters
 $id  = GETPOSTINT('id');
 if (getDolGlobalString('MAIN_SECURITY_ALLOW_UNSECURED_REF_LABELS')) {
-	$ref = (GETPOSTISSET('ref') ? GETPOST('ref', 'nohtml') : null);
+	$security_check = 'nohtml';
 } else {
-	$ref = (GETPOSTISSET('ref') ? GETPOST('ref', 'alpha') : null);
+	$security_check = !getDolGlobalString('MAIN_SECURITY_ALLOW_UNSECURED_LABELS_WITH_HTML') ? 'alphanohtml' : 'restricthtml';
 }
+$ref = (GETPOSTISSET('ref') ? GETPOST('ref', $security_check) : null);
 $type = (GETPOSTISSET('type') ? GETPOSTINT('type') : Product::TYPE_PRODUCT);
 $action = (GETPOST('action', 'alpha') ? GETPOST('action', 'alpha') : 'view');
 $cancel = GETPOST('cancel', 'alpha');
@@ -414,16 +415,12 @@ if (empty($reshook)) {
 				}
 
 				if (!$error) {
-					// Delete the product
-					if ($productOrigin->delete($user) < 1) {
-						$error++;
-					}
-				}
-
-				if ($error) {
-					// Move files from the dir of the third party to delete into the dir of the third party to keep
-					if (!empty($conf->product->multidir_output[$productOrigin->entity ?? 1])) {
-						$srcdir = $conf->product->multidir_output[$productOrigin->entity ?? 1]."/".$productOrigin->ref;
+					// Move files from the dir of the product being deleted into the dir of the product kept.
+					// This must happen on success only: the filesystem is not part of the transaction, so
+					// moving the files on the failing path stripped the origin product of its documents
+					// while the database was rolled back, and left them orphaned on the successful one.
+					if (!empty($conf->product->multidir_output[$productOrigin->entity ?? $conf->entity])) {
+						$srcdir = $conf->product->multidir_output[$productOrigin->entity ?? $conf->entity]."/".$productOrigin->ref;
 						$destdir = $conf->product->multidir_output[$object->entity ?? $conf->entity]."/".$object->ref;
 
 						if (dol_is_dir($srcdir)) {
@@ -435,6 +432,11 @@ if (empty($reshook)) {
 							}
 							//exit;
 						}
+					}
+
+					// Delete the product
+					if ($productOrigin->delete($user) < 1) {
+						$error++;
 					}
 				}
 
