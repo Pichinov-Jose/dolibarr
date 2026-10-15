@@ -14,11 +14,13 @@ $invs = array();
 $resql = $db->query("SELECT i.rowid, i.ref, e.ref AS wh FROM ".MAIN_DB_PREFIX."inventory i LEFT JOIN ".MAIN_DB_PREFIX."entrepot e ON e.rowid = i.fk_warehouse WHERE i.status = 1 ORDER BY i.rowid DESC");
 if ($resql) { while ($o = $db->fetch_object($resql)) { $invs[] = $o; } }
 $preinv = GETPOSTINT('fk_inventory');
+$invfilter = ($preinv > 0 ? " AND (fk_inventory = ".((int) $preinv)." OR fk_inventory IS NULL)" : "");
+$invfiltersc = ($preinv > 0 ? " AND (sc.fk_inventory = ".((int) $preinv)." OR sc.fk_inventory IS NULL)" : "");
 
 $nbToday = $nbUnknown = 0; $nbPending = 0;
-$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created')");
+$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created')".$invfilter);
 if ($resql && ($o = $db->fetch_object($resql))) { $nbPending = (int) $o->n; }
-$resql = $db->query("SELECT COUNT(*) AS n, SUM(status = 'unknown') AS u FROM ".MAIN_DB_PREFIX."scan_capture WHERE datec >= CURDATE() OR sent_to_inv IS NULL");
+$resql = $db->query("SELECT COUNT(*) AS n, SUM(status = 'unknown') AS u FROM ".MAIN_DB_PREFIX."scan_capture WHERE (datec >= CURDATE() OR sent_to_inv IS NULL)".$invfilter);
 if ($resql && ($o = $db->fetch_object($resql))) { $nbToday = (int) $o->n; $nbUnknown = (int) $o->u; }
 ?>
 <script>document.documentElement.classList.add('scfs');</script>
@@ -59,6 +61,7 @@ body { padding-bottom: 76px !important; }
 .sc_edit, .sc_del { font-size: 1.25em; text-decoration: none; padding: 6px; }
 .sc_actdis { font-size: 1.25em; padding: 6px; color: #bbb; }
 .sc_pick, .sc_dupbtn { font-size: 1.1em !important; padding: 10px !important; margin: 4px 4px 0 0; display: inline-block; }
+.sc_pick { border: 2px solid #1976d2 !important; background: #e3f2fd !important; color: #0d47a1 !important; border-radius: 10px !important; width: 100%; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
 .sc_modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; }
 .sc_modal .box { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 12px; padding: 18px; width: min(92vw, 420px); box-shadow: 0 6px 24px rgba(0,0,0,0.4); max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
 .sc_modal h3 { margin: 0 0 12px; }
@@ -258,7 +261,7 @@ function scEcartCell($qty, $sb)
 	$c = ($e == 0 ? '#2e7d32' : ($e > 0 ? '#b26a00' : '#b71c1c'));
 	return '<span style="color:'.$c.';font-weight:bold" class="sc_ecart">'.($e > 0 ? '+' : '').price2num($e).'</span>';
 }
-$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL ORDER BY sc.rowid DESC LIMIT 200");
+$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE (sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL)".$invfiltersc." ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
 		$lblcell = dol_escape_htmltag((string) $o->product_label);
@@ -775,7 +778,7 @@ jQuery(function() {
 				return;
 			}
 			if (r.status == 'mismatch' && !forced) {
-				var h = '<b style="color:#b71c1c"><span class="fa fa-warning"></span> <?php print dol_escape_js($langs->trans('LabelMismatch')); ?></b><div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">';
+				var h = '<b style="color:#b71c1c"><span class="fa fa-warning"></span> <?php print dol_escape_js($langs->trans('LabelMismatch')); ?></b><div style="margin:4px 0 2px;color:#333">Touchez le <b>bon produit</b> ci-dessous pour le retenir (l\'association sera m&eacute;moris&eacute;e) :</div><div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">';
 				h += '<div style="flex:1;min-width:170px;border:2px solid #b71c1c;border-radius:8px;padding:8px"><b><?php print dol_escape_js($langs->trans('KeziaCode')); ?></b><br>' + pickBtns(r.group_kezia, r.rowid) + '</div>';
 				h += '<div style="flex:1;min-width:170px;border:2px solid #b71c1c;border-radius:8px;padding:8px"><b><?php print dol_escape_js($langs->trans('ProductEan')); ?></b><br>' + pickBtns(r.group_ean, r.rowid) + '</div></div>';
 				setLive('multi', h);
@@ -838,13 +841,14 @@ jQuery(function() {
 			jQuery('#sc_autocreate').prop('checked', !!scS.autocreate);
 			if (scS.defqty) { jQuery('#sc_defqty').val(scS.defqty); }
 			jQuery('#sc_kbdchk').prop('checked', !!scS.kbd).trigger('change');
-			if (scS.inv !== undefined && jQuery('#sc_inv option[value="' + scS.inv + '"]').length) { jQuery('#sc_inv').val(scS.inv); refreshChips(); }
+			if (scS.inv !== undefined && jQuery('#sc_inv option[value="' + scS.inv + '"]').length) { jQuery('#sc_inv').val(scS.inv); refreshChips(); if (String(scS.inv) !== '<?php print (int) $preinv; ?>') { window.location.replace('?fk_inventory=' + scS.inv); } }
 		}
 	} catch (e) {}
 	jQuery('#sc_auto, #sc_autocreate, #sc_defqty, #sc_kbdchk, #sc_inv').on('change', function() {
 		try { localStorage.setItem('sc_settings', JSON.stringify({v: 2, auto: jQuery('#sc_auto').is(':checked'), autocreate: jQuery('#sc_autocreate').is(':checked'), defqty: jQuery('#sc_defqty').val(), kbd: jQuery('#sc_kbdchk').is(':checked'), inv: jQuery('#sc_inv').val()})); } catch (e) {}
 	});
 	if (typeof scMigrated !== 'undefined' && scMigrated) { jQuery('#sc_auto').trigger('change'); }
+	jQuery('#sc_inv').on('change', function() { if (String(this.value) !== '<?php print (int) $preinv; ?>') { window.location = '?fk_inventory=' + this.value; } });
 	// banner survives the post-creation reload
 	try {
 		var scRL = JSON.parse(sessionStorage.getItem('sc_relive') || 'null');

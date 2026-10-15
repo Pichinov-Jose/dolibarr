@@ -186,6 +186,16 @@ if (in_array($status, array('mismatch', 'ambiguous'))) {
 	foreach ($ce as $i => $c) { $ce[$i]['origin'] = $scOrigin($c['rowid']); }
 }
 
+// un mismatch identique encore en attente ne cree pas de nouvelle ligne : on ressert la meme
+// (le choix du produit la remplacera via replace_row) - sinon chaque re-scan empile un doublon
+if ($status == 'mismatch' && !$force && !GETPOSTINT('replace_row')) {
+	$resql = $db->query("SELECT rowid, qty, stock_before FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND status = 'mismatch' AND code_kezia = '".$db->escape($codek)."' AND ean = '".$db->escape($ean)."' ORDER BY rowid DESC LIMIT 1");
+	if ($resql && ($d = $db->fetch_object($resql))) {
+		print json_encode(array('ok' => true, 'rowid' => (int) $d->rowid, 'status' => 'mismatch', 'label' => '', 'fk_product' => 0, 'assoc' => '', 'fed' => 0, 'mismatch' => 1, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => '', 'kassoc' => '', 'stock_before' => ($d->stock_before !== null ? (float) $d->stock_before : null), 'learned' => ''));
+		exit;
+	}
+}
+
 // réclamation de la clé APRÈS les sorties sans écriture (notkezia, annonce dup) — elles ne
 // consomment pas la clé, la re-soumission interactive (force/choix produit) la réclamera —
 // et AVANT la transaction qui écrit (assoc, remplacement, insert)
