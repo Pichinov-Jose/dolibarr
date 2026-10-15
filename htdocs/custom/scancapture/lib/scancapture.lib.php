@@ -335,3 +335,62 @@ function scAttachImages($conf, $ref, $urls)
 	}
 	return $n;
 }
+
+/**
+ * Parent de famille d'un produit (variant_parent_link, repli sur variant_parent_ref)
+ */
+function scFamilyParentOf($db, $pid)
+{
+	$resql = $db->query("SELECT pe.variant_parent_link, pe.variant_parent_ref FROM ".MAIN_DB_PREFIX."product_extrafields pe WHERE pe.fk_object = ".((int) $pid));
+	if ($resql && ($o = $db->fetch_object($resql))) {
+		if ((int) $o->variant_parent_link > 0) { return (int) $o->variant_parent_link; }
+		if (!empty($o->variant_parent_ref)) {
+			$r2 = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product WHERE ref = '".$db->escape($o->variant_parent_ref)."'");
+			if ($r2 && ($x = $db->fetch_object($r2))) { return (int) $x->rowid; }
+		}
+	}
+	return 0;
+}
+
+/**
+ * Recalcule le cumul d'inventaire de la famille d'un pseudo-parent Kezia :
+ * extrafields famille_stock_trouve/famille_maj (toujours un SUM, jamais un incrément)
+ * + bloc balisé dans la note privée de la fiche parent (réécrit, pas accumulé).
+ */
+function scFamilyRecap($db, $parent_id)
+{
+	$parent_id = (int) $parent_id;
+	if ($parent_id <= 0) { return 0; }
+	$resql = $db->query("SELECT ref FROM ".MAIN_DB_PREFIX."product WHERE rowid = ".$parent_id);
+	if (!$resql || !($par = $db->fetch_object($resql))) { return 0; }
+	$children = array();
+	$resql = $db->query("SELECT pe.fk_object, p.ref, p.label FROM ".MAIN_DB_PREFIX."product_extrafields pe JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = pe.fk_object WHERE pe.variant_parent_link = ".$parent_id." OR pe.variant_parent_ref = '".$db->escape($par->ref)."'");
+	while ($resql && ($o = $db->fetch_object($resql))) { $children[(int) $o->fk_object] = $o; }
+	$cumul = 0.0; $lines = array(); $nfound = 0;
+	if (count($children)) {
+		$resql = $db->query("SELECT fk_product, SUM(qty) AS q, MAX(datec) AS lastd FROM ".MAIN_DB_PREFIX."scan_capture WHERE fk_product IN (".implode(',', array_keys($children)).") AND status IN ('matched', 'created') GROUP BY fk_product ORDER BY q DESC");
+		while ($resql && ($o = $db->fetch_object($resql))) {
+			$c = $children[(int) $o->fk_product];
+			$cumul += (float) $o->q; $nfound++;
+			if (count($lines) < 100) {
+				$lines[] = sprintf("  %-18s %-45s qte %-8s (%s)", $c->ref, dol_trunc((string) $c->label, 43), price2num($o->q), dol_print_date($db->jdate($o->lastd), '%d/%m'));
+			}
+		}
+	}
+	$stockpar = 0.0;
+	$resql = $db->query("SELECT SUM(reel) AS s FROM ".MAIN_DB_PREFIX."product_stock WHERE fk_product = ".$parent_id);
+	if ($resql && ($o = $db->fetch_object($resql)) && $o->s !== null) { $stockpar = (float) $o->s; }
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, famille_stock_trouve, famille_maj) VALUES (".$parent_id.", ".((float) $cumul).", NOW()) ON DUPLICATE KEY UPDATE famille_stock_trouve = ".((float) $cumul).", famille_maj = NOW()");
+	$open = "===== INVENTAIRE FAMILLE (scancapture"; $close = "===== /INVENTAIRE FAMILLE =====";
+	$bloc = $open.", ".dol_print_date(dol_now(), '%d/%m/%Y %H:%M').") =====\n"
+		."Stock Kezia (fiche parent) : ".price2num($stockpar)."\n"
+		."Enfants trouves au scan : ".$nfound." / ".count($children)." lie(s)\n"
+		.(count($lines) ? implode("\n", $lines)."\n" : '')
+		."Cumul trouve : ".price2num($cumul)." | Ecart vs Kezia : ".price2num($cumul - $stockpar)."\n".$close;
+	$resql = $db->query("SELECT note FROM ".MAIN_DB_PREFIX."product WHERE rowid = ".$parent_id);
+	$note = ($resql && ($o = $db->fetch_object($resql))) ? (string) $o->note : '';
+	$pat = '/'.preg_quote($open, '/').'.*?'.preg_quote($close, '/').'/s';
+	$note = preg_match($pat, $note) ? preg_replace($pat, $bloc, $note, 1) : rtrim($note."\n\n".$bloc, "\n") ;
+	$db->query("UPDATE ".MAIN_DB_PREFIX."product SET note = '".$db->escape($note)."' WHERE rowid = ".$parent_id);
+	return $cumul;
+}

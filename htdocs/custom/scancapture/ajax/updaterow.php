@@ -47,6 +47,10 @@ if ($what == 'qty') {
 	}
 	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET qty = ".((float) $newqty)." WHERE rowid = ".((int) $rowid));
 	$db->commit();
+	if ($row->fk_product) {
+		$scpar = scFamilyParentOf($db, (int) $row->fk_product);
+		if ($scpar > 0) { scFamilyRecap($db, $scpar); }
+	}
 	print json_encode(array('ok' => true, 'rowid' => $rowid, 'qty' => $newqty));
 	exit;
 }

@@ -108,6 +108,9 @@ class modScanCapture extends DolibarrModules
 		// clickable pseudo-parent: link-type extrafield rendered with getNomUrl (tooltip incl.) on the product card;
 		// variant_parent_ref (plain ref) stays the canonical key used by all queries
 		$ef->addExtraField('variant_parent_link', 'Produit parent (famille)', 'link', 101, '', 'product', 0, 0, '', 'a:1:{s:7:"options";a:1:{s:39:"Product:product/class/product.class.php";N;}}', 1, '', 1);
+		// cumul d'inventaire de la famille sur la fiche du pseudo-parent (recalcule par scFamilyRecap)
+		$ef->addExtraField('famille_stock_trouve', 'Famille : stock trouve (inventaire)', 'double', 102, '24,8', 'product', 0, 0, '', '', 1, '', 1);
+		$ef->addExtraField('famille_maj', 'Famille : derniere MAJ du cumul', 'datetime', 103, '', 'product', 0, 0, '', '', 1, '', 1);
 
 		return $this->_init(array(), $options);
 	}

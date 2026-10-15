@@ -126,6 +126,9 @@ if ($declm !== '') {
 	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = '".$db->escape(json_encode($einfo, JSON_UNESCAPED_UNICODE))."' WHERE rowid = ".((int) $rowid));
 }
 $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid).", status = 'created', product_label = '".$db->escape($label)."', stock_before = 0 WHERE rowid = ".((int) $rowid));
+// cumul famille du pseudo-parent, si le produit cree est rattache
+$scpar = scFamilyParentOf($db, (int) $pid);
+if ($scpar > 0) { scFamilyRecap($db, $scpar); }
 $db->commit();
 $nbimg = 0;
 if (!empty($info['images'])) { $nbimg = scAttachImages($conf, $ref, $info['images']); }

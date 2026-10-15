@@ -270,4 +270,9 @@ $resql = $db->query($sql);
 $rowid = $resql ? $db->last_insert_id(MAIN_DB_PREFIX.'scan_capture') : 0;
 $db->commit();
 if ($idemClaimed) { scIdemSettle($db, $idem, $resql ? (int) $rowid : 0); }
+// recalcul du cumul famille du pseudo-parent (SUM, jamais un increment)
+if ($resql && $fk_product > 0 && $status == 'matched') {
+	$scpar = ($learned !== '' && count($ck) == 1) ? (int) $ck[0]['rowid'] : scFamilyParentOf($db, (int) $fk_product);
+	if ($scpar > 0) { scFamilyRecap($db, $scpar); }
+}
 print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc, 'stock_before' => $stock_before, 'learned' => $learned));
