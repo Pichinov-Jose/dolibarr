@@ -9,6 +9,14 @@ require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 if (!$user->admin && !$user->hasRight('stock', 'creer')) accessforbidden();
 top_httphead('application/json');
 
+// la charge texte libre arrive en base64 (parametre blob) : mod_security repondait 406
+// sur des libelles legitimes (ex. "(blanc/argent)" repete) envoyes en clair
+$scblob = GETPOST('blob', 'alpha');
+if ($scblob !== '') {
+	$scdec = json_decode((string) base64_decode($scblob), true);
+	if (is_array($scdec)) { foreach ($scdec as $sck => $scv) { $_POST[$sck] = $scv; $_GET[$sck] = $scv; } }
+}
+
 $rowid = GETPOSTINT('rowid');
 $label = trim(GETPOST('label', 'alphanohtml'));
 $price = (float) price2num(GETPOST('price', 'alpha'), 'MU');

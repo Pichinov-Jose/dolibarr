@@ -1149,7 +1149,8 @@ jQuery(function() {
 			var lbm = jQuery('#sc_cr_label');
 			if (!scHasToken(lbm.val(), dm)) { lbm.val((lbm.val() + ' ' + dm).trim()); }
 		}
-		jQuery.getJSON(base + ep, {rowid: crRow, label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), decl: dm, fk_supplier: jQuery('#sc_cr_supplier').val() || 0, token: token}).fail(function() {
+		var crPayload = {label: jQuery('#sc_cr_label').val(), price: jQuery('#sc_cr_price').val(), buyprice: jQuery('#sc_cr_buyprice').val(), mpn: jQuery('#sc_cr_mpn').val(), parent_mode: jQuery('input[name=sc_cr_parent]:checked').val() || 'none', parent_label: jQuery('#sc_cr_parent_label').val(), specs_keep: specsKeep.join('||'), decl: dm, fk_supplier: jQuery('#sc_cr_supplier').val() || 0};
+		jQuery.post(base + ep, {rowid: crRow, blob: btoa(unescape(encodeURIComponent(JSON.stringify(crPayload)))), token: token}, null, 'json').fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
 			jQuery('#sc_create').hide();
