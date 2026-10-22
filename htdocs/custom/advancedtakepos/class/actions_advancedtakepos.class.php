@@ -682,7 +682,7 @@ class ActionsAdvancedTakepos
 		// et a chaque Refresh), car le bloc 'une fois' des vignettes ne court que si des produits s'affichent.
 		$inputmode = getDolGlobalInt('ADVANCEDTAKEPOS_INPUT_MODE', 2);
 		if ($inputmode >= 2) {
-			$js .= "if(!window.__advtpEditPopupLoaded){jQuery.getScript('".dol_buildpath('/advancedtakepos/js/editpopup.js.php', 1)."');}";
+			$js .= "if(!window.__advtpEditPopupLoaded){jQuery.getScript('".dol_buildpath('/advancedtakepos/js/editpopup.js.php', 1).'?v='.((int) @filemtime(__DIR__.'/../js/editpopup.js.php'))."');}";
 		} elseif ($inputmode == 1) {
 			$js .= "if(!window.__advtpEditInlineLoaded){jQuery.getScript('".dol_buildpath('/advancedtakepos/js/editinline.js.php', 1)."');}";
 		}

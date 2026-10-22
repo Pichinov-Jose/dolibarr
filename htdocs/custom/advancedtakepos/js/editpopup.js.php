@@ -150,9 +150,13 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		if (k === 'qty') { var v = at(HDR.qty); return v === null ? '' : String(v); }
 		if (k === 'r') { var v = at(HDR.r); return v === null ? '' : String(v); }
 		if (k === 'p') {
-			// Le P.U TTC embarque par la colonne du module est la source sure (le total divise
-			// par la quantite donne le net apres remise, pas le tarif).
+			// Le tarif propose est le prix PROMO quand il existe, sinon le prix magasin
+			// (niveau du client), sinon le P.U de la ligne, sinon le total divise par la qte.
 			var c = row.querySelector('td.advtpppc');
+			var base = c ? num(c.getAttribute('data-advtp-basettc') || '') : null;
+			var promo = c ? num(c.getAttribute('data-advtp-promottc') || '') : null;
+			if (promo !== null && promo > 0 && (base === null || promo < base)) { return String(Math.round(promo * 100) / 100); }
+			if (base !== null && base > 0) { return String(Math.round(base * 100) / 100); }
 			var pu = c ? num(c.getAttribute('data-advtp-puttc') || '') : null;
 			if (pu !== null && pu > 0) { return String(Math.round(pu * 100) / 100); }
 			var tot = at(HDR.ttc), q = at(HDR.qty); if (tot === null) { return ''; } if (q) { return String(Math.round((tot / q) * 100) / 100); } return String(tot);
