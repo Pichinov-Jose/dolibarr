@@ -492,7 +492,7 @@ class ActionsAdvancedTakepos
 		// 2 popup + clavier complet ; 3 popup seule (clavier reduit aux boutons d'action).
 		$inputmode = getDolGlobalInt('ADVANCEDTAKEPOS_INPUT_MODE', 2);
 		if ($inputmode >= 2) {
-			$once .= "jQuery.getScript('".dol_buildpath('/advancedtakepos/js/editpopup.js.php', 1)."');\n";
+			$once .= "jQuery.getScript('".dol_buildpath('/advancedtakepos/js/editpopup.js.php', 1).'?v='.((int) @filemtime(__DIR__.'/../js/editpopup.js.php'))."');\n";
 		} elseif ($inputmode == 1) {
 			$once .= "jQuery.getScript('".dol_buildpath('/advancedtakepos/js/editinline.js.php', 1)."');\n";
 		}
