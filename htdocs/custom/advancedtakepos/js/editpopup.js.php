@@ -124,7 +124,9 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		return idx;
 	}
 	function num(s) {
-		var m = String(s).replace(/\u00a0/g, ' ').replace(/,/g, '.').match(/-?\d+(\.\d+)?/);
+		// Tous les blancs sautent AVANT le parse : l'espace des milliers ("2 999,99") coupait le
+		// nombre au premier groupe et la popup Prix s'ouvrait sur "2".
+		var m = String(s).replace(/[\s\u00a0\u202f]/g, '').replace(/,/g, '.').match(/-?\d+(\.\d+)?/);
 		return m ? parseFloat(m[0]) : null;
 	}
 	// Prix de reference (PPC) de la ligne selectionnee, lu dans la colonne que pose le module.
