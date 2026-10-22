@@ -1120,6 +1120,10 @@ if (getDolGlobalString('PRODUIT_MULTIPRICES') || getDolGlobalString('PRODUIT_CUS
 		} else {
 			print ' '.$langs->trans($object->price_base_type);
 		}
+		// Same behavior as the single-price display: also show the tax incl. price
+		if (getDolGlobalString('PRODUCT_DISPLAY_VAT_INCL_PRICES') && $object->multiprices_base_type[$soc->price_level] != 'TTC' && !empty($object->multiprices_ttc[$soc->price_level])) {
+			print '<i class="opacitymedium"> - '.price($object->multiprices_ttc[$soc->price_level]).' '.$langs->trans('TTC').'</i>';
+		}
 		print '</td></tr>';
 
 		// Price min
@@ -1295,10 +1299,15 @@ if (getDolGlobalString('PRODUIT_MULTIPRICES') || getDolGlobalString('PRODUIT_CUS
 			}
 
 			if ($object->multiprices_base_type[$i]) {
-				print ' '.$langs->trans($object->multiprices_base_type [$i]).'</span></td>';
+				print ' '.$langs->trans($object->multiprices_base_type [$i]).'</span>';
 			} else {
-				print ' '.$langs->trans($object->price_base_type).'</span></td>';
+				print ' '.$langs->trans($object->price_base_type).'</span>';
 			}
+			// Same behavior as the single-price display: also show the tax incl. price
+			if (getDolGlobalString('PRODUCT_DISPLAY_VAT_INCL_PRICES') && $object->multiprices_base_type[$i] != 'TTC' && !empty($object->multiprices_ttc[$i])) {
+				print '<i class="opacitymedium small"> - '.price($object->multiprices_ttc[$i]).' '.$langs->trans('TTC').'</i>';
+			}
+			print '</td>';
 
 			// Prix min
 			print '<td style="text-align: right">';
