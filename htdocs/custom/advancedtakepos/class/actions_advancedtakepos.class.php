@@ -427,7 +427,7 @@ class ActionsAdvancedTakepos
 			$js .= " var el=\$('#proprice'+pos); if(el.length===0||el.html()===pub)return;";
 			$js .= " if(el.find('.productpublicprice').length>0)return;";
 			$js .= " if(d['advtp_mainstrike']==1){el.wrapInner('<span class=\"advtp-mainprice advtp-strike\"></span>');}";
-			$js .= " el.append(' <span class=\"productpublicprice\">'+pub+'</span>');";
+			$js .= " el.append(' <span class=\"productpublicprice'+(d['advtp_mainstrike']==1?' advtp-promoline':'')+'\">'+pub+'</span>');";
 			$js .= "})();\n";
 		}
 
@@ -980,6 +980,7 @@ class ActionsAdvancedTakepos
 		// ait exactement 2 lignes, comme le badge stock => meme hauteur par construction (pas de mesure au pixel).
 		$css .= '.productpublicprice{display:block;font-size:0.85em;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}';
 		$css .= '.advtp-strike{text-decoration:line-through;opacity:0.8;}';
+		$css .= '.advtp-promoline{white-space:normal;line-height:1.15;font-weight:bold;}';
 		// (Masquage Devise + elargissement dynamique de la zone client : geres en JS dans completeTakePosInvoiceHeader,
 		//  car on doit MESURER la largeur liberee par les champs masques avant de la reporter sur la zone client.)
 		// Niveau de prix dans la barre de titre : couleur claire du menu (le bandeau est sombre) sinon invisible.
