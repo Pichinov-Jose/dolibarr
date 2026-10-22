@@ -112,12 +112,39 @@ class ActionsAdvancedTakepos
 	 */
 	public function completeTakePosAddLine($parameters, &$object, &$action, $hookmanager)
 	{
-		if (getDolGlobalInt('ADVANCEDTAKEPOS_LINE_AT_PUBLIC_PRICE') != 1) {
+		if (getDolGlobalInt('ADVANCEDTAKEPOS_LINE_AT_PUBLIC_PRICE') != 1 && getDolGlobalInt('ADVANCEDTAKEPOS_PROMO_LEVEL') <= 0) {
 			return 0;
 		}
 		$prod = isset($parameters['prod']) ? $parameters['prod'] : null;
 		$line = isset($parameters['line']) ? $parameters['line'] : null;
 		if (!is_object($prod) || !is_array($line)) {
+			return 0;
+		}
+		// Prix promo (ADVANCEDTAKEPOS_PROMO_LEVEL = niveau promo, 0 = inactif) : la ligne reste
+		// AU PRIX APPLIQUE (le prix boutique du niveau du client) et l'ecart vers le niveau promo
+		// est porte en remise quand ce niveau existe et est inferieur -> le ticket lit
+		// "prix boutique - remise = prix promo". Une remise deja posee n'est jamais ecrasee.
+		$promolevel = getDolGlobalInt('ADVANCEDTAKEPOS_PROMO_LEVEL');
+		if ($promolevel > 0 && empty($line['remise_percent'])) {
+			$promoht  = empty($prod->multiprices[$promolevel]) ? 0 : (float) $prod->multiprices[$promolevel];
+			$promottc = empty($prod->multiprices_ttc[$promolevel]) ? 0 : (float) $prod->multiprices_ttc[$promolevel];
+			$netht  = (float) $line['price'];
+			$netttc = (float) $line['price_ttc'];
+			$base = 0; $cible = 0;
+			if ($promottc > 0 && $netttc > 0 && $promottc < $netttc) {
+				$base = $netttc; $cible = $promottc;
+			} elseif ($promoht > 0 && $netht > 0 && $promoht < $netht) {
+				$base = $netht; $cible = $promoht;
+			}
+			if ($base > 0) {
+				$remise = (1 - $cible / $base) * 100;
+				$arrondi = round($remise, 2);
+				$line['remise_percent'] = (abs($base * (1 - $arrondi / 100) - $cible) < 0.005) ? $arrondi : round($remise, 4);
+				$this->results = $line;
+				return 0;
+			}
+		}
+		if (getDolGlobalInt('ADVANCEDTAKEPOS_LINE_AT_PUBLIC_PRICE') != 1) {
 			return 0;
 		}
 		// Niveau du client de la vente : la facture porte le tiers, plus sur que le parametre d'URL.
