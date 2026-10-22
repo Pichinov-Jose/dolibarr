@@ -81,3 +81,4 @@ AdvTakeposProductCardPopup = Product card popup (tile, line, F2)
 AdvTakeposProductCardPopupHelp = Info icon on each product tile; on ticket lines, click the reference or the native info picto (its hover tooltip is kept) to open the full product card in a popup. F2 opens the card of the selected line.
 AdvTakeposThirdpartyCardPopup = Customer card popup
 AdvTakeposThirdpartyCardPopupHelp = Adds an icon after the customer name in the title bar: it opens the third-party card in a popup. Only shown when a real customer is selected (never for the terminal's default customer).
+AdvTakeposInitialTariff=Initial price

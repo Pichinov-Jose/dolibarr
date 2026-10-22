@@ -597,6 +597,19 @@ class ActionsAdvancedTakepos
 			$v = (float) $line->subprice * (1 + (float) $line->tva_tx / 100);
 			$puttcattr = ' data-advtp-puttc="'.dol_escape_htmltag(price(price2num($v, 'MT'), 0, $langs, 1, -1, -1).' '.$langs->getCurrencySymbol($conf->currency)).'"';
 		}
+		// Tarif initial de la ligne (bouton reset du popup) : prix catalogue du niveau du client
+		// + prix promo eventuel -- le JS recalcule "PU = catalogue, remise = ecart vers la promo".
+		if (is_object($line) && !empty($line->fk_product)) {
+			global $object;
+			$lvl = (isset($object) && is_object($object) && !empty($object->socid)) ? $this->priceLevelOfSocid($object->socid) : $this->getCustomerLevel();
+			$basettc = $this->levelPriceTtc((int) $line->fk_product, (int) $lvl);
+			if ($basettc !== null && $basettc > 0) { $puttcattr .= ' data-advtp-basettc="'.price2num($basettc, 'MT').'"'; }
+			$promolvl = getDolGlobalInt('ADVANCEDTAKEPOS_PROMO_LEVEL');
+			if ($promolvl > 0) {
+				$prttc = $this->levelPriceTtc((int) $line->fk_product, $promolvl);
+				if ($prttc !== null && $prttc > 0) { $puttcattr .= ' data-advtp-promottc="'.price2num($prttc, 'MT').'"'; }
+			}
+		}
 		$out = '<td class="linecolqty right advtpppc nowraponall" data-advtp-auto="'.$auto.'"'.$puttcattr.'>';
 		if ($ttc !== null) {
 			// price2num('MT') d'abord : sans arrondi a la devise, un prix de niveau a plus de deux

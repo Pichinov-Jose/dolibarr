@@ -75,6 +75,8 @@ $hdr = array(
 );
 $ok = dol_escape_js($langs->transnoentitiesnoconv('Validate'));
 $cancel = dol_escape_js($langs->transnoentitiesnoconv('Cancel'));
+$langs->load('advancedtakepos@advancedtakepos');
+$reset = dol_escape_js($langs->transnoentitiesnoconv('AdvTakeposInitialTariff'));
 $token = newToken();
 $pdmode = getDolGlobalInt('ADVANCEDTAKEPOS_PRICE_DISCOUNT_MODE', 1);
 $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
@@ -111,6 +113,7 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 	html += '<div style="margin-top:12px;">';
 	html += '<button type="button" id="advtpEditOk" class="advtp-num advtp-ok"><?php echo $ok; ?></button>';
 	html += '<button type="button" id="advtpEditCancel" class="advtp-num"><?php echo $cancel; ?></button>';
+	html += '<button type="button" id="advtpEditReset" class="advtp-num" style="float:right;"><?php echo $reset; ?></button>';
 	html += '</div>';
 	html += '</div></div>';
 	jQuery('body').append(html);
@@ -155,6 +158,7 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		var lt = (typeof selectedtext !== 'undefined') ? String(selectedtext).replace(/<[^>]*>/g, '') : '';
 		jQuery('#advtpEditLine').text(lt);
 		jQuery('#advtpEditHint').text(k === 'r' ? '100 % = gratuit' : '');
+		jQuery('#advtpEditReset').toggle(k !== 'qty' && !!tarifInitial());
 		paint();
 		jQuery('#advtpEdit').css('display', 'flex');
 	}
@@ -218,6 +222,38 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		jQuery('#poslines').load(urlFor(kind, value), function () { close(); });
 	}
 
+	// Tarif initial de la ligne selectionnee : {base, remise} ou null si inconnu.
+	function tarifInitial() {
+		if (typeof selectedline === 'undefined' || !selectedline) { return null; }
+		var row = document.getElementById(String(selectedline));
+		var c = row ? row.querySelector('td.advtpppc') : null;
+		if (!c) { return null; }
+		var base = parseFloat(c.getAttribute('data-advtp-basettc') || '0');
+		if (!(base > 0)) { return null; }
+		var promo = parseFloat(c.getAttribute('data-advtp-promottc') || '0');
+		var r = (promo > 0 && promo < base) ? Math.round((1 - promo / base) * 10000) / 100 : 0;
+		return { base: base, remise: r };
+	}
+	jQuery(document).on('click', '#advtpEditReset', function () {
+		var t = tarifInitial();
+		if (!t) { close(); return; }
+		jQuery.getJSON(UPLINE + '?token=' + freshToken() + '&place=' + place + '&idline=' + selectedline + '&number=' + encodeURIComponent(String(t.base)) + '&remise=' + encodeURIComponent(String(t.remise)), function (dd) {
+			if (dd && dd.ok) { if (typeof Refresh === 'function') { Refresh(); } close(); }
+			else { alert((dd && dd.error) ? dd.error : 'Error'); }
+		});
+	});
+	// Clavier physique : chiffres, point/virgule, retour arriere, Entree = valider, Echap = annuler.
+	jQuery(document).on('keydown', function (e) {
+		if (!open) { return; }
+		var k = e.key;
+		if (/^[0-9]$/.test(k)) { append(k); }
+		else if (k === '.' || k === ',') { append('.'); }
+		else if (k === 'Backspace') { append('\u232b'); }
+		else if (k === 'Enter') { validate(); }
+		else if (k === 'Escape') { close(); }
+		else { return; }
+		e.preventDefault(); e.stopPropagation();
+	});
 	jQuery(document).on('click', '#advtpEdit .advtp-num[data-k]', function () { append(jQuery(this).data('k')); });
 	jQuery(document).on('click', '#advtpEditOk', validate);
 	jQuery(document).on('click', '#advtpEditCancel', close);
