@@ -111,9 +111,11 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 	}
 	html += '</div>';
 	html += '<div style="margin-top:12px;">';
+	html += '<button type="button" id="advtpEditReset" class="advtp-num" style="width:100%;margin-bottom:8px;"><?php echo $reset; ?></button>';
+	html += '</div>';
+	html += '<div>';
 	html += '<button type="button" id="advtpEditOk" class="advtp-num advtp-ok"><?php echo $ok; ?></button>';
 	html += '<button type="button" id="advtpEditCancel" class="advtp-num"><?php echo $cancel; ?></button>';
-	html += '<button type="button" id="advtpEditReset" class="advtp-num" style="float:right;"><?php echo $reset; ?></button>';
 	html += '</div>';
 	html += '</div></div>';
 	jQuery('body').append(html);
