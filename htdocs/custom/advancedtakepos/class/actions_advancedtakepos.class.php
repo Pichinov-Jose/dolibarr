@@ -600,8 +600,7 @@ class ActionsAdvancedTakepos
 		// Tarif initial de la ligne (bouton reset du popup) : prix catalogue du niveau du client
 		// + prix promo eventuel -- le JS recalcule "PU = catalogue, remise = ecart vers la promo".
 		if (is_object($line) && !empty($line->fk_product)) {
-			global $object;
-			$lvl = (isset($object) && is_object($object) && !empty($object->socid)) ? $this->priceLevelOfSocid($object->socid) : $this->getCustomerLevel();
+			$lvl = (is_object($object) && !empty($object->socid)) ? $this->priceLevelOfSocid($object->socid) : $this->getCustomerLevel();
 			$basettc = $this->levelPriceTtc((int) $line->fk_product, (int) $lvl);
 			if ($basettc !== null && $basettc > 0) { $puttcattr .= ' data-advtp-basettc="'.price2num($basettc, 'MT').'"'; }
 			$promolvl = getDolGlobalInt('ADVANCEDTAKEPOS_PROMO_LEVEL');

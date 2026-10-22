@@ -71,7 +71,7 @@ $out = array('ok' => false, 'error' => '');
 $place = GETPOST('place', 'alpha');
 $idline = GETPOSTINT('idline');
 $number = price2num(GETPOST('number', 'alpha'), 'MU');
-$remise = price2num(GETPOST('remise', 'alpha'), 2);
+$remise = price2num(GETPOST('remise', 'alpha'), 4);
 $term = isset($_SESSION['takeposterminal']) ? $_SESSION['takeposterminal'] : '';
 
 if ($place === '' || $term === '' || $idline <= 0 || (float) $number <= 0 || (float) $remise < 0 || (float) $remise > 100) {

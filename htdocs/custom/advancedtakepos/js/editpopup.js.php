@@ -110,12 +110,10 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		html += '<br>';
 	}
 	html += '</div>';
-	html += '<div style="margin-top:12px;">';
-	html += '<button type="button" id="advtpEditReset" class="advtp-num"><?php echo $reset; ?></button>';
-	html += '</div>';
-	html += '<div>';
+	html += '<div style="margin-top:12px;white-space:nowrap;">';
 	html += '<button type="button" id="advtpEditOk" class="advtp-num advtp-ok"><?php echo $ok; ?></button>';
 	html += '<button type="button" id="advtpEditCancel" class="advtp-num"><?php echo $cancel; ?></button>';
+	html += '<button type="button" id="advtpEditReset" class="advtp-num"><?php echo $reset; ?></button>';
 	html += '</div>';
 	html += '</div></div>';
 	jQuery('body').append(html);
@@ -242,7 +240,8 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		var base = parseFloat(c.getAttribute('data-advtp-basettc') || '0');
 		if (!(base > 0)) { return null; }
 		var promo = parseFloat(c.getAttribute('data-advtp-promottc') || '0');
-		var r = (promo > 0 && promo < base) ? Math.round((1 - promo / base) * 10000) / 100 : 0;
+		// 4 decimales comme la remise auto du module : a 2 decimales le net retombe a cote (2589,90 au lieu de 2590).
+		var r = (promo > 0 && promo < base) ? Math.round((1 - promo / base) * 1000000) / 10000 : 0;
 		return { base: base, remise: r };
 	}
 	jQuery(document).on('click', '#advtpEditReset', function () {
