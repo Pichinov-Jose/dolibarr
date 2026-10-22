@@ -329,7 +329,21 @@ class ActionsAdvancedTakepos
 				$pubttc  = !empty($p->multiprices_ttc[$publevel]) ? $p->multiprices_ttc[$publevel] : $p->price_ttc;
 				$pubht   = !empty($p->multiprices[$publevel]) ? $p->multiprices[$publevel] : $p->price;
 				$salettc = !empty($p->multiprices_ttc[$level]) ? $p->multiprices_ttc[$level] : $p->price_ttc;
-				if ((float) $pubttc > 0 && abs((float) $pubttc - (float) $salettc) > 0.0001) {
+				// Mode promo : la vignette montre le prix applique (magasin) BARRE et le prix
+				// promo dessous, a la place du prix de reference (PPC).
+				$promolevel = getDolGlobalInt('ADVANCEDTAKEPOS_PROMO_LEVEL');
+				$promottc = ($promolevel > 0 && !empty($p->multiprices_ttc[$promolevel])) ? (float) $p->multiprices_ttc[$promolevel] : 0;
+				$promoht  = ($promolevel > 0 && !empty($p->multiprices[$promolevel])) ? (float) $p->multiprices[$promolevel] : 0;
+				if ($promottc > 0 && (float) $salettc > 0 && $promottc < (float) $salettc - 0.0001) {
+					$pctsuffix = '';
+					if (getDolGlobalInt('ADVANCEDTAKEPOS_SHOW_PRICE_DIFF') == 1) {
+						$pct = round((((float) $salettc - $promottc) / (float) $salettc) * 100);
+						$pctsuffix = ' (-'.abs($pct).'%)';
+					}
+					$row['public_price_formated'] = price(price2num($promoht, 'MT'), 1, $langs, 1, -1, -1, $conf->currency).$pctsuffix;
+					$row['public_price_ttc_formated'] = price(price2num($promottc, 'MT'), 1, $langs, 1, -1, -1, $conf->currency).$pctsuffix;
+					$row['advtp_mainstrike'] = 1;
+				} elseif ((float) $pubttc > 0 && abs((float) $pubttc - (float) $salettc) > 0.0001) {
 					// suffixe % d'ecart (extra Serious, gate a part)
 					$pctsuffix = '';
 					if (getDolGlobalInt('ADVANCEDTAKEPOS_SHOW_PRICE_DIFF') == 1) {
@@ -412,6 +426,7 @@ class ActionsAdvancedTakepos
 			$js .= " var pub=d['$pubkey']; if(typeof pub==='undefined'||pub===null||pub==='')return;";
 			$js .= " var el=\$('#proprice'+pos); if(el.length===0||el.html()===pub)return;";
 			$js .= " if(el.find('.productpublicprice').length>0)return;";
+			$js .= " if(d['advtp_mainstrike']==1){el.wrapInner('<span class=\"advtp-mainprice advtp-strike\"></span>');}";
 			$js .= " el.append(' <span class=\"productpublicprice\">'+pub+'</span>');";
 			$js .= "})();\n";
 		}
@@ -580,7 +595,7 @@ class ActionsAdvancedTakepos
 		$puttcattr = '';
 		if (getDolGlobalInt('ADVANCEDTAKEPOS_UNIT_PRICE_TTC') == 1 && is_object($line)) {
 			$v = (float) $line->subprice * (1 + (float) $line->tva_tx / 100);
-			$puttcattr = ' data-advtp-puttc="'.dol_escape_htmltag(price(price2num($v, 'MT'), 1, $langs, 1, -1, -1, $conf->currency)).'"';
+			$puttcattr = ' data-advtp-puttc="'.dol_escape_htmltag(price(price2num($v, 'MT'), 0, $langs, 1, -1, -1).' '.$langs->getCurrencySymbol($conf->currency)).'"';
 		}
 		$out = '<td class="linecolqty right advtpppc nowraponall" data-advtp-auto="'.$auto.'"'.$puttcattr.'>';
 		if ($ttc !== null) {
@@ -964,6 +979,7 @@ class ActionsAdvancedTakepos
 		// Prix public + % : 2e ligne sous le prix de vente, sur UNE SEULE ligne (nowrap) pour que le badge prix
 		// ait exactement 2 lignes, comme le badge stock => meme hauteur par construction (pas de mesure au pixel).
 		$css .= '.productpublicprice{display:block;font-size:0.85em;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}';
+		$css .= '.advtp-strike{text-decoration:line-through;opacity:0.8;}';
 		// (Masquage Devise + elargissement dynamique de la zone client : geres en JS dans completeTakePosInvoiceHeader,
 		//  car on doit MESURER la largeur liberee par les champs masques avant de la reporter sur la zone client.)
 		// Niveau de prix dans la barre de titre : couleur claire du menu (le bandeau est sombre) sinon invisible.
