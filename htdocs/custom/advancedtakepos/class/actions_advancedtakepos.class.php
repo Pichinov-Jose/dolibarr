@@ -576,7 +576,13 @@ class ActionsAdvancedTakepos
 			// exactement sur le niveau applique. Une remise accordee a la main descend plus bas.
 			$auto = ($niveau1 !== null && abs($puttc - (float) $ttc) < 0.011 && abs($net - (float) $niveau1) < 0.011) ? 1 : 0;
 		}
-		$out = '<td class="linecolqty right advtpppc nowraponall" data-advtp-auto="'.$auto.'">';
+		// PU TTC de la ligne, embarque pour la reecriture de la colonne native (P.U. HT -> TTC)
+		$puttcattr = '';
+		if (getDolGlobalInt('ADVANCEDTAKEPOS_UNIT_PRICE_TTC') == 1 && is_object($line)) {
+			$v = (float) $line->subprice * (1 + (float) $line->tva_tx / 100);
+			$puttcattr = ' data-advtp-puttc="'.dol_escape_htmltag(price(price2num($v, 'MT'), 1, $langs, 1, -1, -1, $conf->currency)).'"';
+		}
+		$out = '<td class="linecolqty right advtpppc nowraponall" data-advtp-auto="'.$auto.'"'.$puttcattr.'>';
 		if ($ttc !== null) {
 			// price2num('MT') d'abord : sans arrondi a la devise, un prix de niveau a plus de deux
 			// decimales sortirait tel quel (35,375 EUR). Meme traitement que price_ttc_formated du coeur.
@@ -721,6 +727,16 @@ class ActionsAdvancedTakepos
 			$js .= "var c=this.cells[idx];if(!c)return;";
 			$js .= "c.style.fontWeight=(f==='1')?'bold':'';});};";
 			$js .= "window.advtpBoldAuto();";
+		}
+
+		// Colonne native du prix unitaire en TTC (option) : l en-tete PriceUHT est repere par son
+		// libelle (meme technique que la colonne Reduction) et chaque cellule prend le PU TTC
+		// embarque par completeTakePosInvoiceLine. Rejoue a chaque rechargement du panier.
+		if (getDolGlobalInt('ADVANCEDTAKEPOS_UNIT_PRICE_TTC') == 1) {
+			$js .= "window.advtpPuTtc=function(){var lbl=".json_encode($langs->trans('PriceUHT')).";var nl=".json_encode($langs->trans('PriceUTTC')).";";
+			$js .= "var idx=-1;jQuery('#poslines tr.liste_titre td').each(function(i){var t=jQuery(this).text().trim();if(t===lbl||t===nl){idx=i;jQuery(this).html('<span class=\"opacitymedium small\">'+nl+'</span>');return false;}});";
+			$js .= "if(idx<0){return;}jQuery('#poslines tr.posinvoiceline').each(function(){var v=jQuery(this).find('td.advtpppc').attr('data-advtp-puttc');var c=this.cells[idx];if(c&&v){c.textContent=v;}});};";
+			$js .= "window.advtpPuTtc();";
 		}
 
 		// Entete de la colonne du prix de reference : le libelle du niveau s il est nomme, sinon "PPC".
