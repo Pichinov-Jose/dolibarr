@@ -99,7 +99,10 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 	html += '<div class="advtp-card">';
 	html += '<h3 id="advtpEditTitle" style="margin-top:0;"></h3>';
 	html += '<div id="advtpEditLine" class="opacitymedium" style="margin-bottom:6px;"></div>';
-	html += '<div id="advtpEditVal" class="advtp-display">&nbsp;</div>';
+	html += '<div class="advtp-display" style="display:flex;align-items:center;">';
+	html += '<input id="advtpEditVal" type="text" inputmode="decimal" autocomplete="off" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;text-align:center;">';
+	html += '<span id="advtpEditSuf" class="opacitymedium"></span>';
+	html += '</div>';
 	html += '<div id="advtpEditHint" class="opacitymedium" style="font-size:.85em;margin-bottom:6px;min-height:1em;"></div>';
 	html += '<div>';
 	var rows = [['7','8','9'],['4','5','6'],['1','2','3'],['0','.','⌫']];
@@ -168,8 +171,11 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		jQuery('#advtpEditLine').text(lt);
 		jQuery('#advtpEditHint').text(k === 'r' ? '100 % = gratuit' : '');
 		jQuery('#advtpEditReset').toggle(k !== 'qty' && !!tarifInitial());
+		jQuery('#advtpEditSuf').text(k === 'r' ? '%' : '');
 		paint();
 		jQuery('#advtpEdit').css('display', 'flex');
+		var inp = document.getElementById('advtpEditVal');
+		if (inp) { inp.focus(); inp.select(); }
 	}
 	function close() {
 		open = false; value = '';
@@ -179,19 +185,25 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		jQuery('#advtpEditVal').text(value === '' ? ' ' : value + (kind === 'r' ? ' %' : ''));
 	}
 	function append(k) {
-		if (k === '⌫') { value = value.slice(0, -1); fresh = false; paint(); return; }
-		if (fresh && (k === '.' || k === ',' || /^[0-9]$/.test(k))) { value = ''; fresh = false; }
-		if (k === '.' || k === ',') {
-			if (value.indexOf('.') >= 0) { return; }
-			value = (value === '' ? '0' : value) + '.';
-			paint(); return;
+		var el = document.getElementById('advtpEditVal');
+		if (!el) { return; }
+		var v = el.value;
+		var a = (el.selectionStart === null) ? v.length : el.selectionStart;
+		var b = (el.selectionEnd === null) ? v.length : el.selectionEnd;
+		if (fresh) { v = ''; a = 0; b = 0; fresh = false; }
+		if (k === '⌫') {
+			if (a === b && a > 0) { a--; }
+			v = v.slice(0, a) + v.slice(b);
+		} else {
+			var ch = (k === ',') ? '.' : k;
+			if (!/^[0-9.]$/.test(ch)) { return; }
+			v = v.slice(0, a) + ch + v.slice(b);
+			a++;
 		}
-		if (/^[0-9]$/.test(k)) {
-			value += k;
-			// Remise : jamais plus de 100 % (100 = gratuit)
-			if (kind === 'r' && parseFloat(value) > 100) { value = '100'; }
-			paint();
-		}
+		v = sanitize(v);
+		if (a > v.length) { a = v.length; }
+		el.value = v; value = v;
+		el.focus(); el.setSelectionRange(a, a);
 	}
 	function freshToken() {
 		// Le jeton CSRF tourne a chaque requete : on prend toujours le plus recent, present dans le
@@ -203,6 +215,8 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		return 'invoice.php?action=' + ACTIONS[k] + '&token=' + freshToken() + '&place=' + place + '&idline=' + selectedline + '&number=' + encodeURIComponent(val);
 	}
 	function validate() {
+		var inp = document.getElementById('advtpEditVal');
+		if (inp) { value = sanitize(inp.value); }
 		if (value === '' || typeof selectedline === 'undefined' || !selectedline) { close(); return; }
 		if (kind === 'p' && PDMODE === 2) {
 			// Convertir : le prix catalogue reste, le prix saisi devient un % de remise.
@@ -253,14 +267,21 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		});
 	});
 	// Clavier physique : chiffres, point/virgule, retour arriere, Entree = valider, Echap = annuler.
+	jQuery(document).on('input', '#advtpEditVal', function () {
+		fresh = false;
+		var v = sanitize(this.value);
+		if (v !== this.value) { this.value = v; }
+		value = v;
+	});
 	jQuery(document).on('keydown', function (e) {
 		if (!open) { return; }
 		var k = e.key;
-		if (/^[0-9]$/.test(k)) { append(k); }
-		else if (k === '.' || k === ',') { append('.'); }
-		else if (k === 'Backspace') { append('\u232b'); }
-		else if (k === 'Enter') { validate(); }
+		var inField = (e.target && e.target.id === 'advtpEditVal');
+		if (k === 'Enter') { validate(); }
 		else if (k === 'Escape') { close(); }
+		else if (!inField && /^[0-9]$/.test(k)) { append(k); }
+		else if (!inField && (k === '.' || k === ',')) { append('.'); }
+		else if (!inField && k === 'Backspace') { append('\u232b'); }
 		else { return; }
 		e.preventDefault(); e.stopPropagation();
 	});
