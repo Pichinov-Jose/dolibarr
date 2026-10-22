@@ -319,6 +319,14 @@ class ActionsTakeposvendeur
 				done[tr.id || ("_"+i)] = 1;
 				tpvPaintRow(tr, cells[i].getAttribute("data-tpvcolor"), tpvIsSel(tr));
 			}
+			var tpvAl = document.querySelectorAll("td.tpvvendcol[data-tpvalert]");
+			for (var a=0;a<tpvAl.length;a++){
+				var trida = tpvAl[a].getAttribute("data-tpvtr");
+				var tra = trida ? document.getElementById(trida) : tpvAl[a].parentNode;
+				if (!tra) { continue; }
+				done[tra.id || ("a"+a)] = 1;
+				tpvPaintRow(tra, "#f5a9a9", tpvIsSel(tra));
+			}
 			/* Lignes sans couleur de marge (cout inconnu) : seul le repere de selection */
 			var rows = document.querySelectorAll("tr.posinvoiceline");
 			for (var n=0;n<rows.length;n++){
@@ -368,7 +376,17 @@ class ActionsTakeposvendeur
 		// saisie d'advancedtakepos repere la colonne par son libelle dans l'en-tete, puis lit la
 		// cellule de MEME INDEX dans la ligne (cellIdx/currentVal). Une ligne plus courte que
 		// l'en-tete lui faisait lire la colonne voisine, d'ou une remise non reprise a l'ouverture.
-		$out = '<td class="tpvvendcol" style="display:none;"></td>';
+		// Alerte "sous PA x coef" (TAKEPOSVENDEUR_ALERT_COEF, ex 1.5 ; vide = inactif) : la ligne
+		// passe en rouge quand le net HT est sous cout x coef - meme quand la marge est masquee.
+		$alertattr = '';
+		$alertcoef = (float) price2num(getDolGlobalString('TAKEPOSVENDEUR_ALERT_COEF'), 'MU');
+		if ($alertcoef > 0) {
+			$ma = $this->tpvLineMarge($line);
+			if ($ma['connu'] && $ma['pv_ht'] < $ma['cout'] * $alertcoef - 0.005) {
+				$alertattr = ' data-tpvalert="1" data-tpvtr="'.(int) $line->id.'"';
+			}
+		}
+		$out = '<td class="tpvvendcol" style="display:none;"'.$alertattr.'></td>';
 
 		if ($this->showMarge()) {
 			$m   = $this->tpvLineMarge($line);
