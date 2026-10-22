@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+/* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  * GPL v3+ — This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or later.
@@ -68,9 +68,11 @@ class modScanCapture extends DolibarrModules
 				sent_to_inv DATETIME NULL,
 				stock_before DOUBLE DEFAULT NULL,
 				import_key VARCHAR(14) NULL,
+				idempotency_key VARCHAR(36) NULL COMMENT 'Client-generated UUID, unique per scan send: makes offline queue replay idempotent',
 				KEY idx_scap_status (status),
 				KEY idx_scap_ean (ean),
-				KEY idx_scap_prod (fk_product)
+				KEY idx_scap_prod (fk_product),
+				UNIQUE KEY uk_scan_capture_idempotency (idempotency_key)
 			) ENGINE=innodb",
 			"CREATE TABLE IF NOT EXISTS ".MAIN_DB_PREFIX."scan_assoc (
 				rowid INTEGER AUTO_INCREMENT PRIMARY KEY,
@@ -99,6 +101,26 @@ class modScanCapture extends DolibarrModules
 			) ENGINE=innodb DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 		);
 		foreach ($sqls as $sql) {
+			$this->db->query($sql);
+		}
+		// Mise à niveau d'une installation EXISTANTE : les CREATE ci-dessus ne couvrent que les
+		// bases neuves. Ces ALTER (MariaDB : ADD COLUMN/INDEX IF NOT EXISTS) alignent une table
+		// déjà en place sur le schéma courant sans toucher aux données — chaque colonne ajoutée
+		// au fil des vagues doit avoir sa ligne ici, en plus de figurer dans le CREATE.
+		$upgrades = array(
+			// llx_scan_capture — colonnes post-v1 (vagues inventaire puis idempotence)
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS fk_inventory INTEGER NULL",
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS sent_to_inv DATETIME NULL",
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS stock_before DOUBLE DEFAULT NULL",
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS import_key VARCHAR(14) NULL",
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(36) NULL COMMENT 'Client-generated UUID, unique per scan send: makes offline queue replay idempotent'",
+			// l'index unique est sans risque sur une colonne fraîchement ajoutée (toutes valeurs NULL)
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD UNIQUE INDEX IF NOT EXISTS uk_scan_capture_idempotency (idempotency_key)",
+			// llx_scan_idempotency — colonnes post-v1 (la table elle-même est créée ci-dessus)
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_idempotency ADD COLUMN IF NOT EXISTS replay_count INTEGER NOT NULL DEFAULT 0",
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_idempotency ADD COLUMN IF NOT EXISTS tms TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+		);
+		foreach ($upgrades as $sql) {
 			$this->db->query($sql);
 		}
 		// supplier/manufacturer product-page URL captured by the enrichment, to ease later updates
