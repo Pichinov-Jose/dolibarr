@@ -243,7 +243,14 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 			// La base est TOUJOURS le prix de reference (PPC) affiche sur la ligne. A defaut de
 			// colonne PPC, on retombe sur l'ancien calcul : unitaire net de remise / (1 - r/100),
 			// indeterminable si r = 100.
-			var catal = ppcOfSelected();
+			// Base de conversion : le PU reel de la ligne d abord (mode "prix boutique fixe",
+			// PecheCenter), sinon la colonne PPC (mode "ligne au PPC", Argonaute), sinon
+			// reconstruction depuis le net et la remise.
+			var catal = 0;
+			var rowsel = document.getElementById(String(selectedline));
+			var csel = rowsel ? rowsel.querySelector('td.advtpppc') : null;
+			if (csel) { catal = num(csel.getAttribute('data-advtp-puttc') || '') || 0; }
+			if (!catal) { catal = ppcOfSelected(); }
 			if (!catal) {
 				catal = (openR < 100 && openUnit > 0) ? (openUnit / (1 - openR / 100)) : 0;
 			}
