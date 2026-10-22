@@ -111,7 +111,7 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 	}
 	html += '</div>';
 	html += '<div style="margin-top:12px;">';
-	html += '<button type="button" id="advtpEditReset" class="advtp-num" style="width:100%;margin-bottom:8px;"><?php echo $reset; ?></button>';
+	html += '<button type="button" id="advtpEditReset" class="advtp-num"><?php echo $reset; ?></button>';
 	html += '</div>';
 	html += '<div>';
 	html += '<button type="button" id="advtpEditOk" class="advtp-num advtp-ok"><?php echo $ok; ?></button>';
@@ -149,7 +149,14 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		function at(label) { var i = cellIdx(label); return (i >= 0 && tds[i]) ? num(tds[i].textContent) : null; }
 		if (k === 'qty') { var v = at(HDR.qty); return v === null ? '' : String(v); }
 		if (k === 'r') { var v = at(HDR.r); return v === null ? '' : String(v); }
-		if (k === 'p') { var tot = at(HDR.ttc), q = at(HDR.qty); if (tot === null) { return ''; } if (q) { return String(Math.round((tot / q) * 100) / 100); } return String(tot); }
+		if (k === 'p') {
+			// Le P.U TTC embarque par la colonne du module est la source sure (le total divise
+			// par la quantite donne le net apres remise, pas le tarif).
+			var c = row.querySelector('td.advtpppc');
+			var pu = c ? num(c.getAttribute('data-advtp-puttc') || '') : null;
+			if (pu !== null && pu > 0) { return String(Math.round(pu * 100) / 100); }
+			var tot = at(HDR.ttc), q = at(HDR.qty); if (tot === null) { return ''; } if (q) { return String(Math.round((tot / q) * 100) / 100); } return String(tot);
+		}
 		return '';
 	}
 	function show(k) {
