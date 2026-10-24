@@ -182,12 +182,17 @@ function scFeedInventory($db, $fk_inventory, $fk_product, $qty)
 		return 0; // only on validated/started inventories
 	}
 	$wh = (int) $inv->fk_warehouse;
+	// verrou (inventaire, produit) : sans lui deux alimentations simultanees verifiaient
+	// "pas de ligne existante" en meme temps et inseraient chacune la leur
+	$db->query("SELECT GET_LOCK('scfeed_".((int) $fk_inventory)."_".((int) $fk_product)."', 5)");
 	$resql = $db->query("SELECT rowid, qty_view FROM ".MAIN_DB_PREFIX."inventorydet WHERE fk_inventory = ".((int) $fk_inventory)." AND fk_product = ".((int) $fk_product)." AND fk_warehouse = ".$wh." AND (batch IS NULL OR batch = '') LIMIT 1");
 	$line = $resql ? $db->fetch_object($resql) : null;
+	$unlock = function () use ($db, $fk_inventory, $fk_product) { $db->query("SELECT RELEASE_LOCK('scfeed_".((int) $fk_inventory)."_".((int) $fk_product)."')"); };
 	if ($line) {
 		$resup = $db->query("UPDATE ".MAIN_DB_PREFIX."inventorydet SET qty_view = ".(float) (((float) $line->qty_view) + $qty)." WHERE rowid = ".((int) $line->rowid));
 		if (!$resup) {
 			dol_syslog("scFeedInventory UPDATE failed: ".$db->lasterror(), LOG_ERR);
+			$unlock();
 			return 0;
 		}
 	} else {
@@ -199,9 +204,11 @@ function scFeedInventory($db, $fk_inventory, $fk_product, $qty)
 		$resin = $db->query("INSERT INTO ".MAIN_DB_PREFIX."inventorydet (datec, fk_inventory, fk_warehouse, fk_product, qty_stock, qty_view) VALUES (NOW(), ".((int) $fk_inventory).", ".$wh.", ".((int) $fk_product).", ".(float) $stock.", ".(float) $qty.")");
 		if (!$resin) {
 			dol_syslog("scFeedInventory INSERT failed: ".$db->lasterror(), LOG_ERR);
+			$unlock();
 			return 0;
 		}
 	}
+	$unlock();
 	return 1;
 }
 

@@ -9,6 +9,12 @@ if (!$user->admin && !$user->hasRight('stock', 'creer')) accessforbidden();
 top_httphead('application/json');
 
 $fk_inventory = GETPOSTINT('fk_inventory');
+// verrou anti-course : deux envois simultanes (2 scannettes, double appui) lisaient les memes
+// lignes non envoyees et alimentaient l inventaire deux fois (928 unites sur-comptees le 22-24/10)
+$resql = $db->query("SELECT GET_LOCK('scancapture_send_".((int) $fk_inventory)."', 8) AS l");
+$lck = $resql ? $db->fetch_object($resql) : null;
+if (!$lck || (int) $lck->l != 1) { print json_encode(array('ok' => false, 'error' => 'envoi deja en cours, reessayez')); exit; }
+register_shutdown_function(function () use ($db, $fk_inventory) { $db->query("SELECT RELEASE_LOCK('scancapture_send_".((int) $fk_inventory)."')"); });
 if ($fk_inventory <= 0) { print json_encode(array('ok' => false, 'error' => 'no inventory')); exit; }
 
 $autocreate = GETPOSTINT('autocreate');

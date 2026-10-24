@@ -597,6 +597,8 @@ jQuery(function() {
 		return h;
 	}
 	var scDupPending = null;
+	jQuery(document).on('click', '.sc_adopt_yes', function(ev) { ev.preventDefault(); if (!window.scAdoptPending) return; window.scAdoptPending.adopt = 1; submitRowParams(window.scAdoptPending, 0); window.scAdoptPending = null; });
+	jQuery(document).on('click', '.sc_adopt_var', function(ev) { ev.preventDefault(); if (!window.scAdoptPending) return; window.scAdoptPending.as_variant = 1; submitRowParams(window.scAdoptPending, 0); window.scAdoptPending = null; });
 	jQuery(document).on('click', '.sc_dup_merge', function(ev) {
 		ev.preventDefault();
 		if (!scDupPending) { return; }
@@ -766,6 +768,13 @@ jQuery(function() {
 			if (r.status == 'notkezia') {
 				setLive('multi', '<b style="color:#b71c1c"><span class="fa fa-exclamation-triangle"></span> Ce n\'est pas un code Kezia !</b><br>Le code ' + (r.code || '') + ' est l\'EAN du produit <b>' + (r.label || r.ref || '') + '</b>.<br>Scannez l\'<b>étiquette Kezia</b> dans le 1er champ — ou laissez-le vide et scannez l\'EAN dans le 2e champ.');
 				jQuery('#sc_codek').val('').focus();
+				return;
+			}
+			if (r.status == 'adoptchoice') {
+				window.scAdoptPending = params;
+				setLive('multi', '<b><span class="fa fa-question-circle"></span> EAN inconnu</b> pour <b>' + (r.label || r.ref || '') + '</b> (fiche sans EAN).' +
+					'<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap"><a href="#" class="button sc_dupbtn sc_adopt_yes"><span class="fa fa-barcode paddingright"></span>C\'est l\'EAN de ce produit</a>' +
+					'<a href="#" class="button sc_dupbtn sc_adopt_var"><span class="fa fa-code-fork paddingright"></span>D\u00e9clinaison \u00e0 cr\u00e9er</a></div>');
 				return;
 			}
 			if (r.status == 'dup') {

@@ -22,6 +22,10 @@ $label = trim(GETPOST('label', 'alphanohtml'));
 $price = (float) price2num(GETPOST('price', 'alpha'), 'MU');
 $buyprice = (float) price2num(GETPOST('buyprice', 'alpha'), 'MU');
 $mpn = trim(GETPOST('mpn', 'alphanohtml'));
+// la ref MARQUE (MPN) vit sur le produit (extrafield ref_marque) ; seule une ref COURTE
+// et propre peut aussi servir de ref fournisseur provisoire (les MPN verbeux de l'IA
+// polluaient ref_fourn : « Nylon Special Dorade (coloris Rose) » n'est pas une ref)
+$mpn_ref = (preg_match('/^[A-Za-z0-9_.\/#-]{2,24}$/', $mpn) ? $mpn : '');
 $parent_mode = GETPOST('parent_mode', 'aZ09') ?: 'family';
 $parent_label = trim(GETPOST('parent_label', 'alphanohtml'));
 $resql = $db->query("SELECT rowid, ean, code_kezia, qty, status, sent_to_inv, match_source, ean_info, product_label FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
@@ -58,6 +62,12 @@ if ($parent_mode === 'new') {
 }
 $ref = scMakeRef($db, $label);
 $eanOk = (!empty($row->ean) && scIsValidEan13($row->ean) && count(scLookupCode($db, $row->ean)) == 0);
+// anti double-appui : meme libelle cree il y a moins de 60 s -> on ressert la fiche existante
+$resql = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product WHERE label = '".$db->escape($label)."' AND import_key LIKE 'SCAN%' AND datec >= DATE_SUB(NOW(), INTERVAL 60 SECOND) LIMIT 1");
+if ($resql && ($dup = $db->fetch_object($resql))) {
+	print json_encode(array('ok' => true, 'fk_product' => (int) $dup->rowid, 'ref' => '', 'label' => $label, 'done' => array('fiche existante reutilisee (double appui)'), 'warning' => ''));
+	exit;
+}
 $p = new Product($db);
 $info = $row->ean_info ? json_decode($row->ean_info, true) : array();
 $p->ref = $ref; $p->label = $label; $p->type = 0; $p->status = 1; $p->status_buy = 1;
@@ -96,7 +106,10 @@ if (!empty($row->code_kezia) && !count(scLookupCode($db, $row->code_kezia))) {
 // user overrides from the popup: manufacturer ref becomes the supplier product ref, buy price replaces the inherited one
 $warning = '';
 if ($mpn !== '') {
-	$resupd = $db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET ref_fourn = '".$db->escape($mpn)."' WHERE fk_product = ".((int) $pid));
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, ref_marque) VALUES (".((int) (isset($pid) ? $pid : $p->id)).", '".$db->escape(dol_trunc($mpn, 60, 'right', 'UTF-8', 1))."') ON DUPLICATE KEY UPDATE ref_marque = IF(ref_marque IS NULL OR ref_marque = '', VALUES(ref_marque), ref_marque)");
+}
+if ($mpn_ref !== '') {
+	$resupd = $db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET ref_fourn = '".$db->escape($mpn_ref)."' WHERE fk_product = ".((int) $pid));
 	if (!$resupd) {
 		// unique key (ref_fourn, fk_soc, quantity, entity): another product (often the family parent) already uses it
 		$warning = "Réf fournisseur \"".$mpn."\" déjà prise chez ce fournisseur (famille ?) — réf technique conservée";
@@ -112,7 +125,7 @@ if ($fk_supplier > 0) {
 	$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE fk_product = ".((int) $pid));
 	if ($resql && ($x = $db->fetch_object($resql)) && (int) $x->n == 0) {
 		$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_fournisseur_price (datec, tms, fk_product, fk_soc, ref_fourn, price, quantity, unitprice, tva_tx, entity, fk_user)
-			VALUES (NOW(), NOW(), ".((int) $pid).", ".((int) $fk_supplier).", '".$db->escape($mpn)."', ".((float) $buyprice).", 1, ".((float) $buyprice).", 20, 1, ".((int) $user->id).")");
+			VALUES (NOW(), NOW(), ".((int) $pid).", ".((int) $fk_supplier).", '".$db->escape($mpn_ref)."', ".((float) $buyprice).", 1, ".((float) $buyprice).", 20, 1, ".((int) $user->id).")");
 	}
 }
 

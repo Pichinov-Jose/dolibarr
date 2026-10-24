@@ -133,6 +133,8 @@ class modScanCapture extends DolibarrModules
 		// cumul d'inventaire de la famille sur la fiche du pseudo-parent (recalcule par scFamilyRecap)
 		$ef->addExtraField('famille_stock_trouve', 'Famille : stock trouve (inventaire)', 'double', 102, '24,8', 'product', 0, 0, '', '', 1, '', 1);
 		$ef->addExtraField('famille_maj', 'Famille : derniere MAJ du cumul', 'datetime', 103, '', 'product', 0, 0, '', '', 1, '', 1);
+		// reference MARQUE (MPN) du produit - distincte de la ref fournisseur (distributeur)
+		$ef->addExtraField('ref_marque', 'Ref marque (MPN)', 'varchar', 104, 64, 'product', 0, 0, '', '', 1, '', 1);
 
 		return $this->_init(array(), $options);
 	}

@@ -120,6 +120,15 @@ if ($forced_product > 0) {
 		// family code + brand-new EAN while the product already carries one:
 		// treat as a NEW flat variant to create, linked to this family (variant_parent_ref)
 		$status = 'unknown'; $label = $ck[0]['label']; $source = 'variantof:'.$ck[0]['ref'];
+	} elseif ($ean !== '' && count($ce) == 0 && GETPOSTINT('as_variant')) {
+		// choix operateur : declinaison a creer, rattachee a la famille du code
+		$status = 'unknown'; $label = $ck[0]['label']; $source = 'variantof:'.$ck[0]['ref'];
+	} elseif ($ean !== '' && count($ce) == 0 && !GETPOSTINT('adopt') && !$forced_product) {
+		// produit sans EAN + EAN inconnu : impossible de savoir si c'est SON ean qui manquait
+		// ou une declinaison d'une famille (290 adoptions fautives reparees le 24/10).
+		// Fin du tout-automatique : l'operateur tranche. Sortie SANS ecriture (cle non consommee).
+		print json_encode(array('ok' => true, 'status' => 'adoptchoice', 'label' => $ck[0]['label'], 'ref' => $ck[0]['ref']));
+		exit;
 	} else {
 		$fk_product = $ck[0]['rowid']; $label = $ck[0]['label']; $source = $ck[0]['source'];
 		$status = 'matched';

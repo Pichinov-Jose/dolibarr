@@ -22,6 +22,10 @@ $label = trim(GETPOST('label', 'alphanohtml'));
 $price = (float) price2num(GETPOST('price', 'alpha'), 'MU');
 $buyprice = (float) price2num(GETPOST('buyprice', 'alpha'), 'MU');
 $mpn = trim(GETPOST('mpn', 'alphanohtml'));
+// la ref MARQUE (MPN) vit sur le produit (extrafield ref_marque) ; seule une ref COURTE
+// et propre peut aussi servir de ref fournisseur provisoire (les MPN verbeux de l'IA
+// polluaient ref_fourn : « Nylon Special Dorade (coloris Rose) » n'est pas une ref)
+$mpn_ref = (preg_match('/^[A-Za-z0-9_.\/#-]{2,24}$/', $mpn) ? $mpn : '');
 
 $resql = $db->query("SELECT rowid, ean, status, sent_to_inv, fk_product, ean_info FROM ".MAIN_DB_PREFIX."scan_capture WHERE rowid = ".((int) $rowid));
 $row = $resql ? $db->fetch_object($resql) : null;
@@ -73,7 +77,7 @@ $resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."product_fournis
 $hasPfp = ($resql && ($x = $db->fetch_object($resql))) ? ((int) $x->n > 0) : false;
 if (!$hasPfp && $fk_supplier > 0) {
 	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_fournisseur_price (datec, tms, fk_product, fk_soc, ref_fourn, price, quantity, unitprice, tva_tx, entity, fk_user)
-		VALUES (NOW(), NOW(), ".((int) $p->id).", ".((int) $fk_supplier).", '".$db->escape($mpn)."', ".((float) $buyprice).", 1, ".((float) $buyprice).", 20, 1, ".((int) $user->id).")");
+		VALUES (NOW(), NOW(), ".((int) $p->id).", ".((int) $fk_supplier).", '".$db->escape($mpn_ref)."', ".((float) $buyprice).", 1, ".((float) $buyprice).", 20, 1, ".((int) $user->id).")");
 	$done[] = 'fournisseur + prix d\'achat créés';
 	$hasPfp = true; $mpn = ''; $buyprice = 0; // consumed
 }
@@ -81,7 +85,10 @@ if (!$hasPfp && $fk_supplier > 0) {
 // manufacturer ref becomes the supplier product ref (unique per supplier: warn when taken)
 $warning = '';
 if ($mpn !== '') {
-	$resupd = $db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET ref_fourn = '".$db->escape($mpn)."' WHERE fk_product = ".((int) $p->id)." AND ref_fourn != '".$db->escape($mpn)."'");
+	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, ref_marque) VALUES (".((int) (isset($pid) ? $pid : $p->id)).", '".$db->escape(dol_trunc($mpn, 60, 'right', 'UTF-8', 1))."') ON DUPLICATE KEY UPDATE ref_marque = IF(ref_marque IS NULL OR ref_marque = '', VALUES(ref_marque), ref_marque)");
+}
+if ($mpn_ref !== '') {
+	$resupd = $db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET ref_fourn = '".$db->escape($mpn_ref)."' WHERE fk_product = ".((int) $p->id)." AND ref_fourn != '".$db->escape($mpn)."'");
 	if ($resupd) { $done[] = 'réf fournisseur'; }
 	else { $warning = "Réf fournisseur \"".$mpn."\" déjà prise chez ce fournisseur — inchangée"; }
 }
