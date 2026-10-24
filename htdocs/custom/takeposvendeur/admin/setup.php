@@ -43,6 +43,11 @@ if ($action == 'setvalue' && $user->admin) {
 	$ok = $ok && dolibarr_set_const($db, "TAKEPOSVENDEUR_COLOR_GREEN", GETPOST('TAKEPOSVENDEUR_COLOR_GREEN', 'alpha'), 'chaine', 0, '', $conf->entity) >= 0;
 	$ok = $ok && dolibarr_set_const($db, "TAKEPOSVENDEUR_COLOR_ORANGE", GETPOST('TAKEPOSVENDEUR_COLOR_ORANGE', 'alpha'), 'chaine', 0, '', $conf->entity) >= 0;
 	$ok = $ok && dolibarr_set_const($db, "TAKEPOSVENDEUR_COLOR_RED", GETPOST('TAKEPOSVENDEUR_COLOR_RED', 'alpha'), 'chaine', 0, '', $conf->entity) >= 0;
+	// Alerte « vente sous coût × coefficient », indépendante de la coloration par la marge.
+	// Vide ou 0 = inactive : une valeur vide supprime la constante.
+	$alertcoef = price2num(GETPOST('TAKEPOSVENDEUR_ALERT_COEF', 'alpha'), 'MU');
+	$ok = $ok && dolibarr_set_const($db, "TAKEPOSVENDEUR_ALERT_COEF", ((float) $alertcoef > 0 ? $alertcoef : ''), 'chaine', 0, '', $conf->entity) >= 0;
+	$ok = $ok && dolibarr_set_const($db, "TAKEPOSVENDEUR_COLOR_ALERT", GETPOST('TAKEPOSVENDEUR_COLOR_ALERT', 'alpha'), 'chaine', 0, '', $conf->entity) >= 0;
 	// Cascade de sources de coût : construite depuis les priorités (0 = désactivée)
 	$cand = array(
 		'pmp'          => GETPOSTINT('prio_pmp'),
@@ -89,6 +94,8 @@ $or = getDolGlobalInt('TAKEPOSVENDEUR_MARGIN_ORANGE', 20);
 $cg = getDolGlobalString('TAKEPOSVENDEUR_COLOR_GREEN', '#c8e6c9');
 $co = getDolGlobalString('TAKEPOSVENDEUR_COLOR_ORANGE', '#ffe0b2');
 $cr = getDolGlobalString('TAKEPOSVENDEUR_COLOR_RED', '#ffcdd2');
+$ac = getDolGlobalString('TAKEPOSVENDEUR_ALERT_COEF');
+$ca = getDolGlobalString('TAKEPOSVENDEUR_COLOR_ALERT', '#f5a9a9');
 // Sources de coût courantes -> priorités (position dans le CSV)
 $curSources = getDolGlobalString('TAKEPOSVENDEUR_COST_SOURCES', '');
 if ($curSources === '') {
@@ -123,6 +130,10 @@ print '<td><input type="number" min="0" max="100" name="TAKEPOSVENDEUR_MARGIN_OR
 print '<tr class="oddeven"><td>'.$langs->trans("TpvColorGreen").'</td><td><input type="color" name="TAKEPOSVENDEUR_COLOR_GREEN" value="'.dol_escape_htmltag($cg).'"> <span class="opacitymedium small">'.dol_escape_htmltag($cg).'</span></td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans("TpvColorOrange").'</td><td><input type="color" name="TAKEPOSVENDEUR_COLOR_ORANGE" value="'.dol_escape_htmltag($co).'"> <span class="opacitymedium small">'.dol_escape_htmltag($co).'</span></td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans("TpvColorRed").'</td><td><input type="color" name="TAKEPOSVENDEUR_COLOR_RED" value="'.dol_escape_htmltag($cr).'"> <span class="opacitymedium small">'.dol_escape_htmltag($cr).'</span></td></tr>';
+
+print '<tr class="oddeven"><td>'.$langs->trans("TpvAlertCoef").'<br><span class="opacitymedium small">'.$langs->trans("TpvAlertCoefHelp").'</span></td>';
+print '<td><input type="text" name="TAKEPOSVENDEUR_ALERT_COEF" value="'.dol_escape_htmltag($ac).'" placeholder="1.5" class="width75"></td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans("TpvColorAlert").'</td><td><input type="color" name="TAKEPOSVENDEUR_COLOR_ALERT" value="'.dol_escape_htmltag($ca).'"> <span class="opacitymedium small">'.dol_escape_htmltag($ca).'</span></td></tr>';
 
 print '</table>';
 

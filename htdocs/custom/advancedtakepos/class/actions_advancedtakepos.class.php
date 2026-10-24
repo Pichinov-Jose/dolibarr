@@ -602,12 +602,28 @@ class ActionsAdvancedTakepos
 		if (is_object($line) && !empty($line->fk_product)) {
 			$lvl = (is_object($object) && !empty($object->socid)) ? $this->priceLevelOfSocid($object->socid) : $this->getCustomerLevel();
 			$basettc = $this->levelPriceTtc((int) $line->fk_product, (int) $lvl);
-			if ($basettc !== null && $basettc > 0) { $puttcattr .= ' data-advtp-basettc="'.price2num($basettc, 'MT').'"'; }
+			$prttc = null;
 			$promolvl = getDolGlobalInt('ADVANCEDTAKEPOS_PROMO_LEVEL');
 			if ($promolvl > 0) {
 				$prttc = $this->levelPriceTtc((int) $line->fk_product, $promolvl);
-				if ($prttc !== null && $prttc > 0) { $puttcattr .= ' data-advtp-promottc="'.price2num($prttc, 'MT').'"'; }
 			}
+			// Sans promo effective, et quand la ligne est facturee au prix de reference
+			// (LINE_AT_PUBLIC_PRICE), le tarif initial est celui que pose l'ajout de la ligne :
+			// PU = PPC, remise = ecart vers le prix du client. Le PPC devient la base et le prix du
+			// client la cible, sinon le bouton remettrait la ligne au net sans remise.
+			$promoeffective = ($prttc !== null && $prttc > 0 && $basettc !== null && $prttc < $basettc);
+			if (!$promoeffective && getDolGlobalInt('ADVANCEDTAKEPOS_LINE_AT_PUBLIC_PRICE') == 1 && $basettc !== null && $basettc > 0) {
+				$publevel = $this->publicPriceLevel();
+				if ($publevel != $lvl) {
+					$pubttc = $this->levelPriceTtc((int) $line->fk_product, $publevel);
+					if ($pubttc !== null && $pubttc > $basettc) {
+						$prttc = $basettc;
+						$basettc = $pubttc;
+					}
+				}
+			}
+			if ($basettc !== null && $basettc > 0) { $puttcattr .= ' data-advtp-basettc="'.price2num($basettc, 'MT').'"'; }
+			if ($prttc !== null && $prttc > 0) { $puttcattr .= ' data-advtp-promottc="'.price2num($prttc, 'MT').'"'; }
 		}
 		$out = '<td class="linecolqty right advtpppc nowraponall" data-advtp-auto="'.$auto.'"'.$puttcattr.'>';
 		if ($ttc !== null) {

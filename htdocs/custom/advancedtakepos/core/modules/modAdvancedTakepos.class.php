@@ -100,6 +100,8 @@ class modAdvancedTakepos extends DolibarrModules
 			array('ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL', 'chaine', '1', 'Niveau de prix servant de reference au prix public affiche', 0, 'current', 1),
 			array('ADVANCEDTAKEPOS_LINE_AT_PUBLIC_PRICE', 'chaine', '0', 'Facturer la ligne au prix de reference et porter l ecart en remise', 0, 'current', 1),
 			array('ADVANCEDTAKEPOS_LINE_PUBLIC_PRICE_COL', 'chaine', '0', 'Colonne du prix de reference (TTC) sur les lignes du ticket', 0, 'current', 1),
+			array('ADVANCEDTAKEPOS_UNIT_PRICE_TTC', 'chaine', '0', 'Colonne native du prix unitaire affichee en TTC au lieu du HT', 0, 'current', 1),
+			array('ADVANCEDTAKEPOS_PROMO_LEVEL', 'chaine', '0', 'Niveau promo : ecart vers ce niveau porte en remise a l ajout de la ligne (0=inactif)', 0, 'current', 1),
 			array('ADVANCEDTAKEPOS_MAXPRODUCT_MOBILE', 'chaine', '12', 'Cases de grille produits sur mobile (0=ne pas gerer)', 0, 'current', 1),
 			array('ADVANCEDTAKEPOS_MAXPRODUCT_TABLET', 'chaine', '18', 'Cases de grille produits sur tablette 768-1024 (0=ne pas gerer)', 0, 'current', 1),
 			array('ADVANCEDTAKEPOS_MAXPRODUCT_DESKTOP', 'chaine', '0', 'Cases de grille produits sur desktop/tablette (0=ne pas gerer)', 0, 'current', 1),

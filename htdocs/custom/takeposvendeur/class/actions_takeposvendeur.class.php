@@ -29,6 +29,7 @@ class ActionsTakeposvendeur
 	const DEF_COL_VERT     = '#c8e6c9';
 	const DEF_COL_ORANGE   = '#ffe0b2';
 	const DEF_COL_ROUGE    = '#ffcdd2';
+	const DEF_COL_ALERTE   = '#f5a9a9';
 
 	/* ---------- Lecture de la configuration ---------- */
 
@@ -37,6 +38,7 @@ class ActionsTakeposvendeur
 	private function colVert()     { return getDolGlobalString('TAKEPOSVENDEUR_COLOR_GREEN', self::DEF_COL_VERT); }
 	private function colOrange()   { return getDolGlobalString('TAKEPOSVENDEUR_COLOR_ORANGE', self::DEF_COL_ORANGE); }
 	private function colRouge()    { return getDolGlobalString('TAKEPOSVENDEUR_COLOR_RED', self::DEF_COL_ROUGE); }
+	private function colAlerte()   { return getDolGlobalString('TAKEPOSVENDEUR_COLOR_ALERT', self::DEF_COL_ALERTE); }
 	/** Marge affichée ? (par défaut oui). */
 	private function showMarge()   { return !getDolGlobalString('TAKEPOSVENDEUR_HIDE_MARGIN'); }
 	/** Sélection vendeur obligatoire en début de vente ? (par défaut oui). */
@@ -250,7 +252,8 @@ class ActionsTakeposvendeur
 			$h .= '<td class="linecolqty center" style="white-space:nowrap;">';
 			$h .= '<span class="opacitymedium small">'.$langs->trans('TpvMargin').'</span><br>';
 			if ($g_connu) {
-				$h .= '<span style="font-weight:bold;color:'.$this->tpvTextColor($g_pct, true).';">'.price($g_marge, 1, $langs, 1, -1, -1, $conf->currency).'</span>';
+				// price2num('MT') d'abord : sans arrondi a la devise, une marge infime sortait en 0,01000000 EUR.
+				$h .= '<span style="font-weight:bold;color:'.$this->tpvTextColor($g_pct, true).';">'.price(price2num($g_marge, 'MT'), 1, $langs, 1, -1, -1, $conf->currency).'</span>';
 				$h .= '<br><span class="opacitymedium small">'.$this->fmtPct($g_pct).'</span>';
 			} else {
 				$h .= '<span class="opacitymedium">-</span>';
@@ -325,7 +328,7 @@ class ActionsTakeposvendeur
 				var tra = trida ? document.getElementById(trida) : tpvAl[a].parentNode;
 				if (!tra) { continue; }
 				done[tra.id || ("a"+a)] = 1;
-				tpvPaintRow(tra, "#f5a9a9", tpvIsSel(tra));
+				tpvPaintRow(tra, "'.dol_escape_js($this->colAlerte(), 2).'", tpvIsSel(tra));
 			}
 			/* Lignes sans couleur de marge (cout inconnu) : seul le repere de selection */
 			var rows = document.querySelectorAll("tr.posinvoiceline");
@@ -398,7 +401,8 @@ class ActionsTakeposvendeur
 			$out .= ' data-tpvtr="'.$trid.'">';
 			if ($m['connu']) {
 				// Meme ordre que le total de l'entete : le montant d'abord, le taux en dessous.
-				$out .= '<span style="color:'.$this->tpvTextColor($m['pct'], true).';font-weight:bold;white-space:nowrap;">'.price($m['marge'], 1, $langs, 1, -1, -1, $conf->currency).'</span>';
+				// Montant arrondi a la devise avant formatage, comme le total de l'entete.
+				$out .= '<span style="color:'.$this->tpvTextColor($m['pct'], true).';font-weight:bold;white-space:nowrap;">'.price(price2num($m['marge'], 'MT'), 1, $langs, 1, -1, -1, $conf->currency).'</span>';
 				$out .= '<br><span class="opacitymedium small" style="white-space:nowrap;">'.$this->fmtPct($m['pct']).'</span>';
 			} else {
 				$out .= '<span class="opacitymedium">-</span>';

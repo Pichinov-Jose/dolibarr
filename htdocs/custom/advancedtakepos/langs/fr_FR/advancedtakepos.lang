@@ -21,8 +21,12 @@ AdvTakeposLevelN = Niveau %s
 AdvTakeposPublicPriceShort = PPC
 AdvTakeposLinePublicPriceCol = Colonne du prix de référence sur les lignes du ticket
 AdvTakeposLinePublicPriceColHelp = Ajoute une colonne au ticket avec le prix du niveau de référence, **en TTC** (la colonne prix unitaire native du cœur, elle, est en HT). Son titre reprend le nom du niveau de référence quand il est renseigné. Un tiret indique que le produit n'a pas de prix sur ce niveau.
+AdvTakeposUnitPriceTtc = Prix unitaire du ticket en TTC
+AdvTakeposUnitPriceTtcHelp = La colonne native du prix unitaire, que TakePOS affiche en HT, affiche le prix unitaire TTC de chaque ligne. Sans effet tant que cette colonne n'est pas affichée (option TakePOS « TAKEPOS_SHOW_SUBPRICE »).
 AdvTakeposLineAtPublicPrice = Facturer la ligne au prix de référence, écart en remise
 AdvTakeposLineAtPublicPriceHelp = À l'ajout d'une ligne, le prix unitaire devient celui du niveau de référence (le PPC) et l'écart avec le tarif du client est porté en pourcentage de remise. Le montant net est inchangé ; le ticket affiche « PPC − remise = net » et les statistiques de remise deviennent exploitables. Sans effet tant que le niveau de référence est celui du client, ou si la ligne porte déjà une remise.
+AdvTakeposPromoLevel = Niveau promo, écart porté en remise
+AdvTakeposPromoLevelHelp = À l'ajout d'une ligne, le prix unitaire reste celui du tarif du client (le prix boutique) et l'écart vers le prix de ce niveau est porté en pourcentage de remise, quand ce niveau a un prix inférieur. Le ticket affiche « prix boutique − remise = prix promo ». Une remise déjà posée n'est jamais écrasée. Sans effet si le produit n'a pas de prix sur ce niveau. Quand un prix promo s'applique, il passe avant « Facturer la ligne au prix de référence ».
 AdvTakeposShowLevelInTitle = Afficher le niveau de prix dans la barre de titre
 AdvTakeposShowLevelInTitleHelp = Affiche le niveau de prix du terminal et son libellé dans la barre du haut.
 AdvTakeposFullwidthNoCat = Produits en pleine largeur quand les catégories sont masquées

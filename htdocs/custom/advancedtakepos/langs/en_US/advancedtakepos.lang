@@ -21,8 +21,12 @@ AdvTakeposLevelN = Level %s
 AdvTakeposPublicPriceShort = RRP
 AdvTakeposLinePublicPriceCol = Reference price column on receipt lines
 AdvTakeposLinePublicPriceColHelp = Adds a receipt column with the reference level price, **tax included** (the core unit price column is tax excluded). Its title uses the reference level name when one is set. A dash means the product has no price on that level.
+AdvTakeposUnitPriceTtc = Receipt unit price including tax
+AdvTakeposUnitPriceTtcHelp = The native unit price column, which TakePOS shows excluding tax, shows each line's unit price including tax. Inert while that column is hidden (TakePOS option "TAKEPOS_SHOW_SUBPRICE").
 AdvTakeposLineAtPublicPrice = Charge the line at the reference price, gap as a discount
 AdvTakeposLineAtPublicPriceHelp = When a line is added, the unit price becomes the reference level price and the gap with the customer tariff is carried as a discount percentage. The net amount is unchanged; the receipt reads "reference price - discount = net" and discount statistics become usable. Inert while the reference level is the customer level, or when the line already carries a discount.
+AdvTakeposPromoLevel = Promo level, gap as a discount
+AdvTakeposPromoLevelHelp = When a line is added, the unit price stays at the customer tariff (the shop price) and the gap down to this level price is carried as a discount percentage, when this level has a lower price. The receipt reads "shop price - discount = promo price". A discount already set is never overwritten. Inert when the product has no price on this level. When a promo price applies, it takes precedence over "Charge the line at the reference price".
 AdvTakeposShowLevelInTitle = Show price level in the title bar
 AdvTakeposShowLevelInTitleHelp = Shows the terminal price level and its label in the top bar.
 AdvTakeposFullwidthNoCat = Full-width products when categories are hidden

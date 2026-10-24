@@ -283,6 +283,9 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 		var promo = parseFloat(c.getAttribute('data-advtp-promottc') || '0');
 		// 4 decimales comme la remise auto du module : a 2 decimales le net retombe a cote (2589,90 au lieu de 2590).
 		var r = (promo > 0 && promo < base) ? Math.round((1 - promo / base) * 1000000) / 10000 : 0;
+		// Meme regle que l'ajout de ligne : 2 decimales quand le net retombe exactement sur la cible.
+		var r2 = Math.round(r * 100) / 100;
+		if (r > 0 && Math.abs(base * (1 - r2 / 100) - promo) < 0.005) { r = r2; }
 		return { base: base, remise: r };
 	}
 	jQuery(document).on('click', '#advtpEditReset', function () {

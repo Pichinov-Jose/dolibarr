@@ -74,6 +74,7 @@ if ($action == 'saveparams') {
 	$pagerpos = GETPOSTINT('ADVANCEDTAKEPOS_PAGER_POS');
 	$mode = GETPOSTINT('ADVANCEDTAKEPOS_PRICE_DISCOUNT_MODE');
 	$publevel = GETPOSTINT('ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL');
+	$promolevel = GETPOSTINT('ADVANCEDTAKEPOS_PROMO_LEVEL');
 	$gm = GETPOSTINT('ADVANCEDTAKEPOS_MAXPRODUCT_MOBILE');
 	$gt = GETPOSTINT('ADVANCEDTAKEPOS_MAXPRODUCT_TABLET');
 	$gd = GETPOSTINT('ADVANCEDTAKEPOS_MAXPRODUCT_DESKTOP');
@@ -86,6 +87,9 @@ if ($action == 'saveparams') {
 		$maxlevel = 1;
 	}
 	if ($publevel < 1 || $publevel > $maxlevel) {
+		$err++;
+	}
+	if ($promolevel < 0 || $promolevel > $maxlevel) {
 		$err++;
 	}
 	if (($gm != 0 && ($gm < 6 || $gm > 60)) || ($gt != 0 && ($gt < 6 || $gt > 60)) || ($gd != 0 && ($gd < 6 || $gd > 60))) {
@@ -111,6 +115,7 @@ if ($action == 'saveparams') {
 		}
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_PRICE_DISCOUNT_MODE', $mode, 'chaine', 0, '', $conf->entity);
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL', $publevel, 'chaine', 0, '', $conf->entity);
+		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_PROMO_LEVEL', $promolevel, 'chaine', 0, '', $conf->entity);
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_MAXPRODUCT_MOBILE', $gm, 'chaine', 0, '', $conf->entity);
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_MAXPRODUCT_TABLET', $gt, 'chaine', 0, '', $conf->entity);
 		dolibarr_set_const($db, 'ADVANCEDTAKEPOS_MAXPRODUCT_DESKTOP', $gd, 'chaine', 0, '', $conf->entity);
@@ -152,6 +157,7 @@ $toggles = array(
 	'ADVANCEDTAKEPOS_PRODUCT_CARD_POPUP'  => array('AdvTakeposProductCardPopup', 'AdvTakeposProductCardPopupHelp'),
 	'ADVANCEDTAKEPOS_LINE_AT_PUBLIC_PRICE' => array('AdvTakeposLineAtPublicPrice', 'AdvTakeposLineAtPublicPriceHelp'),
 	'ADVANCEDTAKEPOS_LINE_PUBLIC_PRICE_COL' => array('AdvTakeposLinePublicPriceCol', 'AdvTakeposLinePublicPriceColHelp'),
+	'ADVANCEDTAKEPOS_UNIT_PRICE_TTC'     => array('AdvTakeposUnitPriceTtc', 'AdvTakeposUnitPriceTtcHelp'),
 	'ADVANCEDTAKEPOS_THIRDPARTY_CARD_POPUP' => array('AdvTakeposThirdpartyCardPopup', 'AdvTakeposThirdpartyCardPopupHelp'),
 );
 
@@ -188,6 +194,13 @@ print '<tr class="oddeven"><td>';
 print $form->textwithpicto($langs->trans('AdvTakeposPublicPriceLevel'), $langs->trans('AdvTakeposPublicPriceLevelHelp'));
 print '</td><td class="center">';
 print $form->selectarray('ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL', $levels, getDolGlobalInt('ADVANCEDTAKEPOS_PUBLIC_PRICE_LEVEL', 1), 0);
+print '</td></tr>';
+// Niveau promo : l'ecart entre le tarif du client et ce niveau, quand il est inferieur, devient une remise.
+$promolevels = array(0 => $langs->trans('Disabled')) + $levels;
+print '<tr class="oddeven"><td>';
+print $form->textwithpicto($langs->trans('AdvTakeposPromoLevel'), $langs->trans('AdvTakeposPromoLevelHelp'));
+print '</td><td class="center">';
+print $form->selectarray('ADVANCEDTAKEPOS_PROMO_LEVEL', $promolevels, getDolGlobalInt('ADVANCEDTAKEPOS_PROMO_LEVEL'), 0);
 print '</td></tr>';
 print '<tr class="oddeven"><td>';
 print $form->textwithpicto($langs->trans('AdvTakeposGridMobile'), $langs->trans('AdvTakeposGridHelp'));
