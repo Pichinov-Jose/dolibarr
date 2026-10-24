@@ -1076,6 +1076,10 @@ jQuery(function() {
 				scRenderSpecs({specs: ci.sibling.specs}, 'frère ' + (ci.sibling.ean || ''));
 			}
 			jQuery('#sc_cr_ean').text('EAN : ' + (ci.ean || '—') + (ci.code_kezia ? ' · Code Kezia : ' + ci.code_kezia : '') + (ci.datec ? ' · scanné le ' + ci.datec : ''));
+			if (ci.ps && ci.ps.name) {
+				scAddCand(String(ci.ps.name), 'boutique');
+				jQuery('#sc_cr_ean').append(' · <b style="color:#1565c0">sur la boutique</b>' + (ci.ps.ref_combi ? ' (réf ' + ci.ps.ref_combi + ')' : ''));
+			}
 			if (crMode == 'update' && ci.product) {
 				var p = ci.product;
 				var h = '<span class="tit"><span class="fa fa-cube paddingright"></span>Produit : <a href="' + p.url + '" target="_blank">' + scEsc(p.ref) + '</a> — ' + scEsc(p.label) + '</span>';

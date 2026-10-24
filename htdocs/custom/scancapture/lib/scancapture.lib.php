@@ -401,3 +401,49 @@ function scFamilyRecap($db, $parent_id)
 	$db->query("UPDATE ".MAIN_DB_PREFIX."product SET note = '".$db->escape($note)."' WHERE rowid = ".$parent_id);
 	return $cumul;
 }
+
+/**
+ * Recherche un EAN dans le catalogue PrestaShop de la BOUTIQUE (prod, lecture seule).
+ * Retourne array(name, ref_combi, ref_prod) ou null. Tolerant aux pannes : null si
+ * la boutique est injoignable — le scanner continue sans elle.
+ */
+function scPsCatalogEan($ean)
+{
+	static $link = false;
+	static $prefix = '';
+	$ean = trim((string) $ean);
+	if ($ean === '') { return null; }
+	if ($link === false) {
+		$link = null;
+		$dir = getDolGlobalString('SCANCAPTURE_PS_DIR', '/var/www/pechecenter.com');
+		$f = $dir.'/app/config/parameters.php';
+		if (is_readable($f)) {
+			$cfg = include $f;
+			if (!empty($cfg['parameters']['database_host'])) {
+				$c = $cfg['parameters'];
+				$prefix = $c['database_prefix'];
+				$link = @mysqli_connect($c['database_host'], $c['database_user'], $c['database_password'], $c['database_name'], (int) ($c['database_port'] ?: 3306));
+				if ($link) { @mysqli_set_charset($link, 'utf8mb4'); }
+			}
+		}
+	}
+	if (!$link) { return null; }
+	$codes = array($ean);
+	if (preg_match('/^\d{12}$/', $ean)) { $codes[] = '0'.$ean; }
+	elseif (preg_match('/^0\d{12}$/', $ean)) { $codes[] = substr($ean, 1); }
+	$in = "'".implode("','", array_map(function ($v) use ($link) { return mysqli_real_escape_string($link, $v); }, $codes))."'";
+	$sql = "SELECT pl.name, p.reference AS ref_prod, pa.reference AS ref_combi
+		FROM ".$prefix."product_attribute pa
+		JOIN ".$prefix."product p ON p.id_product = pa.id_product
+		JOIN ".$prefix."product_lang pl ON pl.id_product = p.id_product AND pl.id_lang = 1
+		WHERE pa.ean13 IN (".$in.")
+		UNION ALL
+		SELECT pl.name, p.reference, ''
+		FROM ".$prefix."product p
+		JOIN ".$prefix."product_lang pl ON pl.id_product = p.id_product AND pl.id_lang = 1
+		WHERE p.ean13 IN (".$in.") LIMIT 1";
+	$res = @mysqli_query($link, $sql);
+	$row = $res ? mysqli_fetch_assoc($res) : null;
+	if (!$row) { return null; }
+	return array('name' => (string) $row['name'], 'ref_combi' => (string) $row['ref_combi'], 'ref_prod' => (string) $row['ref_prod']);
+}

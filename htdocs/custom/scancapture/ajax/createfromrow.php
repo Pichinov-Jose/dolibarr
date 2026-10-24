@@ -60,7 +60,15 @@ if ($parent_mode === 'new') {
 	$parentref = $np->ref;
 	$parent = null;
 }
-$ref = scMakeRef($db, $label);
+$ref = '';
+// l'EAN existe sur la boutique : reprendre la reference de la combinaison PS
+// (l'appariement Splash par SKU se fera tout seul, et pas de ref inventee)
+$ps = scPsCatalogEan($ean);
+if ($ps && $ps['ref_combi'] !== '') {
+	$r0 = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product WHERE ref = '".$db->escape($ps['ref_combi'])."'");
+	if ($r0 && !$db->fetch_object($r0)) { $ref = $ps['ref_combi']; }
+}
+if ($ref === '') { $ref = scMakeRef($db, $label); }
 $eanOk = (!empty($row->ean) && scIsValidEan13($row->ean) && count(scLookupCode($db, $row->ean)) == 0);
 // anti double-appui : meme libelle cree il y a moins de 60 s -> on ressert la fiche existante
 $resql = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product WHERE label = '".$db->escape($label)."' AND import_key LIKE 'SCAN%' AND datec >= DATE_SUB(NOW(), INTERVAL 60 SECOND) LIMIT 1");

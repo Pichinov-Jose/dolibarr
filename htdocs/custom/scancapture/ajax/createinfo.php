@@ -96,4 +96,6 @@ if (!empty($row->code_kezia)) {
 		}
 	}
 }
+// fiche boutique (PrestaShop prod, lecture seule) pour le meme EAN
+$out['ps'] = scPsCatalogEan((string) $row->ean);
 print json_encode($out);
