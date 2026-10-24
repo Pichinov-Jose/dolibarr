@@ -16,11 +16,14 @@ if ($resql) { while ($o = $db->fetch_object($resql)) { $invs[] = $o; } }
 $preinv = GETPOSTINT('fk_inventory');
 $invfilter = ($preinv > 0 ? " AND (fk_inventory = ".((int) $preinv)." OR fk_inventory IS NULL)" : "");
 $invfiltersc = ($preinv > 0 ? " AND (sc.fk_inventory = ".((int) $preinv)." OR sc.fk_inventory IS NULL)" : "");
+// chaque operateur ne voit que SES scans ; un admin voit tout (avec le login par ligne)
+$userfilter = $user->admin ? "" : " AND fk_user = ".((int) $user->id);
+$userfiltersc = $user->admin ? "" : " AND sc.fk_user = ".((int) $user->id);
 
 $nbToday = $nbUnknown = 0; $nbPending = 0;
-$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created')".$invfilter);
+$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created')".$invfilter.$userfilter);
 if ($resql && ($o = $db->fetch_object($resql))) { $nbPending = (int) $o->n; }
-$resql = $db->query("SELECT COUNT(*) AS n, SUM(status = 'unknown') AS u FROM ".MAIN_DB_PREFIX."scan_capture WHERE (datec >= CURDATE() OR sent_to_inv IS NULL)".$invfilter);
+$resql = $db->query("SELECT COUNT(*) AS n, SUM(status = 'unknown') AS u FROM ".MAIN_DB_PREFIX."scan_capture WHERE (datec >= CURDATE() OR sent_to_inv IS NULL)".$invfilter.$userfilter);
 if ($resql && ($o = $db->fetch_object($resql))) { $nbToday = (int) $o->n; $nbUnknown = (int) $o->u; }
 ?>
 <script>document.documentElement.classList.add('scfs');</script>
@@ -261,14 +264,14 @@ function scEcartCell($qty, $sb)
 	$c = ($e == 0 ? '#2e7d32' : ($e > 0 ? '#b26a00' : '#b71c1c'));
 	return '<span style="color:'.$c.';font-weight:bold" class="sc_ecart">'.($e > 0 ? '+' : '').price2num($e).'</span>';
 }
-$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before FROM ".MAIN_DB_PREFIX."scan_capture sc WHERE (sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL)".$invfiltersc." ORDER BY sc.rowid DESC LIMIT 200");
+$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before, u.login AS scuser FROM ".MAIN_DB_PREFIX."scan_capture sc LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = sc.fk_user WHERE (sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL)".$invfiltersc.$userfiltersc." ORDER BY sc.rowid DESC LIMIT 200");
 if ($resql) {
 	while ($o = $db->fetch_object($resql)) {
 		$lblcell = dol_escape_htmltag((string) $o->product_label);
 		if ($o->fk_product) {
 			$lblcell = '<a href="'.DOL_URL_ROOT.'/product/card.php?id='.((int) $o->fk_product).'" target="_blank" class="classforajaxtooltip" data-params=\'{"id":'.((int) $o->fk_product).',"objecttype":"product"}\'><span class="fa fa-cube paddingright" style="color:#4a6785"></span>'.$lblcell.'</a>';
 		}
-		print '<tr class="oddeven" data-id="'.$o->rowid.'" data-sb="'.($o->stock_before !== null ? price2num($o->stock_before) : '').'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td>'.$lblcell.'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right sc_hidemobile">'.($o->stock_before !== null ? price2num($o->stock_before) : '<span class="opacitymedium">—</span>').'</td><td class="right">'.scEcartCell($o->qty, $o->stock_before).'</td><td class="right">'.price2num($o->qty).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').(in_array($o->status, array('matched', 'created')) && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').(in_array($o->status, array('mismatch', 'ambiguous')) ? '<a href="#" class="sc_resolve" title="Résoudre : choisir le bon produit" data-row="'.$o->rowid.'" data-ck="'.dol_escape_htmltag((string) $o->code_kezia).'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-qty="'.price2num($o->qty).'"><span class="fa fa-question-circle" style="color:#b71c1c"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
+		print '<tr class="oddeven" data-id="'.$o->rowid.'" data-sb="'.($o->stock_before !== null ? price2num($o->stock_before) : '').'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td>'.$lblcell.($user->admin && !empty($o->scuser) ? ' <span class="sc_chip" style="font-size:0.78em;padding:1px 7px;">'.dol_escape_htmltag($o->scuser).'</span>' : '').'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right sc_hidemobile">'.($o->stock_before !== null ? price2num($o->stock_before) : '<span class="opacitymedium">—</span>').'</td><td class="right">'.scEcartCell($o->qty, $o->stock_before).'</td><td class="right">'.price2num($o->qty).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').(in_array($o->status, array('matched', 'created')) && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').(in_array($o->status, array('mismatch', 'ambiguous')) ? '<a href="#" class="sc_resolve" title="Résoudre : choisir le bon produit" data-row="'.$o->rowid.'" data-ck="'.dol_escape_htmltag((string) $o->code_kezia).'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-qty="'.price2num($o->qty).'"><span class="fa fa-question-circle" style="color:#b71c1c"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
 	}
 }
 ?>
@@ -303,7 +306,7 @@ jQuery(function() {
 	jQuery('#sc_inv').on('change', refreshChips);
 	jQuery('#sc_newinv').on('click', function(e) {
 		e.preventDefault();
-		if (!confirm('<?php print dol_escape_js($langs->trans('ConfirmCreateInv')); ?>')) return;
+		if (!confirm('<?php print dol_escape_js($langs->transnoentitiesnoconv('ConfirmCreateInv')); ?>')) return;
 		jQuery.getJSON(base + 'createinv.php', {token: token}, function(r) {
 			if (!r.ok) { alert('Erreur : ' + (r.error || '')); return; }
 			jQuery('#sc_inv').append(new Option(r.label, r.id, true, true)).trigger('change');
@@ -816,7 +819,7 @@ jQuery(function() {
 		var inv = jQuery('#sc_inv').val();
 		if (!(inv > 0)) { jQuery('#sc_settings').show(); setLive('multi', '<?php print dol_escape_js($langs->trans('PickInventoryFirst')); ?>'); return; }
 		var n = jQuery('#sc_pending').text();
-		if (!confirm('<?php print dol_escape_js($langs->trans('ConfirmSendToInv')); ?>'.replace('%s', n).replace('%i', jQuery('#sc_inv option:selected').text()))) return;
+		if (!confirm('<?php print dol_escape_js($langs->transnoentitiesnoconv('ConfirmSendToInv')); ?>'.replace('{n}', n).replace('{inv}', jQuery('#sc_inv option:selected').text()))) return;
 		jQuery.getJSON(base + 'sendtoinv.php', {fk_inventory: inv, autocreate: (jQuery('#sc_autocreate').is(':checked') ? 1 : 0), token: token}).fail(function() {
 			setLive('multi', '<?php print dol_escape_js($langs->trans('AjaxFailed')); ?>');
 		}).done(function(r) {
@@ -856,7 +859,9 @@ jQuery(function() {
 	} catch (e) {}
 	function scReloadKeeping(delay) {
 		try { sessionStorage.setItem('sc_relive', JSON.stringify({cls: jQuery('#sc_live').attr('class'), html: jQuery('#sc_live').html()})); } catch (e) {}
-		setTimeout(function() { window.location.reload(); }, delay || 800);
+		// navigation GET explicite : reload() rejouait la derniere requete POST de l'historique
+		// et Chrome affichait "Renvoyer les donnees a ce site ?" a chaque validation.
+		setTimeout(function() { window.location.href = window.location.pathname + '?fk_inventory=' + encodeURIComponent(jQuery('#sc_inv').val() || '0'); }, delay || 800);
 	}
 	jQuery('#sc_codek').on('keydown', function(e) { if (e.key == 'Enter') { e.preventDefault(); liveLookup(); jQuery('#sc_ean').focus(); } });
 	jQuery('#sc_ean').on('keydown', function(e) {
@@ -1177,7 +1182,7 @@ jQuery(function() {
 	jQuery(document).on('click', '.sc_del', function(ev) {
 		ev.preventDefault();
 		var row = jQuery(this).data('row'); var tr = jQuery(this).closest('tr');
-		if (!confirm('<?php print dol_escape_js($langs->trans('ConfirmDeleteLine')); ?>')) return;
+		if (!confirm('<?php print dol_escape_js($langs->transnoentitiesnoconv('ConfirmDeleteLine')); ?>')) return;
 		jQuery.getJSON(base + 'updaterow.php', {what: 'del', rowid: row, token: token}, function(r) { if (r.ok) { tr.remove(); } else if (r.error == 'sent') { setLive('multi', '<?php print dol_escape_js($langs->trans('CantDeleteSent')); ?>'); } });
 	});
 	jQuery(document).on('click', '.sc_edit', function(ev) {
