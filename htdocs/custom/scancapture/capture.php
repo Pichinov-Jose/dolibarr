@@ -772,9 +772,9 @@ jQuery(function() {
 			}
 			if (r.status == 'adoptchoice') {
 				window.scAdoptPending = params;
-				setLive('multi', '<b><span class="fa fa-question-circle"></span> EAN inconnu</b> pour <b>' + (r.label || r.ref || '') + '</b> (fiche sans EAN).' +
-					'<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap"><a href="#" class="button sc_dupbtn sc_adopt_yes"><span class="fa fa-barcode paddingright"></span>C\'est l\'EAN de ce produit</a>' +
-					'<a href="#" class="button sc_dupbtn sc_adopt_var"><span class="fa fa-code-fork paddingright"></span>D\u00e9clinaison \u00e0 cr\u00e9er</a></div>');
+				setLive('multi', '<b><span class="fa fa-question-circle"></span> Nouvel EAN pour ' + (r.label || r.ref || '') + '</b><br>Cet article existe-t-il en <b>une seule version</b> (produit single), ou en <b>plusieurs coloris / tailles</b> (famille) ?' +
+					'<div style="display:flex;gap:8px;margin-top:8px"><a href="#" class="button sc_dupbtn sc_adopt_yes" style="flex:1;text-align:center">Produit single</a>' +
+					'<a href="#" class="button sc_dupbtn sc_adopt_var" style="flex:1;text-align:center">Famille</a></div>');
 				return;
 			}
 			if (r.status == 'dup') {

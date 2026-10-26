@@ -4,6 +4,7 @@ $res = 0;
 if (!$res && file_exists('../../../main.inc.php')) $res = @include '../../../main.inc.php';
 if (!$res && file_exists('../../../../main.inc.php')) $res = @include '../../../../main.inc.php';
 if (!$res) die('Include of main fails');
+require_once dol_buildpath('/scancapture/lib/scancapture.lib.php');
 if (!$user->admin && !$user->hasRight('stock', 'creer')) accessforbidden();
 top_httphead('application/json');
 
