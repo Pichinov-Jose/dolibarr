@@ -60,6 +60,7 @@ body { padding-bottom: 76px !important; }
 .sc_modal button.sc_btn { background: var(--butactionbg, #79609b) !important; color: var(--butactiontextcolor, #fff) !important; border: none !important; cursor: pointer; font-weight: bold; text-transform: uppercase; }
 .sc_modal button.sc_btn:hover { opacity: 0.9; }
 #sc_filter { max-width: 1100px; margin: 10px 0 6px; display: flex; gap: 8px; }
+@media (max-width: 767px) { #sc_filter { flex-wrap: wrap; } #sc_search { flex: 1 1 100%; min-width: 0; font-size: 1.1em; padding: 8px; } }
 #sc_search { flex: 1; font-size: 1.05em; padding: 9px; border: 1.5px solid #ccc; border-radius: 8px; box-sizing: border-box; }
 .sc_edit, .sc_del { font-size: 1.25em; text-decoration: none; padding: 6px; }
 .sc_actdis { font-size: 1.25em; padding: 6px; color: #bbb; }
@@ -254,28 +255,17 @@ html.scfs #id-container { width: 100% !important; }
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="matched"><span class="fa fa-check"></span></button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="unknown">?</button>
 </div>
+<div id="sc_searchinfo" class="opacitymedium" style="display:none;margin:0 0 6px;"></div>
 <div class="div-table-responsive-no-min"><table class="noborder centpercent" id="sc_rows">
 <tr class="liste_titre"><td class="sc_hidemobile">#</td><td><?php print $langs->trans('KeziaCode'); ?></td><td><?php print $langs->trans('ProductEan'); ?></td><td><?php print $langs->trans('Product'); ?></td><td><?php print $langs->trans('Status'); ?></td><td class="right sc_hidemobile" title="Stock théorique au moment du scan">Stock</td><td class="right" title="Compté − théorique">Écart</td><td class="right"><?php print $langs->trans('Qty'); ?></td><td class="right"></td></tr>
 <?php
-function scEcartCell($qty, $sb)
-{
-	if ($sb === null) { return '<span class="opacitymedium">—</span>'; }
-	$e = (float) $qty - (float) $sb;
-	$c = ($e == 0 ? '#2e7d32' : ($e > 0 ? '#b26a00' : '#b71c1c'));
-	return '<span style="color:'.$c.';font-weight:bold" class="sc_ecart">'.($e > 0 ? '+' : '').price2num($e).'</span>';
-}
+require_once dol_buildpath('/scancapture/lib/scancapture_rows.inc.php');
 $resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before, u.login AS scuser FROM ".MAIN_DB_PREFIX."scan_capture sc LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = sc.fk_user WHERE (sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL)".$invfiltersc.$userfiltersc." ORDER BY sc.rowid DESC LIMIT 200");
-if ($resql) {
-	while ($o = $db->fetch_object($resql)) {
-		$lblcell = dol_escape_htmltag((string) $o->product_label);
-		if ($o->fk_product) {
-			$lblcell = '<a href="'.DOL_URL_ROOT.'/product/card.php?id='.((int) $o->fk_product).'" target="_blank" class="classforajaxtooltip" data-params=\'{"id":'.((int) $o->fk_product).',"objecttype":"product"}\'><span class="fa fa-cube paddingright" style="color:#4a6785"></span>'.$lblcell.'</a>';
-		}
-		print '<tr class="oddeven" data-id="'.$o->rowid.'" data-sb="'.($o->stock_before !== null ? price2num($o->stock_before) : '').'"><td class="sc_hidemobile">'.$o->rowid.'</td><td>'.dol_escape_htmltag((string) $o->code_kezia).'</td><td>'.dol_escape_htmltag((string) $o->ean).'</td><td>'.$lblcell.($user->admin && !empty($o->scuser) ? ' <span class="sc_chip" style="font-size:0.78em;padding:1px 7px;">'.dol_escape_htmltag($o->scuser).'</span>' : '').'</td><td>'.dol_escape_htmltag($o->status).($o->sent_to_inv ? ' <span class="fa fa-check-circle" style="color:#2e7d32" title="envoy&eacute;"></span>' : ($o->fk_product ? ' <span class="fa fa-clock-o" style="color:#b26a00" title="en attente"></span>' : '')).'</td><td class="right sc_hidemobile">'.($o->stock_before !== null ? price2num($o->stock_before) : '<span class="opacitymedium">—</span>').'</td><td class="right">'.scEcartCell($o->qty, $o->stock_before).'</td><td class="right">'.price2num($o->qty).'</td><td class="right nowrap">'.($o->sent_to_inv ? '<span class="fa fa-edit sc_actdis"></span>&nbsp;<span class="fa fa-trash sc_actdis"></span>' : ($o->status == 'unknown' ? '<a href="#" class="sc_create" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '').(in_array($o->status, array('matched', 'created')) && $o->fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="'.$o->rowid.'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-label="'.dol_escape_htmltag((string) $o->product_label).'"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '').(in_array($o->status, array('mismatch', 'ambiguous')) ? '<a href="#" class="sc_resolve" title="Résoudre : choisir le bon produit" data-row="'.$o->rowid.'" data-ck="'.dol_escape_htmltag((string) $o->code_kezia).'" data-ean="'.dol_escape_htmltag((string) $o->ean).'" data-qty="'.price2num($o->qty).'"><span class="fa fa-question-circle" style="color:#b71c1c"></span></a>&nbsp;' : '').'<a href="#" class="sc_edit" data-row="'.$o->rowid.'" data-qty="'.price2num($o->qty).'"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="'.$o->rowid.'"><span class="fa fa-trash" style="color:#b71c1c"></span></a>').'</td></tr>';
-	}
-}
+$scNbRows = $resql ? $db->num_rows($resql) : 0;
+print scRenderRows($db, $user, $resql);
 ?>
 </table></div>
+<div id="sc_morewrap" class="center" style="margin:12px 0;<?php print ($scNbRows >= 200 ? '' : 'display:none'); ?>"><button type="button" class="button" id="sc_more"><span class="fa fa-angle-double-down paddingright"></span>Voir plus</button></div>
 <script>
 jQuery(function() {
 	var base = '<?php print dol_buildpath('/scancapture/ajax/', 1); ?>';
@@ -1217,7 +1207,41 @@ jQuery(function() {
 			tr.toggle(okT && okS);
 		});
 	}
-	jQuery('#sc_search').on('input', function() { scFilterText = jQuery(this).val().toLowerCase(); applyFilter(); });
+	// Recherche dans TOUT l'historique (cote serveur, >= 2 caracteres) et chargement par tranches de 200.
+	// Le filtre texte local est neutralise : c'est le serveur qui decide (il cherche aussi dans la
+	// reference produit, absente du texte de la ligne).
+	var scMode = 'default', scQuery = '', scLoaded = <?php print (int) $scNbRows; ?>, scSearchTimer = null, scLoadSeq = 0;
+	function scLoadRows(reset) {
+		var seq = ++scLoadSeq;
+		var params = {offset: reset ? 0 : scLoaded, fk_inventory: jQuery('#sc_inv').val(), token: token};
+		if (scMode === 'search') { params.q = scQuery; }
+		jQuery('#sc_more').prop('disabled', true);
+		jQuery.getJSON(base + 'listrows.php', params, function(r) {
+			if (seq !== scLoadSeq || !r || !r.ok) { return; }
+			if (reset) { jQuery('#sc_rows tr').not('.liste_titre').remove(); scLoaded = 0; }
+			jQuery('#sc_rows').append(r.html);
+			scLoaded += r.count;
+			jQuery('#sc_morewrap').toggle(!!r.more);
+			if (scMode === 'search') {
+				jQuery('#sc_searchinfo').html('<span class="fa fa-search paddingright"></span>' + scLoaded + (r.more ? '+' : '') + ' r&eacute;sultat(s) pour &laquo; ' + jQuery('<i>').text(scQuery).html() + ' &raquo; dans tout l\'historique &middot; <a href="#" id="sc_searchclear">effacer</a>').show();
+			} else {
+				jQuery('#sc_searchinfo').hide();
+			}
+			applyFilter();
+		}).always(function() { jQuery('#sc_more').prop('disabled', false); });
+	}
+	jQuery('#sc_search').on('input', function() {
+		var v = jQuery(this).val().trim();
+		scFilterText = '';
+		clearTimeout(scSearchTimer);
+		if (v.length >= 2) {
+			scSearchTimer = setTimeout(function() { scMode = 'search'; scQuery = v; scLoadRows(true); }, 400);
+		} else if (scMode === 'search') {
+			scMode = 'default'; scQuery = ''; scLoadRows(true);
+		}
+	});
+	jQuery(document).on('click', '#sc_searchclear', function(ev) { ev.preventDefault(); jQuery('#sc_search').val(''); scMode = 'default'; scQuery = ''; scLoadRows(true); });
+	jQuery('#sc_more').on('click', function() { scLoadRows(false); });
 	jQuery(document).on('click', '.sc_fstat', function() { scFilterStat = jQuery(this).data('st'); jQuery('.sc_fstat').removeClass('butActionRefused'); jQuery(this).addClass('butActionRefused'); applyFilter(); });
 });
 </script>
