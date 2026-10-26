@@ -1259,6 +1259,17 @@ jQuery(function() {
 		});
 	});
 	jQuery('#sc_er_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_editrow').hide(); });
+	function scErFix(action, extra) {
+		var d = jQuery.extend({action: action, rowid: scEr.rowid, token: token}, extra || {});
+		jQuery.post(base + 'editrow.php', d, function(r) {
+			if (!r || !r.ok) { alert((r && r.error) ? r.error : 'Erreur'); return; }
+			setLive('ok', '<span class="fa fa-check"></span> Fiche corrig\u00e9e : ' + (r.done || []).join(', '));
+			var row = scEr.rowid; jQuery('#sc_editrow').hide(); scErRefresh();
+			setTimeout(function() { var a = jQuery('#sc_rows tr[data-id="' + row + '"] .sc_edit').first(); if (a.length) { a.trigger('click'); } }, 1500);
+		}, 'json');
+	}
+	jQuery(document).on('click', '.sc_er_attach', function() { if (scEr && confirm('Rattacher la fiche \u00e0 cette famille (libell\u00e9, prix et fournisseur de la famille) ?')) { scErFix('attachfamily', {fam: jQuery(this).data('fam')}); } });
+	jQuery(document).on('click', '.sc_er_shop', function() { if (scEr) { scErFix('useboutique'); } });
 	// Re-identification : boutique et Kezia tout de suite, puis sources (UPC, eBay) et IA en relance forcee
 	jQuery('#sc_er_ident').on('click', function() {
 		if (!scEr) return;
@@ -1269,6 +1280,12 @@ jQuery(function() {
 			var h = '<div><b>Boutique</b> : ' + (r.boutique ? esc(r.boutique.name) + (r.boutique.ref_combi ? ' <span class="opacitymedium">(' + esc(r.boutique.ref_combi) + ')</span>' : '') : '<span class="opacitymedium">EAN absent de la boutique</span>') + '</div>';
 			h += '<div><b>Kezia, l\'EAN</b> : ' + (r.kezia_ean.length ? esc(r.kezia_ean.join(' / ')) : '<span class="opacitymedium">inconnu</span>') + '</div>';
 			h += '<div><b>Kezia, le code ' + esc(r.code) + '</b> : ' + (r.kezia_code.length ? esc(r.kezia_code.join(' / ')) : '<span class="opacitymedium">inconnu</span>') + '</div>';
+			if (r.editable && ((r.familles && r.familles.length) || r.boutique)) {
+				h += '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">';
+				(r.familles || []).forEach(function(f) { h += '<button type="button" class="button sc_er_attach" data-fam="' + f.id + '"><span class="fa fa-sitemap paddingright"></span>Rattacher \u00e0 la famille ' + esc(f.ref + ' ' + f.label) + '</button>'; });
+				if (r.boutique) { h += '<button type="button" class="button sc_er_shop"><span class="fa fa-shopping-bag paddingright"></span>Reprendre le nom et la r\u00e9f boutique</button>'; }
+				h += '</div>';
+			}
 			h += '<div id="sc_er_identsrc"><span class="fa fa-spinner fa-spin"></span> Sources et IA…</div>';
 			box.html(h);
 			var show = function(x, src) {

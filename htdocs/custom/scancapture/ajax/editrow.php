@@ -55,13 +55,14 @@ if ($action === 'get') {
 
 if ($action === 'ident') {
 	// ce que disent la boutique et Kezia de l'EAN et du code de la ligne (l'enrichissement suit cote client)
-	$kz = function ($code) use ($db) {
+	$famCands = array();
+	$kz = function ($code) use ($db, &$famCands) {
 		$out = array();
 		if ($code === '') { return $out; }
 		foreach (scLookupCode($db, $code) as $c) {
 			if ($c['source'] === 'assoc') { continue; }
-			$q = $db->query("SELECT p.ref, p.label FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $c['rowid'])." AND pe.kezia_idart IS NOT NULL");
-			if ($q && ($x = $db->fetch_object($q))) { $out[] = $x->ref.' — '.$x->label; }
+			$q = $db->query("SELECT p.rowid, p.ref, p.label FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $c['rowid'])." AND pe.kezia_idart IS NOT NULL");
+			if ($q && ($x = $db->fetch_object($q))) { $out[] = $x->ref.' — '.$x->label; $famCands[(int) $x->rowid] = array('id' => (int) $x->rowid, 'ref' => $x->ref, 'label' => $x->label); }
 		}
 		return array_values(array_unique($out));
 	};
@@ -69,7 +70,81 @@ if ($action === 'ident') {
 	// l'erreur a corriger (il est sinon ressorti tel quel au lieu d'une vraie nouvelle recherche)
 	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = NULL WHERE rowid = ".((int) $row->rowid));
 	$code = (string) ($row->code_saisi ?? '') !== '' ? (string) $row->code_saisi : (string) $row->code_kezia;
-	print json_encode(array('ok' => true, 'boutique' => scPsCatalogEan((string) $row->ean), 'kezia_code' => $kz($code), 'kezia_ean' => $kz((string) $row->ean), 'code' => $code, 'ean' => (string) $row->ean));
+	$kc = $kz($code); $ke = $kz((string) $row->ean);
+	// la fiche de la ligne peut-elle etre corrigee ? (jamais un article Kezia d'origine)
+	$fiche = null;
+	if ($row->fk_product) {
+		$q = $db->query("SELECT p.rowid, p.ref, p.label, pe.kezia_idart, pe.variant_parent_link FROM ".MAIN_DB_PREFIX."product p LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $row->fk_product));
+		$fiche = $q ? $db->fetch_object($q) : null;
+	}
+	$editable = ($fiche && empty($fiche->kezia_idart));
+	$fams = array();
+	foreach ($famCands as $fid => $f) { if ($editable && $fid != (int) $fiche->variant_parent_link && $fid != (int) $fiche->rowid) { $fams[] = $f; } }
+	print json_encode(array('ok' => true, 'boutique' => scPsCatalogEan((string) $row->ean), 'kezia_code' => $kc, 'kezia_ean' => $ke, 'code' => $code, 'ean' => (string) $row->ean,
+		'editable' => $editable, 'fiche' => ($fiche ? $fiche->ref.' — '.$fiche->label : ''), 'familles' => $fams));
+	exit;
+}
+
+if ($action === 'attachfamily' || $action === 'useboutique') {
+	if (!$row->fk_product) { print json_encode(array('ok' => false, 'error' => 'Ligne sans produit')); exit; }
+	$q = $db->query("SELECT p.rowid, p.ref, p.label, p.barcode, pe.kezia_idart, pe.variant_parent_link FROM ".MAIN_DB_PREFIX."product p LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $row->fk_product));
+	$pr = $q ? $db->fetch_object($q) : null;
+	if (!$pr || !empty($pr->kezia_idart)) { print json_encode(array('ok' => false, 'error' => 'Fiche article Kezia d\'origine : non modifiable ici')); exit; }
+	$done = array();
+	$db->begin();
+	if ($action === 'attachfamily') {
+		$fid = GETPOSTINT('fam');
+		$q = $db->query("SELECT p.rowid, p.ref, p.label, p.barcode, p.price, p.price_ttc, p.price_base_type, p.tva_tx, pe.kezia_idart FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".$fid." AND pe.kezia_idart IS NOT NULL");
+		$fa = $q ? $db->fetch_object($q) : null;
+		if (!$fa) { $db->rollback(); print json_encode(array('ok' => false, 'error' => 'Famille Kezia introuvable')); exit; }
+		$oldfam = (int) $pr->variant_parent_link;
+		$suffix = $pr->barcode ? ' (EAN '.substr($pr->barcode, -5).')' : '';
+		// fiche : famille, libelle, prix ; ligne de prix niveau 1 ; achat du fournisseur de la famille
+		$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_extrafields (fk_object, variant_parent_ref, variant_parent_link) VALUES (".((int) $pr->rowid).", '".$db->escape($fa->ref)."', ".((int) $fa->rowid).") ON DUPLICATE KEY UPDATE variant_parent_ref = VALUES(variant_parent_ref), variant_parent_link = VALUES(variant_parent_link)");
+		$db->query("UPDATE ".MAIN_DB_PREFIX."product SET label = '".$db->escape($fa->label.$suffix)."', price = ".((float) $fa->price).", price_ttc = ".((float) $fa->price_ttc).", price_base_type = '".$db->escape($fa->price_base_type ?: 'TTC')."', tva_tx = ".((float) $fa->tva_tx)." WHERE rowid = ".((int) $pr->rowid));
+		if ((float) $fa->price_ttc > 0) {
+			$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_price (entity, fk_product, date_price, price_level, price, price_ttc, price_base_type, tva_tx, fk_user_author, import_key) VALUES (1, ".((int) $pr->rowid).", NOW(), 1, ".((float) $fa->price).", ".((float) $fa->price_ttc).", '".$db->escape($fa->price_base_type ?: 'TTC')."', ".((float) $fa->tva_tx).", ".((int) $user->id).", 'SCANFAM')");
+		}
+		$qf = $db->query("SELECT fk_soc, unitprice, tva_tx FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE fk_product = ".((int) $fa->rowid)." ORDER BY rowid LIMIT 1");
+		$ff = $qf ? $db->fetch_object($qf) : null;
+		if ($ff) {
+			$qx = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE fk_product = ".((int) $pr->rowid)." ORDER BY rowid LIMIT 1");
+			$px = $qx ? $db->fetch_object($qx) : null;
+			if ($px) { $db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET fk_soc = ".((int) $ff->fk_soc).", price = ".((float) $ff->unitprice).", unitprice = ".((float) $ff->unitprice).", tva_tx = ".((float) $ff->tva_tx)." WHERE rowid = ".((int) $px->rowid)); }
+			else { $db->query("INSERT INTO ".MAIN_DB_PREFIX."product_fournisseur_price (datec, tms, fk_product, fk_soc, ref_fourn, price, quantity, unitprice, tva_tx, entity, fk_user, barcode, fk_barcode_type, import_key) VALUES (NOW(), NOW(), ".((int) $pr->rowid).", ".((int) $ff->fk_soc).", '".$db->escape($pr->ref)."', ".((float) $ff->unitprice).", 1, ".((float) $ff->unitprice).", ".((float) $ff->tva_tx).", 1, ".((int) $user->id).", ".($pr->barcode ? "'".$db->escape($pr->barcode)."'" : "NULL").", 2, 'SCANFAM')"); }
+		}
+		// scans de la fiche : bonne etiquette affichee, code saisi garde dessous, plus de marqueur
+		$famcode = scKeziaLabelCode($fa->barcode, $fa->kezia_idart);
+		$hasCols = scHasColumn($db, 'scan_capture', 'code_saisi');
+		$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ".($hasCols ? "code_saisi = IF(code_saisi IS NULL OR code_saisi = '', code_kezia, code_saisi), code_inconnu = 0, " : "")."code_kezia = '".$db->escape($famcode)."', product_label = '".$db->escape($fa->label.$suffix)."' WHERE fk_product = ".((int) $pr->rowid));
+		// l'association apprise qui envoyait ces codes vers l'ancienne famille est fausse
+		if ($oldfam > 0) {
+			$qc = $db->query("SELECT DISTINCT ".($hasCols ? "code_saisi" : "code_kezia")." AS c FROM ".MAIN_DB_PREFIX."scan_capture WHERE fk_product = ".((int) $pr->rowid));
+			while ($qc && ($oc = $db->fetch_object($qc))) {
+				if (empty($oc->c)) { continue; }
+				$e = $db->escape($oc->c);
+				$db->query("DELETE FROM ".MAIN_DB_PREFIX."scan_assoc WHERE fk_product = ".$oldfam." AND code IN ('".$e."', '0".$e."')");
+			}
+			$db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET barcode = NULL WHERE fk_product = ".$oldfam." AND barcode IS NOT NULL AND barcode = '".$db->escape((string) $pr->barcode)."'");
+		}
+		$done[] = 'rattachée à '.$fa->ref;
+		$db->commit();
+		foreach (array_filter(array($oldfam, (int) $fa->rowid)) as $f) { scFamilyRecap($db, $f); }
+	} else {
+		$ps = scPsCatalogEan((string) $pr->barcode !== '' ? (string) $pr->barcode : (string) $row->ean);
+		if (!$ps) { $db->rollback(); print json_encode(array('ok' => false, 'error' => 'EAN absent de la boutique')); exit; }
+		$label = $ps['name'].($ps['ref_combi'] !== '' ? ' ('.$ps['ref_combi'].')' : '');
+		$db->query("UPDATE ".MAIN_DB_PREFIX."product SET label = '".$db->escape($label)."' WHERE rowid = ".((int) $pr->rowid));
+		$done[] = 'libellé boutique';
+		if ($ps['ref_combi'] !== '' && $ps['ref_combi'] !== $pr->ref) {
+			$q = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product WHERE ref = '".$db->escape($ps['ref_combi'])."'");
+			if ($q && !$db->fetch_object($q)) { $db->query("UPDATE ".MAIN_DB_PREFIX."product SET ref = '".$db->escape($ps['ref_combi'])."' WHERE rowid = ".((int) $pr->rowid)); $done[] = 'réf '.$ps['ref_combi']; }
+			else { $done[] = 'réf '.$ps['ref_combi'].' déjà prise : réf inchangée'; }
+		}
+		$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET product_label = '".$db->escape($label)."' WHERE fk_product = ".((int) $pr->rowid));
+		$db->commit();
+	}
+	print json_encode(array('ok' => true, 'done' => $done));
 	exit;
 }
 
