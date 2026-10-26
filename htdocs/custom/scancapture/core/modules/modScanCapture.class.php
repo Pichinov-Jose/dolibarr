@@ -67,6 +67,8 @@ class modScanCapture extends DolibarrModules
 				fk_inventory INTEGER NULL,
 				sent_to_inv DATETIME NULL,
 				stock_before DOUBLE DEFAULT NULL,
+				code_saisi VARCHAR(64) NULL COMMENT 'code tel que scanne quand le code Kezia retenu differe',
+				code_inconnu TINYINT NOT NULL DEFAULT 0 COMMENT '1 = code Kezia inexistant valide quand meme',
 				import_key VARCHAR(14) NULL,
 				idempotency_key VARCHAR(36) NULL COMMENT 'Client-generated UUID, unique per scan send: makes offline queue replay idempotent',
 				KEY idx_scap_status (status),
@@ -113,6 +115,8 @@ class modScanCapture extends DolibarrModules
 			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS sent_to_inv DATETIME NULL",
 			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS stock_before DOUBLE DEFAULT NULL",
 			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS import_key VARCHAR(14) NULL",
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS code_saisi VARCHAR(64) NULL",
+			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS code_inconnu TINYINT NOT NULL DEFAULT 0",
 			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(36) NULL COMMENT 'Client-generated UUID, unique per scan send: makes offline queue replay idempotent'",
 			// l'index unique est sans risque sur une colonne fraîchement ajoutée (toutes valeurs NULL)
 			"ALTER TABLE ".MAIN_DB_PREFIX."scan_capture ADD UNIQUE INDEX IF NOT EXISTS uk_scan_capture_idempotency (idempotency_key)",

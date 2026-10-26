@@ -504,3 +504,48 @@ function scEanProblem($code)
 	for ($i = $n - 2, $w = 3; $i >= 0; $i--, $w = ($w == 3 ? 1 : 3)) { $sum += ((int) $code[$i]) * $w; }
 	return ((10 - ($sum % 10)) % 10) == (int) $code[$n - 1] ? '' : 'clé de contrôle fausse';
 }
+
+/**
+ * La colonne existe-t-elle ? (le module tourne aussi sur des instances pas encore migrees :
+ * une colonne inconditionnelle dans un INSERT y ferait echouer tous les scans)
+ */
+function scHasColumn($db, $table, $col)
+{
+	static $cache = array();
+	$k = $table.'.'.$col;
+	if (!isset($cache[$k])) {
+		$r = $db->query("SHOW COLUMNS FROM ".MAIN_DB_PREFIX.$table." LIKE '".$db->escape($col)."'");
+		$cache[$k] = ($r && $db->num_rows($r) > 0);
+	}
+	return $cache[$k];
+}
+
+/**
+ * Code Kezia d'affichage d'un article : son code-barres (etiquette ou EAN utilise par Kezia),
+ * sinon le numero d'article complete a 12 chiffres.
+ */
+function scKeziaLabelCode($barcode, $idart)
+{
+	$b = trim((string) $barcode);
+	return $b !== '' ? $b : str_pad((string) ((int) $idart), 12, '0', STR_PAD_LEFT);
+}
+
+/**
+ * Code Kezia probable pour une saisie inexistante : numero d'article tape sans ses zeros,
+ * ou scan tronque d'un chiffre (unique correspondance). Retourne array(code, ref, label) ou null.
+ */
+function scSuggestKeziaCode($db, $codek)
+{
+	$codek = trim((string) $codek);
+	if ($codek === '' || !ctype_digit($codek)) { return null; }
+	if (strlen($codek) < 12 && (int) $codek > 0) {
+		$r = $db->query("SELECT p.ref, p.label, p.barcode, pe.kezia_idart FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE pe.kezia_idart = ".((int) $codek)." LIMIT 1");
+		if ($r && ($o = $db->fetch_object($r))) { return array('code' => scKeziaLabelCode($o->barcode, $o->kezia_idart), 'ref' => $o->ref, 'label' => $o->label); }
+	}
+	$r = $db->query("SELECT p.ref, p.label, p.barcode, pe.kezia_idart FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid
+		WHERE pe.kezia_idart IS NOT NULL AND p.barcode LIKE '".$db->escape($codek)."_' LIMIT 2");
+	$rows = array();
+	while ($r && ($o = $db->fetch_object($r))) { $rows[] = $o; }
+	if (count($rows) == 1) { return array('code' => $rows[0]->barcode, 'ref' => $rows[0]->ref, 'label' => $rows[0]->label); }
+	return null;
+}

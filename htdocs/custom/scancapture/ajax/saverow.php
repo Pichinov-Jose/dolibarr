@@ -69,10 +69,15 @@ $candidates = array_values($candidates);
 
 // le code Kezia ne peut etre qu'un code EXISTANT (Jose 26/10) : refus sans ecriture, l'operateur
 // rescanne l'etiquette ou laisse le champ vide et ne scanne que l'EAN
+$scCodeInconnu = 0;
 if ($codek !== '' && !count($ck) && !$forced_product) {
-	print json_encode(array('ok' => true, 'status' => 'kezianotfound', 'code' => $codek));
-	exit;
+	if (!GETPOSTINT('force_code')) {
+		print json_encode(array('ok' => true, 'status' => 'kezianotfound', 'code' => $codek, 'suggest' => scSuggestKeziaCode($db, $codek)));
+		exit;
+	}
+	$scCodeInconnu = 1;	// valide quand meme par l'operateur : marque Danger sur la ligne
 }
+$scCodeSaisi = trim(GETPOST('code_saisi', 'alphanohtml'));
 // field 1 must hold a TRUE Kezia label code (Jose 08/09): a value that only resolves as a product
 // EAN (barcode/supplier barcode) was scanned in the wrong field — refuse it with a clear message
 if ($codek !== '' && count($ck) && !$forced_product) {
@@ -277,10 +282,15 @@ if ($fk_product > 0 && $status == 'matched') {
 // la clé n'est PAS écrite dans scan_capture : le registre porte le lien (fk_scan_capture) et la
 // colonne n'existe pas sur toutes les instances (Argonaute) — une colonne inconditionnelle ici
 // ferait échouer TOUS les scans là où le DDL n'est pas passé
-$sql = "INSERT INTO ".MAIN_DB_PREFIX."scan_capture (datec, fk_user, code_kezia, ean, qty, fk_product, match_source, product_label, candidates, status, fk_inventory, stock_before, import_key) VALUES (";
+$scExtraCols = ''; $scExtraVals = '';
+if (scHasColumn($db, 'scan_capture', 'code_saisi')) {
+	$scExtraCols = ', code_saisi, code_inconnu';
+	$scExtraVals = ', '.($scCodeSaisi !== '' && $scCodeSaisi !== $codek ? "'".$db->escape($scCodeSaisi)."'" : "NULL").', '.((int) $scCodeInconnu);
+}
+$sql = "INSERT INTO ".MAIN_DB_PREFIX."scan_capture (datec, fk_user, code_kezia, ean, qty, fk_product, match_source, product_label, candidates, status, fk_inventory, stock_before, import_key".$scExtraCols.") VALUES (";
 $sql .= "NOW(), ".((int) $user->id).", ".($codek !== '' ? "'".$db->escape($codek)."'" : "NULL").", ".($ean !== '' ? "'".$db->escape($ean)."'" : "NULL").", ".((float) $qty).", ";
 $sql .= ($fk_product > 0 ? (int) $fk_product : "NULL").", ".($source !== '' ? "'".$db->escape($source)."'" : "NULL").", ".($label !== '' ? "'".$db->escape($label)."'" : "NULL").", ";
-$sql .= (count($candidates) > 1 || $status == 'mismatch' ? "'".$db->escape(json_encode($candidates))."'" : "NULL").", '".$db->escape($status)."', ".($fk_inventory > 0 ? (int) $fk_inventory : "NULL").", ".($stock_before === null ? "NULL" : (float) $stock_before).", '".$db->escape(dol_print_date(dol_now(), '%Y%m%d') ? 'SCAN'.dol_print_date(dol_now(), '%y%m%d') : 'SCAN')."')";
+$sql .= (count($candidates) > 1 || $status == 'mismatch' ? "'".$db->escape(json_encode($candidates))."'" : "NULL").", '".$db->escape($status)."', ".($fk_inventory > 0 ? (int) $fk_inventory : "NULL").", ".($stock_before === null ? "NULL" : (float) $stock_before).", '".$db->escape(dol_print_date(dol_now(), '%Y%m%d') ? 'SCAN'.dol_print_date(dol_now(), '%y%m%d') : 'SCAN')."'".$scExtraVals.")";
 $resql = $db->query($sql);
 $rowid = $resql ? $db->last_insert_id(MAIN_DB_PREFIX.'scan_capture') : 0;
 $db->commit();
@@ -290,4 +300,4 @@ if ($resql && $fk_product > 0 && $status == 'matched') {
 	$scpar = ($learned !== '' && count($ck) == 1) ? (int) $ck[0]['rowid'] : scFamilyParentOf($db, (int) $fk_product);
 	if ($scpar > 0) { scFamilyRecap($db, $scpar); }
 }
-print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc, 'stock_before' => $stock_before, 'learned' => $learned));
+print json_encode(array('ok' => (bool) $resql, 'rowid' => $rowid, 'status' => $status, 'label' => $label, 'fk_product' => $fk_product, 'assoc' => $assoc, 'fed' => $fed, 'mismatch' => $mismatch, 'candidates' => $candidates, 'group_kezia' => $ck, 'group_ean' => $ce, 'variant_of' => (strpos($source, 'variantof:') === 0 ? substr($source, 10) : ''), 'kassoc' => $kassoc, 'stock_before' => $stock_before, 'learned' => $learned, 'code_inconnu' => (int) $scCodeInconnu, 'code_saisi' => ($scCodeSaisi !== $codek ? $scCodeSaisi : '')));

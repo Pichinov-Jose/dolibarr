@@ -230,6 +230,7 @@ html.scfs #id-container { width: 100% !important; }
 		<div id="sc_er_results"></div><input type="hidden" id="sc_er_fk"></div>
 	<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
 		<button type="button" class="button" id="sc_er_save" style="flex:1">Enregistrer</button>
+		<button type="button" class="button" id="sc_er_unsend" style="flex:1 1 100%">Sortir de l'inventaire (garder le scan)</button>
 		<button type="button" class="button" id="sc_er_cancel" style="flex:1;background:#b71c1c;color:#fff">Annuler la ligne</button>
 	</div>
 </div></div>
@@ -276,13 +277,14 @@ html.scfs #id-container { width: 100% !important; }
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="matched"><span class="fa fa-check"></span></button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="unknown">?</button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="__sent" title="Lignes d&eacute;j&agrave; envoy&eacute;es dans l'inventaire"><span class="fa fa-check-circle" style="color:#2e7d32"></span></button>
+	<button type="button" class="button smallpaddingimp sc_fstat" data-st="__warn" title="Lignes &agrave; corriger : code Kezia inexistant ou EAN incomplet"><span class="fa fa-exclamation-triangle" style="color:#b71c1c"></span></button>
 </div>
 <div id="sc_searchinfo" class="opacitymedium" style="display:none;margin:0 auto 6px;"></div>
 <div class="div-table-responsive-no-min"><table class="noborder centpercent" id="sc_rows">
 <tr class="liste_titre"><td class="sc_hidemobile">#</td><td><?php print $langs->trans('KeziaCode'); ?></td><td><?php print $langs->trans('ProductEan'); ?></td><td><?php print $langs->trans('Product'); ?></td><td><?php print $langs->trans('Status'); ?></td><td class="right sc_hidemobile" title="Stock théorique au moment du scan">Stock</td><td class="right" title="Compté − théorique">Écart</td><td class="right"><?php print $langs->trans('Qty'); ?></td><td class="right"></td></tr>
 <?php
 require_once dol_buildpath('/scancapture/lib/scancapture_rows.inc.php');
-$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before, u.login AS scuser, i.status AS inv_status FROM ".MAIN_DB_PREFIX."scan_capture sc LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = sc.fk_user LEFT JOIN ".MAIN_DB_PREFIX."inventory i ON i.rowid = sc.fk_inventory WHERE (sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL)".$invfiltersc.$userfiltersc." ORDER BY sc.rowid DESC LIMIT 200");
+$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before, u.login AS scuser, i.status AS inv_status".(scHasColumn($db, 'scan_capture', 'code_saisi') ? ", sc.code_saisi, sc.code_inconnu" : "")." FROM ".MAIN_DB_PREFIX."scan_capture sc LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = sc.fk_user LEFT JOIN ".MAIN_DB_PREFIX."inventory i ON i.rowid = sc.fk_inventory WHERE (sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL)".$invfiltersc.$userfiltersc." ORDER BY sc.rowid DESC LIMIT 200");
 $scNbRows = $resql ? $db->num_rows($resql) : 0;
 print scRenderRows($db, $user, $resql);
 ?>
@@ -609,6 +611,10 @@ jQuery(function() {
 		return h;
 	}
 	var scDupPending = null;
+	jQuery(document).on('click', '.sc_kz_use', function(ev) { ev.preventDefault(); var k = window.scKzPending; if (!k || !k.suggest) return; window.scKzPending = null;
+		k.params.code_saisi = k.original; k.params.code_kezia = k.suggest.code; jQuery('#sc_codek').val(k.suggest.code); submitRowParams(k.params, 0); });
+	jQuery(document).on('click', '.sc_kz_force', function(ev) { ev.preventDefault(); var k = window.scKzPending; if (!k) return; window.scKzPending = null;
+		k.params.force_code = 1; submitRowParams(k.params, 0); });
 	jQuery(document).on('click', '.sc_adopt_yes', function(ev) { ev.preventDefault(); if (!window.scAdoptPending) return; window.scAdoptPending.adopt = 1; submitRowParams(window.scAdoptPending, 0); window.scAdoptPending = null; });
 	jQuery(document).on('click', '.sc_adopt_var', function(ev) { ev.preventDefault(); if (!window.scAdoptPending) return; window.scAdoptPending.as_variant = 1; submitRowParams(window.scAdoptPending, 0); window.scAdoptPending = null; });
 	jQuery(document).on('click', '.sc_dup_merge', function(ev) {
@@ -791,8 +797,14 @@ jQuery(function() {
 				return;
 			}
 			if (r.status == 'kezianotfound') {
-				setLive('multi', '<b style="color:#e65100"><span class="fa fa-exclamation-triangle"></span> Code Kezia inconnu : ' + jQuery('<i>').text(r.code || '').html() + '</b><br>Ce code n\'existe pas dans la base. Rescannez l\'<b>\u00e9tiquette Kezia</b>, ou laissez le champ vide et scannez seulement l\'EAN.');
-				jQuery('#sc_codek').val('').focus();
+				window.scKzPending = {params: params, original: r.code, suggest: r.suggest};
+				var hk = '<b style="color:#b71c1c"><span class="fa fa-exclamation-triangle"></span> Code Kezia inexistant : ' + jQuery('<i>').text(r.code || '').html() + '</b>';
+				if (r.suggest) { hk += '<br>Code probable : <b>' + jQuery('<i>').text(r.suggest.code).html() + '</b> \u2014 ' + jQuery('<i>').text(r.suggest.ref + ' ' + r.suggest.label).html(); }
+				hk += '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">';
+				if (r.suggest) { hk += '<a href="#" class="button sc_dupbtn sc_kz_use" style="flex:1;text-align:center"><span class="fa fa-check paddingright"></span>Utiliser ' + jQuery('<i>').text(r.suggest.code).html() + '</a>'; }
+				hk += '<a href="#" class="button sc_dupbtn sc_kz_force" style="flex:1;text-align:center;background:#b71c1c;color:#fff"><span class="fa fa-exclamation-triangle paddingright"></span>Valider quand m\u00eame</a></div>';
+				hk += '<div class="opacitymedium" style="margin-top:6px">Ou rescannez l\'\u00e9tiquette Kezia.</div>';
+				setLive('multi', hk);
 				return;
 			}
 			if (r.status == 'notkezia') {
@@ -829,7 +841,7 @@ jQuery(function() {
 			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.kassoc ? ' &middot; <?php print dol_escape_js($langs->trans('KeziaCodeLearned')); ?>' : '') + (r.learned ? ' &middot; <span class="fa fa-link"></span> lien famille ' + r.learned + ' mémorisé' : '');
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : (r.variant_of ? '<span class="fa fa-code-fork"></span> <?php print dol_escape_js($langs->trans('VariantCandidate')); ?> ' + r.variant_of : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>'));
 			var lblcell = (r.fk_product ? '<a href="<?php print DOL_URL_ROOT; ?>/product/card.php?id=' + r.fk_product + '" target="_blank" class="classforajaxtooltip" data-params=\'{"id":' + r.fk_product + ',"objecttype":"product"}\'><span class="fa fa-cube paddingright" style="color:#4a6785"></span>' + (r.label || '') + '</a>' : (r.label || ''));
-			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-st="' + r.status + '" data-sent="0" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + scEanWarnIcon(params.ean, r.rowid, q) + '</td><td>' + lblcell + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'sc_pill sc_pill_pend\'><span class=\'fa fa-clock-o\'></span> \u00e0 envoyer</span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
+			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-st="' + r.status + '" data-sent="0" data-warn="' + ((r.code_inconnu || scEanProblem(params.ean)) ? 1 : 0) + '" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + (r.code_inconnu ? '<span class="fa fa-exclamation-triangle" style="color:#b71c1c"></span> ' : '') + params.code_kezia + (r.code_saisi ? '<br><span class="opacitymedium small">(' + jQuery('<i>').text(r.code_saisi).html() + ')</span>' : '') + '</td><td>' + params.ean + scEanWarnIcon(params.ean, r.rowid, q) + '</td><td>' + lblcell + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'sc_pill sc_pill_pend\'><span class=\'fa fa-clock-o\'></span> \u00e0 envoyer</span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
 			bumpCount(r.status == 'unknown');
 			if (scFilterStat && scFilterStat !== r.status) { scFilterStat = ''; jQuery('.sc_fstat').removeClass('butActionRefused'); jQuery('.sc_fstat[data-st=""]').addClass('butActionRefused'); }
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }
@@ -1240,6 +1252,7 @@ jQuery(function() {
 			if (scEr.closed) { info += '<div style="color:#b71c1c;margin-top:4px"><b>Inventaire cl\u00f4tur\u00e9</b> : seuls le code et l\'EAN sont modifiables.</div>'; }
 			jQuery('#sc_er_info').html(info);
 			jQuery('#sc_er_qty, #sc_er_search').prop('disabled', !!scEr.closed); jQuery('#sc_er_cancel').toggle(!scEr.closed);
+			jQuery('#sc_er_unsend').toggle(!!scEr.sent && !scEr.closed);
 			jQuery('#sc_editrow').show();
 		});
 	});
@@ -1288,13 +1301,23 @@ jQuery(function() {
 		});
 	}, 600000);
 	jQuery('#sc_er_cancel').on('click', function() { if (scEr) { scCancelRow(scEr.rowid); } });
+	jQuery('#sc_er_unsend').on('click', function() {
+		if (!scEr) return;
+		if (!confirm('Sortir cette ligne de l\'inventaire ' + scEr.inventory + ' ? Elle restera dans le scan, \u00e0 envoyer de nouveau.')) return;
+		jQuery.post(base + 'editrow.php', {action: 'unsend', rowid: scEr.rowid, token: token}, function(r) {
+			if (!r || !r.ok) { alert((r && r.error) ? r.error : 'Erreur'); return; }
+			jQuery('#sc_editrow').hide();
+			setLive('ok', '<span class="fa fa-undo"></span> Ligne ' + r.rowid + ' sortie de l\'inventaire ' + r.inventory + ' \u2014 elle est de nouveau \u00e0 envoyer');
+			scErRefresh();
+		}, 'json');
+	});
 	// filter
 	var scFilterText = ''; var scFilterStat = '';
 	function applyFilter() {
 		jQuery('#sc_rows tr').not('.liste_titre').each(function() {
 			var tr = jQuery(this);
 			var okT = !scFilterText || tr.text().toLowerCase().indexOf(scFilterText) !== -1;
-			var okS = !scFilterStat || (scFilterStat === '__sent' ? tr.attr('data-sent') === '1' : (tr.attr('data-st') || tr.find('td').eq(4).text().trim()) === scFilterStat);
+			var okS = !scFilterStat || (scFilterStat === '__sent' ? tr.attr('data-sent') === '1' : scFilterStat === '__warn' ? tr.attr('data-warn') === '1' : (tr.attr('data-st') || tr.find('td').eq(4).text().trim()) === scFilterStat);
 			tr.toggle(okT && okS);
 		});
 	}

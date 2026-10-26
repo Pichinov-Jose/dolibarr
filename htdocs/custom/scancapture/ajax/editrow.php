@@ -53,6 +53,19 @@ if ($action === 'get') {
 	exit;
 }
 
+if ($action === 'unsend') {
+	// sortir la ligne de l'inventaire en la gardant dans le scan : elle redevient « a envoyer »
+	if (!$sent) { print json_encode(array('ok' => false, 'error' => 'Ligne pas encore envoyée')); exit; }
+	if ($closed) { print json_encode(array('ok' => false, 'error' => 'Inventaire '.$row->iref.' clôturé : comptage figé')); exit; }
+	$db->begin();
+	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET sent_to_inv = NULL WHERE rowid = ".((int) $row->rowid));
+	$newq = $row->fk_product ? scSyncInvLine($db, (int) $row->fk_inventory, (int) $row->fk_product) : 0;
+	$db->commit();
+	if ($row->fk_product) { $par = scFamilyParentOf($db, (int) $row->fk_product); if ($par > 0) { scFamilyRecap($db, $par); } }
+	print json_encode(array('ok' => true, 'rowid' => (int) $row->rowid, 'inventory' => (string) $row->iref, 'inventory_qty' => $newq));
+	exit;
+}
+
 if ($action === 'cancel') {
 	if ($closed) { print json_encode(array('ok' => false, 'error' => 'Inventaire '.$row->iref.' clôturé : comptage figé')); exit; }
 	$db->begin();
