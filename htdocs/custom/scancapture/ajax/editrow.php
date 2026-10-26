@@ -32,7 +32,7 @@ if ($action === 'search') {
 	exit;
 }
 
-$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.fk_product, sc.fk_inventory, sc.sent_to_inv, sc.status, sc.fk_user,
+$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.fk_product, sc.fk_inventory, sc.sent_to_inv, sc.status, sc.fk_user".(scHasColumn($db, 'scan_capture', 'code_saisi') ? ", sc.code_saisi" : "").",
 	p.ref AS pref, p.label AS plabel, i.ref AS iref, i.status AS istatus
 	FROM ".MAIN_DB_PREFIX."scan_capture sc
 	LEFT JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = sc.fk_product
@@ -50,6 +50,26 @@ if ($action === 'get') {
 		'rowid' => (int) $row->rowid, 'code_kezia' => (string) $row->code_kezia, 'ean' => (string) $row->ean, 'qty' => price2num($row->qty),
 		'fk_product' => (int) $row->fk_product, 'product' => ($row->fk_product ? $row->pref.' — '.$row->plabel : ''), 'status' => $row->status,
 		'sent' => $sent, 'sent_date' => ($sent ? dol_print_date($db->jdate($row->sent_to_inv), 'dayhour') : ''), 'inventory' => (string) $row->iref, 'closed' => $closed)));
+	exit;
+}
+
+if ($action === 'ident') {
+	// ce que disent la boutique et Kezia de l'EAN et du code de la ligne (l'enrichissement suit cote client)
+	$kz = function ($code) use ($db) {
+		$out = array();
+		if ($code === '') { return $out; }
+		foreach (scLookupCode($db, $code) as $c) {
+			if ($c['source'] === 'assoc') { continue; }
+			$q = $db->query("SELECT p.ref, p.label FROM ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product_extrafields pe ON pe.fk_object = p.rowid WHERE p.rowid = ".((int) $c['rowid'])." AND pe.kezia_idart IS NOT NULL");
+			if ($q && ($x = $db->fetch_object($q))) { $out[] = $x->ref.' — '.$x->label; }
+		}
+		return array_values(array_unique($out));
+	};
+	// re-identification = repartir de zero : le cache d'enrichissement de la ligne peut contenir
+	// l'erreur a corriger (il est sinon ressorti tel quel au lieu d'une vraie nouvelle recherche)
+	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = NULL WHERE rowid = ".((int) $row->rowid));
+	$code = (string) ($row->code_saisi ?? '') !== '' ? (string) $row->code_saisi : (string) $row->code_kezia;
+	print json_encode(array('ok' => true, 'boutique' => scPsCatalogEan((string) $row->ean), 'kezia_code' => $kz($code), 'kezia_ean' => $kz((string) $row->ean), 'code' => $code, 'ean' => (string) $row->ean));
 	exit;
 }
 

@@ -22,7 +22,12 @@ $limit = 200;
 $where = array();
 // chaque operateur ne voit que ses scans ; un admin voit tout
 if (!$user->admin) { $where[] = "sc.fk_user = ".((int) $user->id); }
-if (dol_strlen($q) >= 2) {
+if (preg_match('/^#?\s*(\d+)\s*(?:-|à|a|\.\.)\s*#?\s*(\d+)$/u', $q, $mr)) {
+	// intervalle de numeros de ligne : « 100-200 », « 100 à 200 », « 100..200 »
+	$where[] = "sc.rowid BETWEEN ".min((int) $mr[1], (int) $mr[2])." AND ".max((int) $mr[1], (int) $mr[2]);
+} elseif (preg_match('/^#\s*(\d+)$/', $q, $mr)) {
+	$where[] = "sc.rowid = ".((int) $mr[1]);
+} elseif (dol_strlen($q) >= 2) {
 	$e = $db->escape($q);
 	$where[] = "(sc.code_kezia LIKE '%".$e."%' OR sc.ean LIKE '%".$e."%' OR sc.product_label LIKE '%".$e."%' OR p.ref LIKE '%".$e."%' OR p.label LIKE '%".$e."%')";
 } else {

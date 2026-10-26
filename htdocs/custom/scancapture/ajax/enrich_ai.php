@@ -72,6 +72,12 @@ if (strpos((string) $row->match_source, 'variantof:') === 0 && $row->product_lab
 		$context .= " Fournisseur/fabricant : ".$sup->nom." — consulte EN PRIORITE son site ".$sup->url." (fiche produit du modele : liste des declinaisons/coloris avec leurs codes et souvent les JAN/EAN par declinaison).";
 	}
 }
+// re-identification « a l'aveugle » (blind=1) : AUCUN contexte magasin (libelle, famille, freres,
+// fournisseur) - ce contexte peut etre l'erreur elle-meme et l'IA tend a le confirmer (cas
+// Lunabait Chihuahua identifie « Patchinko 125 » parce que la fiche portait ce nom)
+if (GETPOSTINT('blind')) {
+	$context = " Identifie le produit UNIQUEMENT a partir de son EAN : ne suppose aucune marque ni aucun modele a priori.";
+}
 $prompt = "Trouve un maximum d'informations sur ce produit a partir de son code-barres EAN ".$row->ean." (magasin d'articles de peche francais).".$context."
 Cherche sur le web : l'EAN seul, puis l'EAN avec des mots-cles peche, puis marque+modele une fois identifies (prefixe GS1 = pays, prefixe entreprise = fabricant). Attention : chez beaucoup de fabricants chaque coloris/taille a son propre EAN, la reference fabricant etant commune — precise le discriminant de declinaison (code coloris, taille) quand tu le trouves.
 IMPORTANT : fais tes recherches puis reponds avec UNIQUEMENT l'objet JSON ci-dessous — aucun rapport, aucune analyse, aucun texte ni markdown avant ou apres, ta reponse visible EST le JSON :

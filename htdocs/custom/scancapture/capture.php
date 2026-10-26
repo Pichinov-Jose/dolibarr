@@ -228,6 +228,8 @@ html.scfs #id-container { width: 100% !important; }
 	<div class="row"><label>Produit</label><div id="sc_er_prod" style="font-weight:bold;margin-bottom:4px"></div>
 		<input type="text" id="sc_er_search" placeholder="Changer : réf, libellé ou code-barres…" style="width:100%;box-sizing:border-box;padding:8px">
 		<div id="sc_er_results"></div><input type="hidden" id="sc_er_fk"></div>
+	<div class="row"><button type="button" class="button" id="sc_er_ident" style="width:100%"><span class="fa fa-search paddingright"></span>R&eacute;-identifier (boutique, Kezia, sources + IA)</button>
+		<div id="sc_er_identres" style="display:none;margin-top:8px;padding:8px;background:#f5f7fa;border-radius:8px;font-size:0.92em"></div></div>
 	<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
 		<button type="button" class="button" id="sc_er_save" style="flex:1">Enregistrer</button>
 		<button type="button" class="button" id="sc_er_unsend" style="flex:1 1 100%">Sortir de l'inventaire (garder le scan)</button>
@@ -272,7 +274,7 @@ html.scfs #id-container { width: 100% !important; }
 </div>
 
 <div id="sc_filter">
-	<input type="text" id="sc_search" placeholder="<?php print $langs->trans('FilterRows'); ?>">
+	<input type="text" id="sc_search" placeholder="Rechercher : code, EAN, produit, ou n&deg; de lignes 100-200">
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="">Tous</button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="matched"><span class="fa fa-check"></span></button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="unknown">?</button>
@@ -841,7 +843,7 @@ jQuery(function() {
 			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.kassoc ? ' &middot; <?php print dol_escape_js($langs->trans('KeziaCodeLearned')); ?>' : '') + (r.learned ? ' &middot; <span class="fa fa-link"></span> lien famille ' + r.learned + ' mémorisé' : '');
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : (r.variant_of ? '<span class="fa fa-code-fork"></span> <?php print dol_escape_js($langs->trans('VariantCandidate')); ?> ' + r.variant_of : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>'));
 			var lblcell = (r.fk_product ? '<a href="<?php print DOL_URL_ROOT; ?>/product/card.php?id=' + r.fk_product + '" target="_blank" class="classforajaxtooltip" data-params=\'{"id":' + r.fk_product + ',"objecttype":"product"}\'><span class="fa fa-cube paddingright" style="color:#4a6785"></span>' + (r.label || '') + '</a>' : (r.label || ''));
-			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-st="' + r.status + '" data-sent="0" data-warn="' + ((r.code_inconnu || scEanProblem(params.ean)) ? 1 : 0) + '" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + (r.code_inconnu ? '<span class="fa fa-exclamation-triangle" style="color:#b71c1c"></span> ' : '') + params.code_kezia + (r.code_saisi ? '<br><span class="opacitymedium small">(' + jQuery('<i>').text(r.code_saisi).html() + ')</span>' : '') + '</td><td>' + params.ean + scEanWarnIcon(params.ean, r.rowid, q) + '</td><td>' + lblcell + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'sc_pill sc_pill_pend\'><span class=\'fa fa-clock-o\'></span> \u00e0 envoyer</span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
+			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-st="' + r.status + '" data-sent="0" data-warn="' + ((r.code_inconnu || scEanProblem(params.ean)) ? 1 : 0) + '" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + (r.code_inconnu ? '<span class="fa fa-exclamation-triangle" style="color:#b71c1c"></span> ' : '') + params.code_kezia + (r.code_saisi ? '<br><span class="opacitymedium small">(' + jQuery('<i>').text(r.code_saisi).html() + ')</span>' : '') + '</td><td class="nowraponall">' + params.ean + scEanWarnIcon(params.ean, r.rowid, q) + '</td><td>' + lblcell + '</td><td class="nowraponall">' + r.status + (r.status == 'matched' ? ' <span class=\'sc_pill sc_pill_pend\'><span class=\'fa fa-clock-o\'></span> \u00e0 envoyer</span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
 			bumpCount(r.status == 'unknown');
 			if (scFilterStat && scFilterStat !== r.status) { scFilterStat = ''; jQuery('.sc_fstat').removeClass('butActionRefused'); jQuery('.sc_fstat[data-st=""]').addClass('butActionRefused'); }
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }
@@ -1247,7 +1249,7 @@ jQuery(function() {
 			jQuery('#sc_er_num').text('n\u00b0 ' + scEr.rowid);
 			jQuery('#sc_er_code').val(scEr.code_kezia); jQuery('#sc_er_ean').val(scEr.ean); jQuery('#sc_er_qty').val(scEr.qty);
 			jQuery('#sc_er_prod').text(scEr.product || '(aucun produit)'); jQuery('#sc_er_fk').val(scEr.fk_product || '');
-			jQuery('#sc_er_search').val(''); jQuery('#sc_er_results').empty();
+			jQuery('#sc_er_search').val(''); jQuery('#sc_er_results').empty(); jQuery('#sc_er_identres').hide().empty();
 			var info = scEr.sent ? ('<span class="fa fa-check-circle" style="color:#2e7d32"></span> Envoy\u00e9e dans <b>' + scEr.inventory + '</b> le ' + scEr.sent_date + (scEr.closed ? '' : ' \u2014 l\'inventaire sera mis \u00e0 jour')) : '<span class="fa fa-clock-o" style="color:#b26a00"></span> En attente d\'envoi';
 			if (scEr.closed) { info += '<div style="color:#b71c1c;margin-top:4px"><b>Inventaire cl\u00f4tur\u00e9</b> : seuls le code et l\'EAN sont modifiables.</div>'; }
 			jQuery('#sc_er_info').html(info);
@@ -1257,6 +1259,36 @@ jQuery(function() {
 		});
 	});
 	jQuery('#sc_er_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_editrow').hide(); });
+	// Re-identification : boutique et Kezia tout de suite, puis sources (UPC, eBay) et IA en relance forcee
+	jQuery('#sc_er_ident').on('click', function() {
+		if (!scEr) return;
+		var box = jQuery('#sc_er_identres').show().html('<span class="fa fa-spinner fa-spin"></span> Recherche…');
+		var esc = function(t) { return jQuery('<i>').text(t || '').html(); };
+		jQuery.getJSON(base + 'editrow.php', {action: 'ident', rowid: scEr.rowid, token: token}, function(r) {
+			if (!r || !r.ok) { box.text('Erreur'); return; }
+			var h = '<div><b>Boutique</b> : ' + (r.boutique ? esc(r.boutique.name) + (r.boutique.ref_combi ? ' <span class="opacitymedium">(' + esc(r.boutique.ref_combi) + ')</span>' : '') : '<span class="opacitymedium">EAN absent de la boutique</span>') + '</div>';
+			h += '<div><b>Kezia, l\'EAN</b> : ' + (r.kezia_ean.length ? esc(r.kezia_ean.join(' / ')) : '<span class="opacitymedium">inconnu</span>') + '</div>';
+			h += '<div><b>Kezia, le code ' + esc(r.code) + '</b> : ' + (r.kezia_code.length ? esc(r.kezia_code.join(' / ')) : '<span class="opacitymedium">inconnu</span>') + '</div>';
+			h += '<div id="sc_er_identsrc"><span class="fa fa-spinner fa-spin"></span> Sources et IA…</div>';
+			box.html(h);
+			var show = function(x, src) {
+				if (x && x.ok && x.info && x.info.title) {
+					jQuery('#sc_er_identsrc').html('<b>' + src + '</b> : ' + esc(x.info.title) + (x.info.brand ? ' \u2014 ' + esc(x.info.brand) : '') + (x.info.mpn ? ' <span class="opacitymedium">(r\u00e9f ' + esc(x.info.mpn) + ')</span>' : ''));
+					return true;
+				}
+				return false;
+			};
+			jQuery.getJSON(base + 'enrich.php', {rowid: scEr.rowid, token: token, refresh: 1}, function(a) {
+				if (show(a, 'Base UPC')) return;
+				jQuery.getJSON(base + 'enrich_ebay.php', {rowid: scEr.rowid, token: token}, function(b) {
+					if (show(b, 'eBay')) return;
+					jQuery.getJSON(base + 'enrich_ai.php', {rowid: scEr.rowid, token: token, blind: 1}, function(c) {
+						if (!show(c, 'IA')) { jQuery('#sc_er_identsrc').html('<span class="opacitymedium">Sources et IA : rien trouv\u00e9</span>'); }
+					});
+				});
+			});
+		});
+	});
 	jQuery('#sc_er_search').on('input', function() {
 		var v = jQuery(this).val().trim(); clearTimeout(scErTimer);
 		if (v.length < 2) { jQuery('#sc_er_results').empty(); return; }
