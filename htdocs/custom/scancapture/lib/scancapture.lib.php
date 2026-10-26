@@ -451,3 +451,40 @@ function scPsCatalogEan($ean)
 	if (!$row) { return null; }
 	return array('name' => (string) $row['name'], 'ref_combi' => (string) $row['ref_combi'], 'ref_prod' => (string) $row['ref_prod']);
 }
+
+/**
+ * Recale la ligne d'inventaire (inventaire, produit) sur la somme des scans ENVOYES.
+ * Invariant du module : inventorydet.qty_view = somme des scan_capture envoyes pour ce couple.
+ * Somme nulle = produit plus compte -> ligne supprimee (une ligne a 0 signifierait « compte zero »
+ * et remettrait le stock a zero a la validation de l'inventaire). Idempotent.
+ * Retourne -1 si l'inventaire n'est plus modifiable (clos), sinon la nouvelle quantite.
+ */
+function scSyncInvLine($db, $fk_inventory, $fk_product)
+{
+	$fk_inventory = (int) $fk_inventory; $fk_product = (int) $fk_product;
+	if ($fk_inventory <= 0 || $fk_product <= 0) { return 0; }
+	$resql = $db->query("SELECT fk_warehouse, status FROM ".MAIN_DB_PREFIX."inventory WHERE rowid = ".$fk_inventory);
+	$inv = $resql ? $db->fetch_object($resql) : null;
+	if (!$inv || (int) $inv->status != 1) { return -1; }
+	$wh = (int) $inv->fk_warehouse;
+	$lock = 'scfeed_'.$fk_inventory.'_'.$fk_product;
+	$db->query("SELECT GET_LOCK('".$lock."', 5)");
+	$resql = $db->query("SELECT IFNULL(SUM(qty), 0) AS s FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NOT NULL AND fk_inventory = ".$fk_inventory." AND fk_product = ".$fk_product);
+	$sum = $resql ? (float) $db->fetch_object($resql)->s : 0.0;
+	$resql = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."inventorydet WHERE fk_inventory = ".$fk_inventory." AND fk_product = ".$fk_product." AND fk_warehouse = ".$wh." AND (batch IS NULL OR batch = '') ORDER BY rowid");
+	$lines = array();
+	while ($resql && ($o = $db->fetch_object($resql))) { $lines[] = (int) $o->rowid; }
+	if ($sum <= 0) {
+		if (count($lines)) { $db->query("DELETE FROM ".MAIN_DB_PREFIX."inventorydet WHERE rowid IN (".implode(',', $lines).")"); }
+	} elseif (count($lines)) {
+		$db->query("UPDATE ".MAIN_DB_PREFIX."inventorydet SET qty_view = ".$sum." WHERE rowid = ".$lines[0]);
+		if (count($lines) > 1) { $db->query("DELETE FROM ".MAIN_DB_PREFIX."inventorydet WHERE rowid IN (".implode(',', array_slice($lines, 1)).")"); }
+	} else {
+		$st = 0.0;
+		$r2 = $db->query("SELECT reel FROM ".MAIN_DB_PREFIX."product_stock WHERE fk_product = ".$fk_product." AND fk_entrepot = ".$wh);
+		if ($r2 && ($x = $db->fetch_object($r2))) { $st = (float) $x->reel; }
+		$db->query("INSERT INTO ".MAIN_DB_PREFIX."inventorydet (datec, fk_inventory, fk_warehouse, fk_product, qty_stock, qty_view) VALUES (NOW(), ".$fk_inventory.", ".$wh.", ".$fk_product.", ".$st.", ".$sum.")");
+	}
+	$db->query("SELECT RELEASE_LOCK('".$lock."')");
+	return $sum;
+}

@@ -44,8 +44,8 @@ if ($more) { array_pop($rows); }
 $html = '';
 if (count($rows)) {
 	$ids = implode(',', array_map(function ($o) { return (int) $o->rowid; }, $rows));
-	$resql2 = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before, u.login AS scuser
-		FROM ".MAIN_DB_PREFIX."scan_capture sc LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = sc.fk_user
+	$resql2 = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before, u.login AS scuser, i.status AS inv_status
+		FROM ".MAIN_DB_PREFIX."scan_capture sc LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = sc.fk_user LEFT JOIN ".MAIN_DB_PREFIX."inventory i ON i.rowid = sc.fk_inventory
 		WHERE sc.rowid IN (".$ids.") ORDER BY sc.rowid DESC");
 	$html = scRenderRows($db, $user, $resql2);
 }

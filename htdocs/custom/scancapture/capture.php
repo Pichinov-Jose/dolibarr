@@ -212,6 +212,21 @@ html.scfs #id-container { width: 100% !important; }
 	<div style="display:flex;gap:10px"><button type="button" class="button sc_btn" id="sc_cr_ok" style="flex:2"><span id="sc_cr_oktxt"><?php print $langs->trans('Create'); ?></span></button><button type="button" class="button sc_btn" id="sc_cr_cancel" style="flex:1;background:#90a4ae !important"><?php print $langs->trans('Cancel'); ?></button></div>
 </div></div>
 
+<div id="sc_editrow" class="sc_modal"><div class="box">
+	<a href="#" class="close" id="sc_er_close"><span class="fa fa-times"></span></a>
+	<h3><span class="fa fa-edit paddingright"></span>Modifier la ligne <span id="sc_er_num"></span></h3>
+	<div id="sc_er_info" style="margin-bottom:10px"></div>
+	<div class="row"><label>Code Kezia (étiquette)</label><input type="text" id="sc_er_code" inputmode="numeric" style="width:100%;box-sizing:border-box;padding:8px"></div>
+	<div class="row"><label>EAN produit</label><input type="text" id="sc_er_ean" inputmode="numeric" style="width:100%;box-sizing:border-box;padding:8px"></div>
+	<div class="row"><label>Quantité</label><input type="number" id="sc_er_qty" step="any" min="0" style="width:100%;box-sizing:border-box;padding:8px;font-size:1.2em"></div>
+	<div class="row"><label>Produit</label><div id="sc_er_prod" style="font-weight:bold;margin-bottom:4px"></div>
+		<input type="text" id="sc_er_search" placeholder="Changer : réf, libellé ou code-barres…" style="width:100%;box-sizing:border-box;padding:8px">
+		<div id="sc_er_results"></div><input type="hidden" id="sc_er_fk"></div>
+	<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+		<button type="button" class="button" id="sc_er_save" style="flex:1">Enregistrer</button>
+		<button type="button" class="button" id="sc_er_cancel" style="flex:1;background:#b71c1c;color:#fff">Annuler la ligne</button>
+	</div>
+</div></div>
 <div id="sc_numpad" class="sc_modal"><div class="box" style="width:min(290px,86vw)">
 	<div class="val" id="sc_np_val"></div>
 	<div class="keys">
@@ -260,7 +275,7 @@ html.scfs #id-container { width: 100% !important; }
 <tr class="liste_titre"><td class="sc_hidemobile">#</td><td><?php print $langs->trans('KeziaCode'); ?></td><td><?php print $langs->trans('ProductEan'); ?></td><td><?php print $langs->trans('Product'); ?></td><td><?php print $langs->trans('Status'); ?></td><td class="right sc_hidemobile" title="Stock théorique au moment du scan">Stock</td><td class="right" title="Compté − théorique">Écart</td><td class="right"><?php print $langs->trans('Qty'); ?></td><td class="right"></td></tr>
 <?php
 require_once dol_buildpath('/scancapture/lib/scancapture_rows.inc.php');
-$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before, u.login AS scuser FROM ".MAIN_DB_PREFIX."scan_capture sc LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = sc.fk_user WHERE (sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL)".$invfiltersc.$userfiltersc." ORDER BY sc.rowid DESC LIMIT 200");
+$resql = $db->query("SELECT sc.rowid, sc.code_kezia, sc.ean, sc.qty, sc.product_label, sc.status, sc.sent_to_inv, sc.fk_product, sc.stock_before, u.login AS scuser, i.status AS inv_status FROM ".MAIN_DB_PREFIX."scan_capture sc LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = sc.fk_user LEFT JOIN ".MAIN_DB_PREFIX."inventory i ON i.rowid = sc.fk_inventory WHERE (sc.datec >= CURDATE() OR sc.sent_to_inv IS NULL)".$invfiltersc.$userfiltersc." ORDER BY sc.rowid DESC LIMIT 200");
 $scNbRows = $resql ? $db->num_rows($resql) : 0;
 print scRenderRows($db, $user, $resql);
 ?>
@@ -1182,21 +1197,72 @@ jQuery(function() {
 			scReloadKeeping();
 		});
 	});
-	jQuery(document).on('click', '.sc_del', function(ev) {
-		ev.preventDefault();
-		var row = jQuery(this).data('row'); var tr = jQuery(this).closest('tr');
-		if (!confirm('<?php print dol_escape_js($langs->transnoentitiesnoconv('ConfirmDeleteLine')); ?>')) return;
-		jQuery.getJSON(base + 'updaterow.php', {what: 'del', rowid: row, token: token}, function(r) { if (r.ok) { tr.remove(); } else if (r.error == 'sent') { setLive('multi', '<?php print dol_escape_js($langs->trans('CantDeleteSent')); ?>'); } });
-	});
+	// Edition complete d'une ligne (envoyee ou non) : si la ligne est dans un inventaire ouvert,
+	// le serveur recale la ligne d'inventaire sur la somme des scans (ajax/editrow.php)
+	var scEr = null, scErTimer = null;
+	function scErRefresh() { if (typeof scLoadRows === 'function') { scLoadRows(true); } else { scReloadKeeping(300); } }
 	jQuery(document).on('click', '.sc_edit', function(ev) {
 		ev.preventDefault();
-		var a = jQuery(this); var row = a.data('row'); var tr = a.closest('tr');
-		openPad(a.data('qty') + '', function(nq) {
-			jQuery.getJSON(base + 'updaterow.php', {what: 'qty', rowid: row, qty: nq, token: token}, function(r) {
-				if (r.ok) { tr.find('td').eq(7).text(r.qty); tr.find('td').eq(6).html(scEcartHtml(r.qty, tr.attr('data-sb'))); a.data('qty', r.qty); }
-			});
+		var row = jQuery(this).data('row');
+		jQuery.getJSON(base + 'editrow.php', {action: 'get', rowid: row, token: token}, function(r) {
+			if (!r || !r.ok) { setLive('multi', (r && r.error) ? r.error : 'Erreur'); return; }
+			scEr = r.row;
+			jQuery('#sc_er_num').text('n\u00b0 ' + scEr.rowid);
+			jQuery('#sc_er_code').val(scEr.code_kezia); jQuery('#sc_er_ean').val(scEr.ean); jQuery('#sc_er_qty').val(scEr.qty);
+			jQuery('#sc_er_prod').text(scEr.product || '(aucun produit)'); jQuery('#sc_er_fk').val(scEr.fk_product || '');
+			jQuery('#sc_er_search').val(''); jQuery('#sc_er_results').empty();
+			var info = scEr.sent ? ('<span class="fa fa-check-circle" style="color:#2e7d32"></span> Envoy\u00e9e dans <b>' + scEr.inventory + '</b> le ' + scEr.sent_date + (scEr.closed ? '' : ' \u2014 l\'inventaire sera mis \u00e0 jour')) : '<span class="fa fa-clock-o" style="color:#b26a00"></span> En attente d\'envoi';
+			if (scEr.closed) { info += '<div style="color:#b71c1c;margin-top:4px"><b>Inventaire cl\u00f4tur\u00e9</b> : seuls le code et l\'EAN sont modifiables.</div>'; }
+			jQuery('#sc_er_info').html(info);
+			jQuery('#sc_er_qty, #sc_er_search').prop('disabled', !!scEr.closed); jQuery('#sc_er_cancel').toggle(!scEr.closed);
+			jQuery('#sc_editrow').show();
 		});
 	});
+	jQuery('#sc_er_close').on('click', function(ev) { ev.preventDefault(); jQuery('#sc_editrow').hide(); });
+	jQuery('#sc_er_search').on('input', function() {
+		var v = jQuery(this).val().trim(); clearTimeout(scErTimer);
+		if (v.length < 2) { jQuery('#sc_er_results').empty(); return; }
+		scErTimer = setTimeout(function() {
+			jQuery.getJSON(base + 'editrow.php', {action: 'search', q: v, rowid: scEr ? scEr.rowid : 0, token: token}, function(r) {
+				var h = '';
+				(r && r.products ? r.products : []).forEach(function(p) { h += '<button type="button" class="button sc_pick_er" style="display:block;width:100%;text-align:left;margin:4px 0" data-id="' + p.id + '" data-txt="' + jQuery('<i>').text(p.ref + ' \u2014 ' + p.label).html() + '"><b>' + jQuery('<i>').text(p.ref).html() + '</b> ' + jQuery('<i>').text(p.label).html() + (p.barcode ? ' <span class="opacitymedium small">' + jQuery('<i>').text(p.barcode).html() + '</span>' : '') + '</button>'; });
+				jQuery('#sc_er_results').html(h || '<span class="opacitymedium">Aucun produit</span>');
+			});
+		}, 350);
+	});
+	jQuery(document).on('click', '.sc_pick_er', function() { jQuery('#sc_er_fk').val(jQuery(this).data('id')); jQuery('#sc_er_prod').text(jQuery(this).data('txt')); jQuery('#sc_er_results').empty(); jQuery('#sc_er_search').val(''); });
+	jQuery('#sc_er_save').on('click', function() {
+		if (!scEr) return;
+		jQuery.post(base + 'editrow.php', {action: 'save', rowid: scEr.rowid, code_kezia: jQuery('#sc_er_code').val(), ean: jQuery('#sc_er_ean').val(), qty: jQuery('#sc_er_qty').val(), fk_product: jQuery('#sc_er_fk').val() || 0, token: token}, function(r) {
+			if (!r || !r.ok) { alert((r && r.error) ? r.error : 'Erreur'); return; }
+			jQuery('#sc_editrow').hide();
+			setLive('ok', '<span class="fa fa-check"></span> Ligne ' + r.rowid + ' enregistr\u00e9e' + (r.inventory_synced ? ' \u2014 inventaire mis \u00e0 jour' : ''));
+			scErRefresh();
+		}, 'json');
+	});
+	function scCancelRow(row) {
+		jQuery.getJSON(base + 'editrow.php', {action: 'get', rowid: row, token: token}, function(g) {
+			if (!g || !g.ok) { setLive('multi', (g && g.error) ? g.error : 'Erreur'); return; }
+			var msg = g.row.sent ? ('Cette ligne est d\u00e9j\u00e0 dans l\'inventaire ' + g.row.inventory + ' : annuler son comptage (' + g.row.qty + ') ?') : 'Supprimer cette ligne de scan ?';
+			if (!confirm(msg)) return;
+			jQuery.post(base + 'editrow.php', {action: 'cancel', rowid: row, token: token}, function(r) {
+				if (!r || !r.ok) { alert((r && r.error) ? r.error : 'Erreur'); return; }
+				jQuery('#sc_editrow').hide();
+				setLive('ok', '<span class="fa fa-check"></span> Ligne ' + row + ' annul\u00e9e' + (r.sent ? ' \u2014 retir\u00e9e de l\'inventaire' : ''));
+				scErRefresh();
+			}, 'json');
+		});
+	}
+	jQuery(document).on('click', '.sc_del', function(ev) { ev.preventDefault(); scCancelRow(jQuery(this).data('row')); });
+	// Maintien de session : la scannette reste ouverte toute la journee, la session PHP expirait
+	// au bout de 24 min d'inactivite (scans perdus vers la page de connexion). Un signal toutes
+	// les 10 min tant que la page est ouverte ; si la session est deja perdue, on le dit.
+	setInterval(function() {
+		jQuery.ajax({url: base + 'ping.php', dataType: 'json', timeout: 15000}).fail(function(xhr) {
+			if (xhr && xhr.status && xhr.status != 0) { setLive('multi', '<b style="color:#b71c1c"><span class="fa fa-exclamation-triangle"></span> Session expir\u00e9e</b> \u2014 rechargez la page et reconnectez-vous (les scans en file sont conserv\u00e9s).'); }
+		});
+	}, 600000);
+	jQuery('#sc_er_cancel').on('click', function() { if (scEr) { scCancelRow(scEr.rowid); } });
 	// filter
 	var scFilterText = ''; var scFilterStat = '';
 	function applyFilter() {
