@@ -112,7 +112,7 @@ html.scfs #id-container { width: 100% !important; }
 	#sc_livewrap { position: static; }
 	body { padding-bottom: 10px !important; }
 	/* one clean centered column, fluid with the viewport (92vw, capped at 1500px) */
-	#sc_app, #sc_livewrap, #sc_filter, .div-table-responsive-no-min { max-width: min(92vw, 1500px); margin-left: auto; margin-right: auto; }
+	#sc_app, #sc_livewrap, #sc_filter, #sc_searchinfo, #sc_morewrap, .div-table-responsive-no-min { max-width: min(92vw, 1500px); margin-left: auto; margin-right: auto; }
 	#sc_deskactions { display: flex; gap: 10px; max-width: min(92vw, 1500px); margin: 2px auto 14px !important; padding: 0 !important; text-align: left; }
 	#sc_deskactions .butAction { margin: 0 !important; }
 	#sc_deskactions .sc_a_send { margin-left: auto !important; }
@@ -255,7 +255,7 @@ html.scfs #id-container { width: 100% !important; }
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="matched"><span class="fa fa-check"></span></button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="unknown">?</button>
 </div>
-<div id="sc_searchinfo" class="opacitymedium" style="display:none;margin:0 0 6px;"></div>
+<div id="sc_searchinfo" class="opacitymedium" style="display:none;margin:0 auto 6px;"></div>
 <div class="div-table-responsive-no-min"><table class="noborder centpercent" id="sc_rows">
 <tr class="liste_titre"><td class="sc_hidemobile">#</td><td><?php print $langs->trans('KeziaCode'); ?></td><td><?php print $langs->trans('ProductEan'); ?></td><td><?php print $langs->trans('Product'); ?></td><td><?php print $langs->trans('Status'); ?></td><td class="right sc_hidemobile" title="Stock théorique au moment du scan">Stock</td><td class="right" title="Compté − théorique">Écart</td><td class="right"><?php print $langs->trans('Qty'); ?></td><td class="right"></td></tr>
 <?php
@@ -265,7 +265,7 @@ $scNbRows = $resql ? $db->num_rows($resql) : 0;
 print scRenderRows($db, $user, $resql);
 ?>
 </table></div>
-<div id="sc_morewrap" class="center" style="margin:12px 0;<?php print ($scNbRows >= 200 ? '' : 'display:none'); ?>"><button type="button" class="button" id="sc_more"><span class="fa fa-angle-double-down paddingright"></span>Voir plus</button></div>
+<div id="sc_morewrap" class="center" style="margin:12px auto;<?php print ($scNbRows >= 200 ? '' : 'display:none'); ?>"><button type="button" class="button" id="sc_more"><span class="fa fa-angle-double-down paddingright"></span>Voir plus</button></div>
 <script>
 jQuery(function() {
 	var base = '<?php print dol_buildpath('/scancapture/ajax/', 1); ?>';
