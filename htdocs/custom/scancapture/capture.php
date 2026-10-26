@@ -60,12 +60,18 @@ body { padding-bottom: 76px !important; }
 .sc_modal button.sc_btn { background: var(--butactionbg, #79609b) !important; color: var(--butactiontextcolor, #fff) !important; border: none !important; cursor: pointer; font-weight: bold; text-transform: uppercase; }
 .sc_modal button.sc_btn:hover { opacity: 0.9; }
 #sc_filter { max-width: 1100px; margin: 10px 0 6px; display: flex; gap: 8px; }
-@media (max-width: 767px) { #sc_filter { flex-wrap: wrap; } #sc_search { flex: 1 1 100%; min-width: 0; font-size: 1.1em; padding: 8px; } }
+@media (max-width: 767px) { #sc_filter { flex-wrap: wrap; } #sc_filter #sc_search { flex: 0 0 100%; width: 100%; max-width: none; box-sizing: border-box; font-size: 1.1em; padding: 8px; } #sc_filter .sc_fstat { flex: 1 1 0; min-width: 0; margin: 0 !important; padding-left: 4px !important; padding-right: 4px !important; } }
 #sc_search { flex: 1; font-size: 1.05em; padding: 9px; border: 1.5px solid #ccc; border-radius: 8px; box-sizing: border-box; }
 .sc_edit, .sc_del { font-size: 1.25em; text-decoration: none; padding: 6px; }
 .sc_actdis { font-size: 1.25em; padding: 6px; color: #bbb; }
 .sc_pick, .sc_dupbtn { font-size: 1.1em !important; padding: 10px !important; margin: 4px 4px 0 0; display: inline-block; }
 .sc_pick { border: 2px solid #1976d2 !important; background: #e3f2fd !important; color: #0d47a1 !important; border-radius: 10px !important; width: 100%; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.sc_pill { display: inline-block; border-radius: 10px; padding: 1px 8px; font-size: 0.82em; white-space: nowrap; }
+.sc_pill_sent { background: #e8f5e9; color: #2e7d32; }
+.sc_pill_pend { background: #fff3e0; color: #b26a00; }
+/* repere visible sur la scannette (la colonne Etat y est hors ecran) : liseré sur la colonne Code */
+#sc_rows tr[data-sent="1"] > td:nth-child(2) { box-shadow: inset 4px 0 0 #2e7d32; }
+#sc_rows tr[data-sent="0"][data-st="matched"] > td:nth-child(2), #sc_rows tr[data-sent="0"][data-st="created"] > td:nth-child(2) { box-shadow: inset 4px 0 0 #f0a030; }
 .sc_modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; }
 .sc_modal .box { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 12px; padding: 18px; width: min(92vw, 420px); box-shadow: 0 6px 24px rgba(0,0,0,0.4); max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
 .sc_modal h3 { margin: 0 0 12px; }
@@ -269,6 +275,7 @@ html.scfs #id-container { width: 100% !important; }
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="">Tous</button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="matched"><span class="fa fa-check"></span></button>
 	<button type="button" class="button smallpaddingimp sc_fstat" data-st="unknown">?</button>
+	<button type="button" class="button smallpaddingimp sc_fstat" data-st="__sent" title="Lignes d&eacute;j&agrave; envoy&eacute;es dans l'inventaire"><span class="fa fa-check-circle" style="color:#2e7d32"></span></button>
 </div>
 <div id="sc_searchinfo" class="opacitymedium" style="display:none;margin:0 auto 6px;"></div>
 <div class="div-table-responsive-no-min"><table class="noborder centpercent" id="sc_rows">
@@ -804,7 +811,7 @@ jQuery(function() {
 			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.kassoc ? ' &middot; <?php print dol_escape_js($langs->trans('KeziaCodeLearned')); ?>' : '') + (r.learned ? ' &middot; <span class="fa fa-link"></span> lien famille ' + r.learned + ' mémorisé' : '');
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : (r.variant_of ? '<span class="fa fa-code-fork"></span> <?php print dol_escape_js($langs->trans('VariantCandidate')); ?> ' + r.variant_of : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>'));
 			var lblcell = (r.fk_product ? '<a href="<?php print DOL_URL_ROOT; ?>/product/card.php?id=' + r.fk_product + '" target="_blank" class="classforajaxtooltip" data-params=\'{"id":' + r.fk_product + ',"objecttype":"product"}\'><span class="fa fa-cube paddingright" style="color:#4a6785"></span>' + (r.label || '') + '</a>' : (r.label || ''));
-			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td>' + lblcell + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'fa fa-clock-o\' style=\'color:#b26a00\'></span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
+			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-st="' + r.status + '" data-sent="0" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td>' + lblcell + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'sc_pill sc_pill_pend\'><span class=\'fa fa-clock-o\'></span> \u00e0 envoyer</span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
 			bumpCount(r.status == 'unknown');
 			if (scFilterStat && scFilterStat !== r.status) { scFilterStat = ''; jQuery('.sc_fstat').removeClass('butActionRefused'); jQuery('.sc_fstat[data-st=""]').addClass('butActionRefused'); }
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }
@@ -1269,7 +1276,7 @@ jQuery(function() {
 		jQuery('#sc_rows tr').not('.liste_titre').each(function() {
 			var tr = jQuery(this);
 			var okT = !scFilterText || tr.text().toLowerCase().indexOf(scFilterText) !== -1;
-			var okS = !scFilterStat || tr.find('td').eq(4).text().trim() === scFilterStat;
+			var okS = !scFilterStat || (scFilterStat === '__sent' ? tr.attr('data-sent') === '1' : (tr.attr('data-st') || tr.find('td').eq(4).text().trim()) === scFilterStat);
 			tr.toggle(okT && okS);
 		});
 	}
