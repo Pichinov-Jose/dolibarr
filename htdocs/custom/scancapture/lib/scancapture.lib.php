@@ -488,3 +488,19 @@ function scSyncInvLine($db, $fk_inventory, $fk_product)
 	$db->query("SELECT RELEASE_LOCK('".$lock."')");
 	return $sum;
 }
+
+/**
+ * Controle d'un EAN/GTIN scanne. '' si valide (8, 12, 13 ou 14 chiffres avec cle de controle juste),
+ * sinon le motif lisible pour l'operateur. Ne bloque rien : sert a signaler une saisie a corriger.
+ */
+function scEanProblem($code)
+{
+	$code = trim((string) $code);
+	if ($code === '') { return ''; }
+	if (!ctype_digit($code)) { return 'caractères non numériques'; }
+	$n = strlen($code);
+	if (!in_array($n, array(8, 12, 13, 14))) { return 'incomplet ('.$n.' chiffres)'; }
+	$sum = 0;
+	for ($i = $n - 2, $w = 3; $i >= 0; $i--, $w = ($w == 3 ? 1 : 3)) { $sum += ((int) $code[$i]) * $w; }
+	return ((10 - ($sum % 10)) % 10) == (int) $code[$n - 1] ? '' : 'clé de contrôle fausse';
+}

@@ -746,6 +746,19 @@ jQuery(function() {
 	window.addEventListener('online', function() { scFlushOutbox(); });
 	setInterval(scFlushOutbox, 15000);
 	scFlushOutbox(); // au chargement : la file survit aux reloads et aux fermetures du navigateur
+	// meme regle que scEanProblem() cote serveur
+	function scEanProblem(c) {
+		c = String(c || '').trim(); if (c === '') { return ''; }
+		if (!/^\d+$/.test(c)) { return 'caract\u00e8res non num\u00e9riques'; }
+		if ([8, 12, 13, 14].indexOf(c.length) < 0) { return 'incomplet (' + c.length + ' chiffres)'; }
+		var sum = 0, w = 3; for (var i = c.length - 2; i >= 0; i--) { sum += parseInt(c[i], 10) * w; w = (w === 3 ? 1 : 3); }
+		return ((10 - (sum % 10)) % 10) === parseInt(c[c.length - 1], 10) ? '' : 'cl\u00e9 de contr\u00f4le fausse';
+	}
+	function scEanWarnIcon(c, rowid, q) { var pb = scEanProblem(c); return pb ? ' <a href="#" class="sc_edit" data-row="' + rowid + '" data-qty="' + q + '" title="EAN ' + pb + ' : toucher pour corriger"><span class="fa fa-exclamation-triangle" style="color:#e65100"></span></a>' : ''; }
+	jQuery('#sc_ean').on('change blur', function() {
+		var pb = scEanProblem(jQuery(this).val());
+		if (pb) { setLive('multi', '<b style="color:#e65100"><span class="fa fa-exclamation-triangle"></span> EAN ' + pb + '</b> \u2014 v\u00e9rifiez le scan (vous pouvez valider quand m\u00eame)'); }
+	});
 	function submitRow(forced, replaceRow) {
 		var q = jQuery('#sc_qty').val() || jQuery('#sc_defqty').val() || 1;
 		var params = {code_kezia: jQuery('#sc_codek').val(), ean: jQuery('#sc_ean').val(), qty: q, fk_inventory: jQuery('#sc_inv').val(), token: token};
@@ -775,6 +788,11 @@ jQuery(function() {
 				setLive('ok', '<span class="fa fa-check"></span> Déjà enregistré (ligne ' + (r.rowid || '?') + ') — renvoi ignoré');
 				clearFields();
 				scReloadKeeping(400);
+				return;
+			}
+			if (r.status == 'kezianotfound') {
+				setLive('multi', '<b style="color:#e65100"><span class="fa fa-exclamation-triangle"></span> Code Kezia inconnu : ' + jQuery('<i>').text(r.code || '').html() + '</b><br>Ce code n\'existe pas dans la base. Rescannez l\'<b>\u00e9tiquette Kezia</b>, ou laissez le champ vide et scannez seulement l\'EAN.');
+				jQuery('#sc_codek').val('').focus();
 				return;
 			}
 			if (r.status == 'notkezia') {
@@ -811,7 +829,7 @@ jQuery(function() {
 			var extra = (r.assoc && r.assoc != 'already' && r.assoc != 'none' && r.assoc != '' ? ' &middot; EAN&rarr;' + r.assoc : '') + (r.kassoc ? ' &middot; <?php print dol_escape_js($langs->trans('KeziaCodeLearned')); ?>' : '') + (r.learned ? ' &middot; <span class="fa fa-link"></span> lien famille ' + r.learned + ' mémorisé' : '');
 			setLive(r.status == 'matched' ? 'ok' : 'unknown', r.status == 'matched' ? '<span class="fa fa-check"></span> ' + r.label + extra : (r.variant_of ? '<span class="fa fa-code-fork"></span> <?php print dol_escape_js($langs->trans('VariantCandidate')); ?> ' + r.variant_of : '<?php print dol_escape_js($langs->trans('CapturedUnknown')); ?>'));
 			var lblcell = (r.fk_product ? '<a href="<?php print DOL_URL_ROOT; ?>/product/card.php?id=' + r.fk_product + '" target="_blank" class="classforajaxtooltip" data-params=\'{"id":' + r.fk_product + ',"objecttype":"product"}\'><span class="fa fa-cube paddingright" style="color:#4a6785"></span>' + (r.label || '') + '</a>' : (r.label || ''));
-			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-st="' + r.status + '" data-sent="0" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + '</td><td>' + lblcell + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'sc_pill sc_pill_pend\'><span class=\'fa fa-clock-o\'></span> \u00e0 envoyer</span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
+			jQuery('#sc_rows tr.liste_titre').after('<tr class="oddeven" data-id="' + r.rowid + '" data-st="' + r.status + '" data-sent="0" data-sb="' + (r.stock_before === null || r.stock_before === undefined ? '' : r.stock_before) + '"><td class="sc_hidemobile">' + r.rowid + '</td><td>' + params.code_kezia + '</td><td>' + params.ean + scEanWarnIcon(params.ean, r.rowid, q) + '</td><td>' + lblcell + '</td><td>' + r.status + (r.status == 'matched' ? ' <span class=\'sc_pill sc_pill_pend\'><span class=\'fa fa-clock-o\'></span> \u00e0 envoyer</span>' : '') + '</td><td class="right sc_hidemobile">' + (r.stock_before === null || r.stock_before === undefined ? '—' : r.stock_before) + '</td><td class="right">' + scEcartHtml(q, r.stock_before) + '</td><td class="right">' + q + '</td><td class="right nowrap">' + (r.status == 'unknown' ? '<a href="#" class="sc_create" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-plus-circle" style="color:#2e7d32"></span></a>&nbsp;' : '') + (r.status == 'matched' && r.fk_product ? '<a href="#" class="sc_enrich" title="Enrichir le produit" data-row="' + r.rowid + '" data-ean="' + params.ean + '" data-label="' + (r.label || '') + '"><span class="fa fa-magic" style="color:#7b1fa2"></span></a>&nbsp;' : '') + '<a href="#" class="sc_edit" data-row="' + r.rowid + '" data-qty="' + q + '"><span class="fa fa-edit"></span></a>&nbsp;<a href="#" class="sc_del" data-row="' + r.rowid + '"><span class="fa fa-trash" style="color:#b71c1c"></span></a></td></tr>');
 			bumpCount(r.status == 'unknown');
 			if (scFilterStat && scFilterStat !== r.status) { scFilterStat = ''; jQuery('.sc_fstat').removeClass('butActionRefused'); jQuery('.sc_fstat[data-st=""]').addClass('butActionRefused'); }
 			if (r.status == 'matched') { var pb = jQuery('#sc_pending'); pb.text((parseInt(pb.text()) || 0) + 1).removeClass('zero'); jQuery('.sc_pending_mirror').text(pb.text()); }

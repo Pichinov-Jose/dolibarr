@@ -67,6 +67,12 @@ $candidates = array();
 foreach (array_merge($ce, $ck) as $cand) $candidates[$cand['rowid']] = $cand; // EAN candidates first
 $candidates = array_values($candidates);
 
+// le code Kezia ne peut etre qu'un code EXISTANT (Jose 26/10) : refus sans ecriture, l'operateur
+// rescanne l'etiquette ou laisse le champ vide et ne scanne que l'EAN
+if ($codek !== '' && !count($ck) && !$forced_product) {
+	print json_encode(array('ok' => true, 'status' => 'kezianotfound', 'code' => $codek));
+	exit;
+}
 // field 1 must hold a TRUE Kezia label code (Jose 08/09): a value that only resolves as a product
 // EAN (barcode/supplier barcode) was scanned in the wrong field — refuse it with a clear message
 if ($codek !== '' && count($ck) && !$forced_product) {
