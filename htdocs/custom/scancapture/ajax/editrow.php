@@ -179,6 +179,8 @@ if ($action === 'save') {
 	$qty = (float) price2num(GETPOST('qty', 'alpha'), 'MS');
 	$newprod = GETPOSTINT('fk_product');
 	if ($qty < 0) { print json_encode(array('ok' => false, 'error' => 'Quantité négative')); exit; }
+	$scMaxQty = getDolGlobalInt('SCANCAPTURE_MAX_QTY', 999);
+	if ($qty > $scMaxQty) { print json_encode(array('ok' => false, 'error' => 'Quantité '.price2num($qty).' refusée (maximum '.$scMaxQty.') : code-barres lu dans la case Quantité ?')); exit; }
 	$prodChanged = ($newprod > 0 && $newprod != (int) $row->fk_product);
 	$qtyChanged = (abs($qty - (float) $row->qty) > 0.00001);
 	if ($closed && ($prodChanged || $qtyChanged)) { print json_encode(array('ok' => false, 'error' => 'Inventaire '.$row->iref.' clôturé : quantité et produit figés')); exit; }

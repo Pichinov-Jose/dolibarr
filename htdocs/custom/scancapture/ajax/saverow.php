@@ -54,6 +54,13 @@ $fk_inventory = GETPOSTINT('fk_inventory');
 $forced_product = GETPOSTINT('fk_product'); // when the operator resolved an ambiguity
 $replace_row = GETPOSTINT('replace_row'); // provisional ambiguous/mismatch row to purge once resolved
 if ($qty == 0) $qty = 1;
+// curseur resté dans la case Quantité : le code-barres de l'article suivant y devenait une quantité
+// à 13 chiffres. Statut dédié : le client retire le scan de sa file au lieu de le renvoyer en boucle
+$scMaxQty = getDolGlobalInt('SCANCAPTURE_MAX_QTY', 999);
+if ($qty > $scMaxQty) {
+	print json_encode(array('ok' => false, 'status' => 'badqty', 'error' => 'Quantité '.price2num($qty).' refusée (maximum '.$scMaxQty.') : code-barres lu dans la case Quantité ?'));
+	exit;
+}
 if ($codek === '' && $ean === '') {
 	print json_encode(array('ok' => false, 'error' => 'no code'));
 	exit;

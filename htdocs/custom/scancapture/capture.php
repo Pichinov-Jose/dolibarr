@@ -728,7 +728,7 @@ jQuery(function() {
 			function finish() {
 				scFlushing = false;
 				scOutboxBadge();
-				if (rejected.length) { setLive('multi', '<b><span class="fa fa-exclamation-triangle"></span> ' + rejected.length + ' scan(s) de la file rejeté(s)</b> (pas un code Kezia) : ' + rejected.join(', ')); }
+				if (rejected.length) { setLive('multi', '<b><span class="fa fa-exclamation-triangle"></span> ' + rejected.length + ' scan(s) de la file rejeté(s)</b> (pas un code Kezia, ou quantité invraisemblable) : ' + rejected.join(', ')); }
 				else if (sent && !jQuery('.sc_modal:visible').length) { setLive('ok', '<span class="fa fa-check"></span> ' + sent + ' scan(s) de la file renvoyé(s)'); scReloadKeeping(600); }
 			}
 			function next() {
@@ -744,6 +744,8 @@ jQuery(function() {
 							if (r.status === 'notkezia') { rejected.push(e.params.code_kezia || '?'); } else { sent++; }
 							next();
 						});
+					} else if (r && r.status === 'badqty') {
+						scOutbox.drop(e.idem).then(function() { rejected.push((e.params.code_kezia || e.params.ean || '?') + ' (quantit\u00e9 ' + e.params.qty + ')'); next(); });
 					} else { next(); } // erreur applicative : entrée conservée pour le cycle suivant
 				}).fail(function() { finish(); }); // réseau/session : on arrête, retry au prochain cycle
 			}
@@ -767,7 +769,20 @@ jQuery(function() {
 		var pb = scEanProblem(jQuery(this).val());
 		if (pb) { setLive('multi', '<b style="color:#e65100"><span class="fa fa-exclamation-triangle"></span> EAN ' + pb + '</b> \u2014 v\u00e9rifiez le scan (vous pouvez valider quand m\u00eame)'); }
 	});
+	// curseur resté dans la case Quantité : le scan de l'article suivant s'y écrit (seul, ou collé
+	// derrière la quantité tapée) et l'Entrée du scanner validait une quantité à 13 chiffres
+	var scMaxQty = <?php print getDolGlobalInt('SCANCAPTURE_MAX_QTY', 999); ?>;
+	function scQtyCheck() {
+		var raw = String(jQuery('#sc_qty').val() || '').trim();
+		var digits = raw.replace(/\D/g, '');
+		if (raw === '' || (parseFloat(raw) <= scMaxQty && digits.length < 7)) { return true; }
+		var guess = jQuery('#sc_defqty').val() || 1;
+		jQuery('#sc_qty').val(guess).focus().select();
+		setLive('multi', '<b style="color:#c62828"><span class="fa fa-exclamation-triangle"></span> Code-barres lu dans la case Quantit\u00e9</b> (' + jQuery('<span>').text(raw).html() + ') \u2014 quantit\u00e9 remise \u00e0 <b>' + guess + '</b> : retapez la bonne quantit\u00e9, validez (Entr\u00e9e), puis scannez l\u2019article suivant');
+		return false;
+	}
 	function submitRow(forced, replaceRow) {
+		if (!scQtyCheck()) { return; }
 		var q = jQuery('#sc_qty').val() || jQuery('#sc_defqty').val() || 1;
 		var params = {code_kezia: jQuery('#sc_codek').val(), ean: jQuery('#sc_ean').val(), qty: q, fk_inventory: jQuery('#sc_inv').val(), token: token};
 		if (!params.code_kezia.trim() && !params.ean.trim()) return;
@@ -788,6 +803,7 @@ jQuery(function() {
 			scQueueFail(params.idem, xhr, st, clearFields);
 		}).done(function(r) {
 			delete scInflight[params.idem];
+			if (r && r.status === 'badqty') { scOutbox.drop(params.idem).then(scOutboxBadge); setLive('multi', '<b style="color:#c62828"><span class="fa fa-exclamation-triangle"></span> ' + jQuery('<span>').text(r.error).html() + '</b>'); return; }
 			// pending = l'envoi d'origine de cette clé est peut-être encore en vol : surtout ne pas
 			// dequeue (ce serait perdre le scan s'il n'a pas abouti) — l'entrée repartira au cycle suivant
 			if (!r.ok) { scOutboxBadge(); setLive('multi', r.status === 'pending' ? '<span class="fa fa-hourglass-half"></span> Envoi déjà en cours pour ce scan — nouvel essai automatique dans un instant' : 'Erreur — scan conservé en file'); return; }
