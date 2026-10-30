@@ -62,16 +62,23 @@ if ($autocreate) {
 }
 
 // all pending resolved lines, whatever target they were captured with
-$resql = $db->query("SELECT rowid, fk_product, qty FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created') AND (fk_inventory = ".((int) $fk_inventory)." OR fk_inventory IS NULL)".($user->admin ? "" : " AND fk_user = ".((int) $user->id)));
+$resql = $db->query("SELECT rowid, fk_product, qty FROM ".MAIN_DB_PREFIX."scan_capture WHERE sent_to_inv IS NULL AND fk_product > 0 AND status IN ('matched', 'created') AND qty <= ".getDolGlobalInt('SCANCAPTURE_MAX_QTY', 999)." AND (fk_inventory = ".((int) $fk_inventory)." OR fk_inventory IS NULL)".($user->admin ? "" : " AND fk_user = ".((int) $user->id)));
 $rows = array();
 while ($resql && ($o = $db->fetch_object($resql))) { $rows[] = $o; }
 $db->begin();
 $sent = 0; $ids = array();
 foreach ($rows as $r) {
-	if (scFeedInventory($db, $fk_inventory, (int) $r->fk_product, (float) $r->qty)) {
-		$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET sent_to_inv = NOW(), fk_inventory = ".((int) $fk_inventory)." WHERE rowid = ".((int) $r->rowid));
-		$sent++; $ids[] = (int) $r->rowid;
+	// la ligne d'inventaire est RECALCULEE (somme des scans envoyes), jamais incrementee : une ligne
+	// restee d'une reparation ou d'un renvoi ne peut plus doubler un comptage
+	$resup = $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET sent_to_inv = NOW(), fk_inventory = ".((int) $fk_inventory)." WHERE rowid = ".((int) $r->rowid)." AND sent_to_inv IS NULL");
+	if (!$resup || $db->affected_rows($resup) < 1) {
+		continue; // deja envoye par l'autre scannette entre la lecture et ici
 	}
+	if (scSyncInvLine($db, $fk_inventory, (int) $r->fk_product) < 0) {
+		$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET sent_to_inv = NULL WHERE rowid = ".((int) $r->rowid));
+		continue;
+	}
+	$sent++; $ids[] = (int) $r->rowid;
 }
 $db->commit();
 print json_encode(array('ok' => true, 'sent' => $sent, 'ids' => $ids, 'created' => $created));
