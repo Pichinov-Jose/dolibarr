@@ -1444,3 +1444,4 @@ RefOfOnVendorSide=Reference of %s on vendor side
 SeeDocumentation=See documentation
 AIAssistant=AI Assistant
 NoBookmarkFound = No bookmark found
+AIHelpTools=List of tools available to you in the AI assistant
