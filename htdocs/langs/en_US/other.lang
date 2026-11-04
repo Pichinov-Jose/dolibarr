@@ -713,3 +713,6 @@ AIWriteLineSeveral=Several lines fit "%s": give its position instead. Lines: %s
 AIWriteNotDraftEdit=The %s %s is not a draft: its header can no longer be changed here.
 AIWriteNotDraftLines=The %s %s is not a draft: its lines can no longer be changed.
 AIWriteUnknownUnit=No unit "%s" was found.
+AIPreviewRunCronjob=Run the cron job %s now.
+AIWriteRefusedByModule=A module refused this write. Nothing was written.
+MicNotAllowedHelp=Access to the microphone was denied. Check that the browser permission for the microphone is allowed for this site, and that the HTTP header Permissions-Policy (parameter MAIN_SECURITY_FORCEPP) does not contain microphone=() (use microphone=(self) instead).

@@ -2973,3 +2973,6 @@ RedactionSensitiveData=Obfuscate sensitive data only (IBAN, Vat IDs, Emails, Pho
 RedactionSensitiveDataAndThirdparties=Obfuscate sensitive data and replace third parties with socid:N
 TestOCR=Test OCR
 ToolAccessControlHelp2=Warning: The user linked to the API key used, or the generic user defined on the MCP server setup page, must also have permissions on the objects handled by the tools.
+ConfirmRegenerateMcpApiKey=Are you sure you want to generate a new MCP API key? The current key will stop working immediately: every tool or AI client that uses it will have to be configured again with the new key.
+McpApiKeyHelp=This key authenticates the AI tools and clients that call the MCP server. Send it as the value of the HTTP header <b>DOLAPIKEY</b>.
+RegenerateKey=Regenerate
