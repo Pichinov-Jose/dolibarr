@@ -315,6 +315,8 @@ if (empty(DOL_DOCUMENT_ROOT) || !file_exists(DOL_DOCUMENT_ROOT."/core/lib/functi
 
 // Included by default (must be before the CSRF check so wa can use the dol_syslog)
 include_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
+// Local: develop AI module on a 24.0.x core, functions missing from this core (see core/lib/functions_ai_compat.lib.php)
+include_once DOL_DOCUMENT_ROOT.'/core/lib/functions_ai_compat.lib.php';
 include_once DOL_DOCUMENT_ROOT.'/core/lib/security.lib.php';
 include_once DOL_DOCUMENT_ROOT.'/blockedlog/lib/securitycore.lib.php';
 //print memory_get_usage();
