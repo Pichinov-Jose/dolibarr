@@ -1,4 +1,7 @@
 <?php
+/* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
+ * GPL v3+ — see core/modules/modGiftvoucher.class.php
+ */
 // Activation CLI du module GiftVoucher (crée table, droits, menus, consts).
 if (php_sapi_name() !== 'cli') { die("CLI only\n"); }
 $sapi_type = php_sapi_name();

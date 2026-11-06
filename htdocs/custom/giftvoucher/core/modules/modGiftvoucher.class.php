@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026  Jose MARTINEZ <jose.martinez@pichinov.com>
+/* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,11 +41,11 @@ class modGiftvoucher extends DolibarrModules
 		$this->descriptionlong = 'GiftVoucherDescriptionLong';
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.0.1';
+		$this->version = '1.1.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'fa-gift';
 
-		$this->module_parts = array('triggers' => 1);
+		$this->module_parts = array('triggers' => 1, 'hooks' => array('thirdpartycard'));
 		$this->config_page_url = array('setup.php@giftvoucher');
 
 		$this->hidden = false;

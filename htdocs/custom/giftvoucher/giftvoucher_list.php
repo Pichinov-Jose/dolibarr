@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026  Jose MARTINEZ <jose.martinez@pichinov.com>
+/* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  * GPL v3+ — see modGiftvoucher.class.php
  */
 

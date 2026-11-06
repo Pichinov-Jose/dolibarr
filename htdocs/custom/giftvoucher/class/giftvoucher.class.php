@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026  Jose MARTINEZ <jose.martinez@pichinov.com>
+/* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
  * \brief   Bon d'achat / chèque cadeau au porteur, identifié par son code-barres (ref).
  */
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php'; // dol_time_plus_duree() : pas toujours chargée (validation TakePOS, CLI)
 
 class GiftVoucher extends CommonObject
 {
@@ -191,9 +192,10 @@ class GiftVoucher extends CommonObject
 	 * @param User $user User
 	 * @param int $fk_facture Facture d'encaissement (optionnel)
 	 * @param int $force 1 = autoriser un bon expiré (geste commercial)
+	 * @param int $fk_paiement Règlement qui consomme le bon (optionnel), posé dans la même mise à jour
 	 * @return int <0 KO, 1 OK
 	 */
-	public function redeem($user, $fk_facture = 0, $force = 0)
+	public function redeem($user, $fk_facture = 0, $force = 0, $fk_paiement = 0)
 	{
 		if ($this->status == self::STATUS_USED) {
 			$this->error = 'GiftVoucherAlreadyUsed';
@@ -212,6 +214,9 @@ class GiftVoucher extends CommonObject
 		if ($fk_facture > 0) {
 			$sql .= ", fk_facture = ".((int) $fk_facture);
 		}
+		if ($fk_paiement > 0) {
+			$sql .= ", fk_paiement = ".((int) $fk_paiement);
+		}
 		$sql .= " WHERE rowid = ".((int) $this->id)." AND status = ".self::STATUS_OPEN;
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -224,6 +229,13 @@ class GiftVoucher extends CommonObject
 		}
 		$this->status = self::STATUS_USED;
 		$this->date_exerce = dol_now();
+		$this->fk_user_exerce = (int) $user->id;
+		if ($fk_facture > 0) {
+			$this->fk_facture = (int) $fk_facture;
+		}
+		if ($fk_paiement > 0) {
+			$this->fk_paiement = (int) $fk_paiement;
+		}
 		return 1;
 	}
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+# Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
 GiftVoucherDescription=Bons d'achat / chèques cadeaux au porteur avec code-barres
 GiftVoucherDescriptionLong=Émission (vente ou avoir), encaissement scanné en caisse ou sur facture, blocage du double emploi, suivi de consommation et d'expiration. Reprise de l'historique Kezia.
 GiftVoucher=Bon d'achat
@@ -39,3 +39,6 @@ GiftVoucherProductId=Produit « chèque cadeau » (génération auto)
 GiftVoucherProductIdHelp=id du produit/service vendu en caisse ou sur facture : à la validation, un bon est créé automatiquement par unité vendue, du montant TTC de la ligne (0 = désactivé).
 GiftVoucherAutoCreated=%s bon(s) d'achat généré(s) : %s
 PrintButton=Imprimer
+GiftVoucherHolderWarning=Bon nominatif au nom de %s — vérifier l'identité du porteur
+GiftVoucherThirdpartyBlock=Bons d'achat et chèques cadeaux
+GiftVoucherThirdpartyTotalOpen=Total encore valable

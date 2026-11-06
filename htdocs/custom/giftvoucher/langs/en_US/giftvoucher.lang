@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Jose MARTINEZ <jose.martinez@pichinov.com>
+# Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
 GiftVoucherDescription=Bearer gift vouchers / store credits with barcode
 GiftVoucherDescriptionLong=Emission (sold or return credit), scanned redemption at POS or on invoice, double-use blocking, consumption and expiry tracking. Kezia history import.
 GiftVoucher=Gift voucher
@@ -39,3 +39,6 @@ GiftVoucherProductId=Gift voucher product (auto generation)
 GiftVoucherProductIdHelp=Product/service id sold at POS or on invoice: on validation, one voucher per unit sold is created, valued at the line incl-tax amount (0 = disabled).
 GiftVoucherAutoCreated=%s gift voucher(s) generated: %s
 PrintButton=Print
+GiftVoucherHolderWarning=Voucher issued to %s - check the bearer's identity
+GiftVoucherThirdpartyBlock=Gift vouchers and credit notes
+GiftVoucherThirdpartyTotalOpen=Total still valid

@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026  Jose MARTINEZ <jose.martinez@pichinov.com>
+/* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  * GPL v3+ — see modGiftvoucher.class.php
  */
 
@@ -19,6 +19,7 @@ if (!$res) {
 	die("Include of main fails");
 }
 dol_include_once('/giftvoucher/class/giftvoucher.class.php');
+dol_include_once('/giftvoucher/lib/giftvoucher.lib.php');
 
 $langs->loadLangs(array('giftvoucher@giftvoucher', 'bills'));
 
@@ -86,6 +87,15 @@ if ($code !== '') {
 		$redeemable = $object->isRedeemable();
 		print '<div class="center" style="border:2px solid '.($object->status == GiftVoucher::STATUS_USED ? '#c00' : ($redeemable ? '#0a0' : '#c60')).'; border-radius:8px; max-width:520px; margin:auto; padding:16px;">';
 		print '<div style="font-size:1.3em;">'.$object->getNomUrl(1).' — '.$langs->trans($object->type_voucher == GiftVoucher::TYPE_CREDIT ? 'GiftVoucherTypeCredit' : 'GiftVoucherTypeGift').'</div>';
+		// Bon nominatif : on affiche le titulaire pour que le caissier puisse vérifier,
+		// sans bloquer (un proche présente souvent le bon à la place du titulaire).
+		if (giftvoucherIsNominative($object->fk_soc)) {
+			require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+			$holder = new Societe($db);
+			if ($holder->fetch($object->fk_soc) > 0) {
+				print '<div class="warning" style="font-size:1.15em; margin:8px 0; padding:8px;">'.$langs->trans('GiftVoucherHolderWarning', dol_escape_htmltag($holder->name)).'</div>';
+			}
+		}
 		print '<div style="font-size:2.4em; font-weight:bold; margin:10px 0;">'.price($object->amount, 0, $langs, 1, -1, -1, $conf->currency).'</div>';
 		print '<div style="font-size:1.5em; margin-bottom:8px;">'.$object->getLibStatut(4).'</div>';
 		print '<table class="centpercent" style="text-align:left;">';

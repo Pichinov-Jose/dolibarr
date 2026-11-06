@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026  Jose MARTINEZ <jose.martinez@pichinov.com>
+/* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  * GPL v3+ — see modGiftvoucher.class.php
  */
 
@@ -77,14 +77,11 @@ class InterfaceGiftvoucherTriggers extends DolibarrTriggers
 				$fk_facture = (int) $keys[0];
 			}
 		}
-		$result = $voucher->redeem($user, $fk_facture);
+		// le règlement créé est lié au bon dans la même mise à jour que la consommation
+		$result = $voucher->redeem($user, $fk_facture, 0, !empty($object->id) ? (int) $object->id : 0);
 		if ($result <= 0) {
 			$this->errors[] = $langs->trans($voucher->error).' ('.$voucher->ref.')';
 			return -1;
-		}
-		// lier le paiement créé
-		if (!empty($object->id)) {
-			$this->db->query("UPDATE ".MAIN_DB_PREFIX."giftvoucher SET fk_paiement = ".((int) $object->id)." WHERE rowid = ".((int) $voucher->id));
 		}
 		return 1;
 	}
