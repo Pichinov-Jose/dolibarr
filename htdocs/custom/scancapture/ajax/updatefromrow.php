@@ -62,7 +62,7 @@ if (empty($p->description)) {
 }
 // selling price entered in the popup
 if ($price > 0) {
-	$p->updatePrice($price, 'TTC', $user);
+	$p->updatePrice($price, 'TTC', $user, null, 0, getDolGlobalString('PRODUIT_MULTIPRICES') ? 1 : 0);
 	$done[] = 'prix vente';
 }
 // buy price: first supplier line + cost price
@@ -137,6 +137,7 @@ if ($declm !== '') {
 	$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET ean_info = '".$db->escape(json_encode($einfo, JSON_UNESCAPED_UNICODE))."' WHERE rowid = ".((int) $row->rowid));
 }
 scTagToUpdate($db, $user, (int) $p->id);
+scSyncLevel1($db, $user, (int) $p->id);
 $db->commit();
 $nbimg = 0;
 if (!empty($info['images'])) { $nbimg = scAttachImages($conf, $p->ref, $info['images']); if ($nbimg) { $done[] = $nbimg.' photo(s)'; } }

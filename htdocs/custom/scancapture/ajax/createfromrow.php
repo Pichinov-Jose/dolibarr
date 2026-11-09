@@ -158,6 +158,8 @@ $db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid
 // cumul famille du pseudo-parent, si le produit cree est rattache
 $scpar = scFamilyParentOf($db, (int) $pid);
 if ($scpar > 0) { scFamilyRecap($db, $scpar); }
+// level 1 selling price = product price (Product::create writes it at 0 with multiprices)
+scSyncLevel1($db, $user, (int) $pid);
 $db->commit();
 $nbimg = 0;
 if (!empty($info['images'])) { $nbimg = scAttachImages($conf, $ref, $info['images']); }

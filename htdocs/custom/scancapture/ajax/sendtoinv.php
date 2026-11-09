@@ -54,6 +54,7 @@ if ($autocreate) {
 				}
 			}
 			$db->query("UPDATE ".MAIN_DB_PREFIX."scan_capture SET fk_product = ".((int) $pid).", status = 'created', product_label = '".$db->escape($label)."' WHERE rowid = ".((int) $u->rowid));
+			scSyncLevel1($db, $user, (int) $pid);
 			$db->commit(); $created++;
 		} else {
 			$db->rollback();

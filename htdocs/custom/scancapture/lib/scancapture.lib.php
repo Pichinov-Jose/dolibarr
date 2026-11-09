@@ -257,6 +257,7 @@ function scProductHasEan($db, $pid)
  */
 function scInheritFromParent($db, $user, $pid, $parent_id, $newref)
 {
+	// (the selling price itself is aligned on level 1 by scSyncLevel1() at the end of each creation path)
 	// physical + accounting + misc columns
 	$db->query("UPDATE ".MAIN_DB_PREFIX."product p JOIN ".MAIN_DB_PREFIX."product par ON par.rowid = ".((int) $parent_id)."
 		SET p.weight = par.weight, p.weight_units = par.weight_units,
@@ -287,6 +288,42 @@ function scInheritFromParent($db, $user, $pid, $parent_id, $newref)
 	$db->query("INSERT INTO ".MAIN_DB_PREFIX."product_fournisseur_price (datec, tms, fk_product, fk_soc, ref_fourn, price, quantity, unitprice, tva_tx, entity, fk_user, multicurrency_price, multicurrency_unitprice, multicurrency_tx, multicurrency_code)
 		SELECT NOW(), NOW(), ".((int) $pid).", pfp.fk_soc, '".$db->escape($newref)."', pfp.price, pfp.quantity, pfp.unitprice, pfp.tva_tx, 1, ".((int) $user->id).", pfp.multicurrency_price, pfp.multicurrency_unitprice, pfp.multicurrency_tx, pfp.multicurrency_code
 		FROM ".MAIN_DB_PREFIX."product_fournisseur_price pfp WHERE pfp.fk_product = ".((int) $parent_id)." ORDER BY pfp.quantity ASC, pfp.rowid ASC LIMIT 1");
+}
+
+/**
+ * Align the level 1 selling price on the product price (multiprices).
+ *
+ * @param DoliDB $db DB
+ * @param User $user User
+ * @param int $pid Product id
+ * @return int 1 if updated, 0 if nothing to do, -1 if KO
+ */
+function scSyncLevel1($db, $user, $pid)
+{
+	// With several price levels (PRODUIT_MULTIPRICES), the price that counts is the level 1 row of
+	// llx_product_price, not llx_product.price_ttc. Product::create() writes that row with the empty
+	// multiprices (0), and the prices set afterwards by SQL (parent inheritance) never reach it: the product
+	// then sells at 0 (2 970 products on 09/11/2026). Align level 1 on the product price, idempotent.
+	if (!getDolGlobalString('PRODUIT_MULTIPRICES')) {
+		return 0;
+	}
+	$resql = $db->query("SELECT price, price_ttc, price_base_type, tva_tx FROM ".MAIN_DB_PREFIX."product WHERE rowid = ".((int) $pid));
+	$o = $resql ? $db->fetch_object($resql) : null;
+	if (!$o || (float) $o->price_ttc <= 0) {
+		return 0;
+	}
+	$resql = $db->query("SELECT price_ttc FROM ".MAIN_DB_PREFIX."product_price WHERE fk_product = ".((int) $pid)." AND price_level = 1 ORDER BY rowid DESC LIMIT 1");
+	$l = $resql ? $db->fetch_object($resql) : null;
+	if ($l && abs((float) $l->price_ttc - (float) $o->price_ttc) < 0.005) {
+		return 0;
+	}
+	require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+	$p = new Product($db);
+	if ($p->fetch((int) $pid) <= 0) {
+		return -1;
+	}
+	$base = ($o->price_base_type == 'HT') ? 'HT' : 'TTC';
+	return ($p->updatePrice($base == 'TTC' ? (float) $o->price_ttc : (float) $o->price, $base, $user, (float) $o->tva_tx, 0, 1) > 0) ? 1 : -1;
 }
 
 /**
