@@ -752,3 +752,6 @@ CreditNoteNotCreatedErrorOnDiscount=L'avoir pour <b>%s</b> n'a pas été créé�
 CreditNoteNotCreatedAlreadyConverted=Avoir pour <b>%s</b> non créé : facture déjà convertie
 CreditNotesCreated=%s avoir(s) créé(s)
 ThisMassActionIsOnlyForInvoices=Cette action de masse est uniquement disponible pour factures
+# MODIF PICHINOV JOSE - PR #39665
+PaymentRealAmountsInfo=Facture %s : le règlement est enregistré avec ses deux montants réels, %s en devise d'origine et %s dans la devise de la société (taux %s). La facture est soldée sur le montant en devise d'origine : l'écart dans la devise de la société est un écart de change, pas un trop-payé.
+# FIN MODIF PICHINOV JOSE

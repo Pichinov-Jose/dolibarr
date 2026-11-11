@@ -461,7 +461,16 @@ if (isModEnabled("multicurrency") && $this->multicurrency_code && $this->multicu
 	if (empty($line->fk_remise_except)) {
 		print price($sign * $line->multicurrency_subprice);
 	} else {
-		print '<!-- '.price($sign * $line->multicurrency_subprice).' -->';
+		// MODIF PICHINOV JOSE - PR #40501 : valeur en devise et taux d'une ligne de credit (acompte, avoir, remise). Amont utilise 'CR', erpdev n'a pas encore ce mode : 8 decimales
+		print '<span class="opacitymedium">'.price($sign * $line->multicurrency_subprice).'</span>';
+		if (!empty($line->subprice) && !empty($line->multicurrency_subprice)) {
+			// The tooltip carries what the cells cannot show for a credit line: its unit price in the company currency,
+			// hidden by design, and the rate it was paid at.
+			$creditlinetooltip = $langs->trans("PriceUHT").': '.price($sign * $line->subprice, 0, $langs, 1, -1, -1, $conf->currency);
+			$creditlinetooltip .= '<br>'.$langs->trans("Rate").': '.price2num(abs((float) $line->multicurrency_subprice / (float) $line->subprice), 8).' '.$this->multicurrency_code.'/'.$conf->currency;
+			print ' '.$form->textwithpicto('', $creditlinetooltip, 1, 'help', '', 1);
+		}
+		// FIN MODIF PICHINOV JOSE
 	}
 	?>
 	</td>
@@ -497,6 +506,11 @@ if (isModEnabled("multicurrency") && $this->multicurrency_code && $this->multicu
 	if (empty($line->fk_remise_except)) {
 		print(isset($multicurrency_upinctax) ? price($sign * $multicurrency_upinctax) : price($sign * $line->multicurrency_subprice));		// if upinctax can't be known, we show subprice excl ta
 	}
+	// MODIF PICHINOV JOSE - PR #40501 : P.U. TTC en devise d'une ligne de credit
+	else {
+		print '<span class="opacitymedium">'.(isset($multicurrency_upinctax) ? price($sign * $multicurrency_upinctax) : price($sign * $line->multicurrency_subprice)).'</span>';
+	}
+	// FIN MODIF PICHINOV JOSE
 	?></td>
 <?php } ?>
 	<td class="linecolqty nowraponall right"><?php $coldisplay++; ?>
@@ -515,8 +529,8 @@ print '</td>';
 //Shippable Status
 if ($object->element == 'commande' && isModEnabled('stock') && isModEnabled('shipping') && !getDolGlobalString('ORDER_DISABLE_SHIPPABLE_ICON_ON_CARD') && ($object->status > 0 && $object->status < 3)) {
 	$coldisplay++;
-	print '<td class="linecolstock center">';
-
+	$showstockqty = getDolGlobalString('ORDER_SHIPPABLE_SHOW_STOCK_QTY');
+	print '<td class="linecolstock center'.($showstockqty ? ' nowraponall' : '').'">';
 
 	if ($line->fk_product > 0 && $line->product_type == 0) {
 		static $productstatcache = array();
@@ -524,10 +538,12 @@ if ($object->element == 'commande' && isModEnabled('stock') && isModEnabled('shi
 		if (empty($productstatcache[$line->fk_product])) {
 			$prod = new Product($this->db);
 			$prod->fetch($line->fk_product);
-			$prod->load_stock('nobatch,warehouseopen');
+			$prod->load_stock('nobatch,warehouseopen'); // Virtual stock is loaded too
 			$productstatcache[$line->fk_product]['stockreel'] = $prod->stock_reel;
+			$productstatcache[$line->fk_product]['stockvirtual'] = $prod->stock_theorique;
 		}
 		$stock = $productstatcache[$line->fk_product]['stockreel'];
+		$stockvirtual = $productstatcache[$line->fk_product]['stockvirtual'];
 		$reliquat = $line->qty;
 		if (!empty($object->expeditions[$line->id])) {
 			$reliquat -= $object->expeditions[$line->id];
@@ -537,6 +553,16 @@ if ($object->element == 'commande' && isModEnabled('stock') && isModEnabled('shi
 				print img_picto($langs->trans("Stock").': '.$stock, 'dolly', '', 0, 0, 0, '', 'green');
 			} else {
 				print img_picto($langs->trans("Stock").': '.$stock, 'dolly', '', 0, 0, 0, '', 'error');
+			}
+			if ($showstockqty) {
+				// Show the real and the virtual stock quantities next to the icon (option ORDER_SHIPPABLE_SHOW_STOCK_QTY)
+				$langs->load("stocks");
+				$tooltip = $langs->trans("Stock").': '.$stock.' - '.$langs->trans("VirtualStock").': '.$stockvirtual;
+				print ' <span class="small nowraponall" title="'.dol_escape_htmltag($tooltip).'">';
+				print '<span class="'.($stock >= $reliquat ? 'ok' : 'error').'">'.price2num($stock, 'MS').'</span>';
+				print ' <span class="opacitymedium">/</span> ';
+				print '<span class="'.($stockvirtual >= $reliquat ? 'ok' : 'error').'">'.price2num($stockvirtual, 'MS').'</span>';
+				print '</span>';
 			}
 		} else {
 			print img_picto($langs->trans("Shipped"), 'statut5');

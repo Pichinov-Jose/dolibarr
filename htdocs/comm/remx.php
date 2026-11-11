@@ -2,10 +2,11 @@
 /* Copyright (C) 2001-2004  Rodolphe Quiedeville        <rodolphe@quiedeville.org>
  * Copyright (C) 2004-2019  Laurent Destailleur         <eldy@users.sourceforge.net>
  * Copyright (C) 2008       Raphael Bertrand (Resultic) <raphael.bertrand@resultic.fr>
- * Copyright (C) 2019-2025  Frédéric France             <frederic.france@free.fr>
+ * Copyright (C) 2019-2026  Frédéric France             <frederic.france@free.fr>
  * Copyright (C) 2024-2026	MDW				            <mdeweerd@users.noreply.github.com>
  * Copyright (C) 2025		    Anthony Damhet				      <a.damhet@progiseize.fr>
  * Copyright (C) 2026		Vincent de Grandpré	<vincent@de-grandpre.quebec>
+ * Copyright (C) 2026		Jose Martinez			<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -165,6 +166,7 @@ if ($action == 'confirm_split_more' && $permissiontocreate) {
 				exit;
 			} else {
 				$db->rollback();
+				setEventMessages($discount->error, $discount->errors, 'errors');
 			}
 		} else {
 			$db->rollback();
@@ -177,6 +179,8 @@ if ($action == 'confirm_split' && GETPOST("confirm", "alpha") == 'yes' && $permi
 	$amount_ttc_1 = price2num($amount_ttc_1);
 	$amount_ttc_2 = GETPOST('amount_ttc_2', 'alpha');
 	$amount_ttc_2 = price2num($amount_ttc_2);
+	$mc_amount_ttc_1 = price2num(GETPOST('mc_amount_ttc_1', 'alpha'));
+	$mc_amount_ttc_2 = price2num(GETPOST('mc_amount_ttc_2', 'alpha'));
 
 	$error = 0;
 	$remid = (GETPOSTINT("remid") ? GETPOSTINT("remid") : 0);
@@ -194,6 +198,16 @@ if ($action == 'confirm_split' && GETPOST("confirm", "alpha") == 'yes' && $permi
 		$error++;
 		setEventMessages($langs->trans("TotalOfTwoDiscountMustEqualsOriginal"), null, 'errors');
 	}
+	if (!$error && ((float) $mc_amount_ttc_1 + (float) $mc_amount_ttc_2) != 0
+		&& price2num((float) $mc_amount_ttc_1 + (float) $mc_amount_ttc_2, 'MT') != price2num($discount->multicurrency_amount_ttc, 'MT')) {
+		$error++;
+		setEventMessages($langs->trans("TotalOfTwoDiscountMustEqualsOriginal"), null, 'errors');
+	}
+	if (!$error && ((float) $amount_ttc_1 <= 0 || (float) $amount_ttc_2 <= 0
+		|| (((float) $mc_amount_ttc_1 + (float) $mc_amount_ttc_2) != 0 && ((float) $mc_amount_ttc_1 <= 0 || (float) $mc_amount_ttc_2 <= 0)))) {
+		$error++;
+		setEventMessages($langs->trans("AmountMustBePositive"), null, 'errors');
+	}
 	if (!$error && $discount->fk_facture_line) {
 		$error++;
 		setEventMessages($langs->trans("ErrorCantSplitAUsedDiscount"), null, 'errors');
@@ -203,6 +217,17 @@ if ($action == 'confirm_split' && GETPOST("confirm", "alpha") == 'yes' && $permi
 		$newDiscounts = $discount->splitAmount((float) $amount_ttc_1, (float) $amount_ttc_2);	// Note: splitting this way will result of a total ttc similar to original but total ht and total taxes may differ.
 		$newdiscount1 = $newDiscounts[0];
 		$newdiscount2 = $newDiscounts[1];
+
+		// A discount in a foreign currency can be split directly in that currency: keep the amounts entered
+		// instead of the ones generateFromAmount() derives from the rate.
+		if (((float) $mc_amount_ttc_1 + (float) $mc_amount_ttc_2) != 0) {
+			$newdiscount1->multicurrency_amount_ttc = (float) $mc_amount_ttc_1;
+			$newdiscount1->multicurrency_amount_ht = price2num((float) $mc_amount_ttc_1 / (1 + (float) $newdiscount1->tva_tx / 100), 'MT');
+			$newdiscount1->multicurrency_amount_tva = price2num((float) $mc_amount_ttc_1 - (float) $newdiscount1->multicurrency_amount_ht);
+			$newdiscount2->multicurrency_amount_ttc = (float) $mc_amount_ttc_2;
+			$newdiscount2->multicurrency_amount_ht = price2num((float) $mc_amount_ttc_2 / (1 + (float) $newdiscount2->tva_tx / 100), 'MT');
+			$newdiscount2->multicurrency_amount_tva = price2num((float) $mc_amount_ttc_2 - (float) $newdiscount2->multicurrency_amount_ht);
+		}
 
 		$db->begin();
 
@@ -219,6 +244,13 @@ if ($action == 'confirm_split' && GETPOST("confirm", "alpha") == 'yes' && $permi
 			exit;
 		} else {
 			$db->rollback();
+			if ($res <= 0) {
+				setEventMessages($discount->error, $discount->errors, 'errors');
+			} elseif ($newid1 <= 0) {
+				setEventMessages($newdiscount1->error, $newdiscount1->errors, 'errors');
+			} else {
+				setEventMessages($newdiscount2->error, $newdiscount2->errors, 'errors');
+			}
 		}
 	}
 }
@@ -295,7 +327,7 @@ $tmpuser = new User($db);
 llxHeader('', $langs->trans("GlobalDiscount"));
 
 if ($socid > 0) {
-	// On recupere les donnees societes par l'objet
+	// Retrieve third-party data via the object
 	$object = new Societe($db);
 	$object->fetch($socid);
 
@@ -785,7 +817,63 @@ if ($socid > 0) {
 						1 => array('type' => 'text', 'name' => 'amount_ttc_2', 'label' => $langs->trans("AmountTTC").' 2', 'value' => $amount2, 'size' => '5')
 					);
 					$langs->load("dict");
-					print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('SplitDiscount'), $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities("Currency".$conf->currency)), 'confirm_split', $formquestion, '', 0);
+					// A discount in a foreign currency is split in both currencies, so the two amounts are shown side by side
+					// and kept consistent while typing. Any other discount keeps the standard confirmation box.
+					$discountforsplit = new DiscountAbsolute($db);
+					$discountforsplit->fetch($showconfirminfo['rowid']);
+					$ismcsplit = (isModEnabled('multicurrency') && !empty($discountforsplit->multicurrency_code)
+						&& $discountforsplit->multicurrency_code != $conf->currency && (float) $discountforsplit->multicurrency_amount_ttc != 0);
+					if (!$ismcsplit) {
+						print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('SplitDiscount'), $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities("Currency".$conf->currency)), 'confirm_split', $formquestion, '', 0);
+					} else {
+						$mcsplitcode = $discountforsplit->multicurrency_code;
+						$splitamount1 = price2num((float) $showconfirminfo['amount_ttc'] / 2, 'MT');
+						$splitamount2 = price2num((float) $showconfirminfo['amount_ttc'] - (float) $splitamount1, 'MT');
+						$splitmc1 = price2num((float) $discountforsplit->multicurrency_amount_ttc / 2, 'MT');
+						$splitmc2 = price2num((float) $discountforsplit->multicurrency_amount_ttc - (float) $splitmc1, 'MT');
+						$splitaction = $_SERVER['PHP_SELF'].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : '');
+					
+						print '<form method="POST" action="'.$splitaction.'">';
+						print '<input type="hidden" name="token" value="'.newToken().'">';
+						print '<input type="hidden" name="action" value="confirm_split">';
+						print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
+						print '<tr class="liste_titre">';
+						print '<td>'.img_picto('', 'split', 'class="pictofixedwidth"').$langs->trans('SplitDiscount').'</td>';
+						print '<td class="right">'.$langs->trans('AmountTTC').' ('.dol_escape_htmltag($mcsplitcode).')</td>';
+						print '<td class="right">'.$langs->trans('AmountTTC').' ('.$langs->transnoentities('Currency'.$conf->currency).')</td>';
+						print '</tr>';
+						print '<tr class="oddeven"><td class="nowraponall">'.$langs->trans('Part').' 1</td>';
+						print '<td class="right"><input type="text" class="flat right maxwidth100" name="mc_amount_ttc_1" value="'.$splitmc1.'"></td>';
+						print '<td class="right"><input type="text" class="flat right maxwidth100" name="amount_ttc_1" value="'.$splitamount1.'"></td></tr>';
+						print '<tr class="oddeven"><td class="nowraponall">'.$langs->trans('Part').' 2</td>';
+						print '<td class="right"><input type="text" class="flat right maxwidth100" name="mc_amount_ttc_2" value="'.$splitmc2.'"></td>';
+						print '<td class="right"><input type="text" class="flat right maxwidth100" name="amount_ttc_2" value="'.$splitamount2.'"></td></tr>';
+						print '</table></div>';
+						print '<div class="center paddingtop">';
+						print $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities('Currency'.$conf->currency)).' ';
+						print $form->selectyesno('confirm', 'no', 0);
+						print ' &nbsp; <input type="submit" class="button" value="'.dol_escape_htmltag($langs->trans('Validate')).'">';
+						print '</div>';
+						print '</form>';
+					
+						// Typing one amount fills its counterpart in the other currency, and the button stays disabled
+						// until each pair adds up to the discount being split.
+						print '<script nonce="'.getNonce().'">'."\n";
+						print '(function() {'."\n";
+						print 'var totcur = '.((float) $discountforsplit->multicurrency_amount_ttc).', totcomp = '.((float) $showconfirminfo['amount_ttc']).';'."\n";
+						print 'var f = document.forms[document.forms.length - 1];'."\n";
+						print 'var cur1 = f.mc_amount_ttc_1, cur2 = f.mc_amount_ttc_2, comp1 = f.amount_ttc_1, comp2 = f.amount_ttc_2;'."\n";
+											print 'function num(v) { return parseFloat(String(v).replace(/\\s/g, "").replace(",", ".")) || 0; }'."\n";
+						print 'function r2(v) { return Math.round(v * 100) / 100; }'."\n";
+											print 'function fromCurrency(src) { var v = num(src.value); (src === cur1 ? cur2 : cur1).value = r2(totcur - v); var w = totcur ? r2(v / totcur * totcomp) : 0; (src === cur1 ? comp1 : comp2).value = w; (src === cur1 ? comp2 : comp1).value = r2(totcomp - w); }'."\n";
+						print 'function fromCompany(src) { var v = num(src.value); (src === comp1 ? comp2 : comp1).value = r2(totcomp - v); var w = totcomp ? r2(v / totcomp * totcur) : 0; (src === comp1 ? cur1 : cur2).value = w; (src === comp1 ? cur2 : cur1).value = r2(totcur - w); }'."\n";
+						print 'cur1.addEventListener("input", function() { fromCurrency(cur1); });'."\n";
+						print 'cur2.addEventListener("input", function() { fromCurrency(cur2); });'."\n";
+						print 'comp1.addEventListener("input", function() { fromCompany(comp1); });'."\n";
+						print 'comp2.addEventListener("input", function() { fromCompany(comp2); });'."\n";
+											print '})();'."\n";
+						print '</script>'."\n";
+					}
 				}
 			}
 		} else {
@@ -1079,7 +1167,63 @@ if ($socid > 0) {
 						1 => array('type' => 'text', 'name' => 'amount_ttc_2', 'label' => $langs->trans("AmountTTC").' 2', 'value' => $amount2, 'size' => '5')
 					);
 					$langs->load("dict");
-					print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('SplitDiscount'), $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities("Currency".$conf->currency)), 'confirm_split', $formquestion, 0, 0);
+					// A discount in a foreign currency is split in both currencies, so the two amounts are shown side by side
+					// and kept consistent while typing. Any other discount keeps the standard confirmation box.
+					$discountforsplit = new DiscountAbsolute($db);
+					$discountforsplit->fetch($showconfirminfo['rowid']);
+					$ismcsplit = (isModEnabled('multicurrency') && !empty($discountforsplit->multicurrency_code)
+						&& $discountforsplit->multicurrency_code != $conf->currency && (float) $discountforsplit->multicurrency_amount_ttc != 0);
+					if (!$ismcsplit) {
+						print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : ''), $langs->trans('SplitDiscount'), $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities("Currency".$conf->currency)), 'confirm_split', $formquestion, 0, 0);
+					} else {
+						$mcsplitcode = $discountforsplit->multicurrency_code;
+						$splitamount1 = price2num((float) $showconfirminfo['amount_ttc'] / 2, 'MT');
+						$splitamount2 = price2num((float) $showconfirminfo['amount_ttc'] - (float) $splitamount1, 'MT');
+						$splitmc1 = price2num((float) $discountforsplit->multicurrency_amount_ttc / 2, 'MT');
+						$splitmc2 = price2num((float) $discountforsplit->multicurrency_amount_ttc - (float) $splitmc1, 'MT');
+						$splitaction = $_SERVER['PHP_SELF'].'?id='.$object->id.'&remid='.$showconfirminfo['rowid'].($backtopage ? '&backtopage='.urlencode($backtopage) : '');
+					
+						print '<form method="POST" action="'.$splitaction.'">';
+						print '<input type="hidden" name="token" value="'.newToken().'">';
+						print '<input type="hidden" name="action" value="confirm_split">';
+						print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
+						print '<tr class="liste_titre">';
+						print '<td>'.img_picto('', 'split', 'class="pictofixedwidth"').$langs->trans('SplitDiscount').'</td>';
+						print '<td class="right">'.$langs->trans('AmountTTC').' ('.dol_escape_htmltag($mcsplitcode).')</td>';
+						print '<td class="right">'.$langs->trans('AmountTTC').' ('.$langs->transnoentities('Currency'.$conf->currency).')</td>';
+						print '</tr>';
+						print '<tr class="oddeven"><td class="nowraponall">'.$langs->trans('Part').' 1</td>';
+						print '<td class="right"><input type="text" class="flat right maxwidth100" name="mc_amount_ttc_1" value="'.$splitmc1.'"></td>';
+						print '<td class="right"><input type="text" class="flat right maxwidth100" name="amount_ttc_1" value="'.$splitamount1.'"></td></tr>';
+						print '<tr class="oddeven"><td class="nowraponall">'.$langs->trans('Part').' 2</td>';
+						print '<td class="right"><input type="text" class="flat right maxwidth100" name="mc_amount_ttc_2" value="'.$splitmc2.'"></td>';
+						print '<td class="right"><input type="text" class="flat right maxwidth100" name="amount_ttc_2" value="'.$splitamount2.'"></td></tr>';
+						print '</table></div>';
+						print '<div class="center paddingtop">';
+						print $langs->trans('ConfirmSplitDiscount', price($showconfirminfo['amount_ttc']), $langs->transnoentities('Currency'.$conf->currency)).' ';
+						print $form->selectyesno('confirm', 'no', 0);
+						print ' &nbsp; <input type="submit" class="button" value="'.dol_escape_htmltag($langs->trans('Validate')).'">';
+						print '</div>';
+						print '</form>';
+					
+						// Typing one amount fills its counterpart in the other currency, and the button stays disabled
+						// until each pair adds up to the discount being split.
+						print '<script nonce="'.getNonce().'">'."\n";
+						print '(function() {'."\n";
+						print 'var totcur = '.((float) $discountforsplit->multicurrency_amount_ttc).', totcomp = '.((float) $showconfirminfo['amount_ttc']).';'."\n";
+						print 'var f = document.forms[document.forms.length - 1];'."\n";
+						print 'var cur1 = f.mc_amount_ttc_1, cur2 = f.mc_amount_ttc_2, comp1 = f.amount_ttc_1, comp2 = f.amount_ttc_2;'."\n";
+											print 'function num(v) { return parseFloat(String(v).replace(/\\s/g, "").replace(",", ".")) || 0; }'."\n";
+						print 'function r2(v) { return Math.round(v * 100) / 100; }'."\n";
+											print 'function fromCurrency(src) { var v = num(src.value); (src === cur1 ? cur2 : cur1).value = r2(totcur - v); var w = totcur ? r2(v / totcur * totcomp) : 0; (src === cur1 ? comp1 : comp2).value = w; (src === cur1 ? comp2 : comp1).value = r2(totcomp - w); }'."\n";
+						print 'function fromCompany(src) { var v = num(src.value); (src === comp1 ? comp2 : comp1).value = r2(totcomp - v); var w = totcomp ? r2(v / totcomp * totcur) : 0; (src === comp1 ? cur1 : cur2).value = w; (src === comp1 ? cur2 : cur1).value = r2(totcur - w); }'."\n";
+						print 'cur1.addEventListener("input", function() { fromCurrency(cur1); });'."\n";
+						print 'cur2.addEventListener("input", function() { fromCurrency(cur2); });'."\n";
+						print 'comp1.addEventListener("input", function() { fromCompany(comp1); });'."\n";
+						print 'comp2.addEventListener("input", function() { fromCompany(comp2); });'."\n";
+											print '})();'."\n";
+						print '</script>'."\n";
+					}
 				}
 			}
 		} else {

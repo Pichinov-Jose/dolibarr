@@ -14,6 +14,7 @@
  * Copyright (C) 2023		William Mead			<william.mead@manchenumerique.fr>
  * Copyright (C) 2024-2025	MDW						<mdeweerd@users.noreply.github.com>
  * Copyright (C) 2025       Josep Lluís Amador      <joseplluis@lliuretic.cat>
+ * Copyright (C) 2026		José MARTINEZ		<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,6 +74,9 @@ if (GETPOSTISSET('display-all-invoices')) {
 $amounts = array();
 $amountsresttopay = array();
 $addwarning = 0;
+// MODIF PICHINOV JOSE - PR #39665 : controle du trop-paye sur la devise d'origine quand les deux montants reels sont saisis + phrase d'information
+$realamountsinfo = array();
+// FIN MODIF PICHINOV JOSE
 
 $multicurrency_amounts = array();
 $multicurrency_amountsresttopay = array();
@@ -141,8 +145,15 @@ if (empty($reshook)) {
 				restrictedArea($user, 'facture', $tmpinvoice->id, '', '', 'fk_soc', 'rowid', (($tmpinvoice->status == Facture::STATUS_DRAFT) ? 1 : 0));
 				$amountsresttopay[$cursorfacid] = price2num($tmpinvoice->total_ttc - $tmpinvoice->getSommePaiement(0));
 				if ($amounts[$cursorfacid]) {
+					// MODIF PICHINOV JOSE - PR #39665 : controle du trop-paye sur la devise d'origine quand les deux montants reels sont saisis + phrase d'information (amont : arrondi 'CR', absent d'erpdev -> 8 decimales)
+					$multicurrencyamountentered = (float) price2num(GETPOST('multicurrency_amount_'.$cursorfacid, 'alpha'));
+					$userealamounts = (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency') && !empty($tmpinvoice->multicurrency_code) && $tmpinvoice->multicurrency_code != $conf->currency && $multicurrencyamountentered != 0);
+					if ($userealamounts) {
+						$realamountsinfo[] = $langs->trans("PaymentRealAmountsInfo", (string) $tmpinvoice->ref, price($multicurrencyamountentered, 0, $langs, 1, -1, -1, $tmpinvoice->multicurrency_code), price($amounts[$cursorfacid], 0, $langs, 1, -1, -1, $conf->currency), price2num(abs($multicurrencyamountentered / (float) $amounts[$cursorfacid]), 8));
+					}
 					// Check amount
-					if ($amounts[$cursorfacid] && (abs((float) $amounts[$cursorfacid]) > abs((float) $amountsresttopay[$cursorfacid]))) {
+					if (!$userealamounts && $amounts[$cursorfacid] && (abs((float) $amounts[$cursorfacid]) > abs((float) $amountsresttopay[$cursorfacid]))) {
+					// FIN MODIF PICHINOV JOSE
 						$addwarning = 1;
 						$formquestion['text'] = img_warning($langs->trans("PaymentHigherThanReminderToPay")).' '.$langs->trans("HelpPaymentHigherThanReminderToPay");
 					}
@@ -212,8 +223,8 @@ if (empty($reshook)) {
 			$error++;
 		}
 
-		// Check if payments in both currency
-		if ($totalpayment > 0 && $multicurrency_totalpayment > 0) {
+		// Check if payments in both currency (allowed when entering the real amounts in both currencies, option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+		if ($totalpayment > 0 && $multicurrency_totalpayment > 0 && !getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS')) {
 			$langs->load("errors");
 			setEventMessages($langs->transnoentities('ErrorPaymentInBothCurrency'), null, 'errors');
 			$error++;
@@ -507,6 +518,27 @@ if ($result > 0) {
 							$("input[name="+$(this).data(\'rowname\')+"]").val($(this).data("value")).trigger("change");
 						});';
 		print '	});'."\n";
+
+		// Live display of the derived exchange rate when the real amounts may be entered in both currencies (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+		if (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS')) {
+			print ' $(document).ready(function () {
+				var derivedratelabel = "'.dol_escape_js($langs->trans('Rate')).'";
+				function updateDerivedRates() {
+					jQuery("span[id^=\'derivedrate_\']").each(function () {
+						var facid = this.id.substring(12);
+						var comp = parseFloat((jQuery("input[name=\'amount_" + facid + "\']").val() || "").replace(",", "."));
+						var forc = parseFloat((jQuery("input[name=\'multicurrency_amount_" + facid + "\']").val() || "").replace(",", "."));
+						if (!isNaN(comp) && comp != 0 && !isNaN(forc) && forc != 0) {
+							jQuery(this).html("<br>" + derivedratelabel + " : " + (Math.abs(forc) / Math.abs(comp)).toFixed(8).replace(/0+$/, "").replace(/\.$/, ""));
+						} else {
+							jQuery(this).html("");
+						}
+					});
+				}
+				jQuery("#payment_form").find("input.amount, input.multicurrency_amount").on("keyup change", updateDerivedRates);
+				updateDerivedRates();
+			});'."\n";
+		}
 
 		print '	</script>'."\n";
 	}
@@ -938,6 +970,10 @@ if ($result > 0) {
 					print '<input type="text" class="maxwidth75" name="'.$namef.'_disabled" value="'.dol_escape_htmltag(GETPOST($namef)).'" disabled>';
 					print '<input type="hidden" name="'.$namef.'" value="'.dol_escape_htmltag(GETPOST($namef)).'">';
 				}
+				// Read-only derived exchange rate, shown when the real amounts may be entered in both currencies (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+				if (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency') && !empty($objp->multicurrency_code) && $objp->multicurrency_code != $conf->currency) {
+					print '<span class="opacitymedium small" id="derivedrate_'.$objp->facid.'"></span>';
+				}
 				print "</td>";
 
 				$parameters = array();
@@ -1065,6 +1101,11 @@ if ($result > 0) {
 			$text .= '<br>'.$langs->trans("AllCompletelyPayedInvoiceWillBeClosed");
 			print '<input type="hidden" name="closepaidinvoices" value="'.GETPOST('closepaidinvoices').'">';
 		}
+		// MODIF PICHINOV JOSE - PR #39665 : controle du trop-paye sur la devise d'origine quand les deux montants reels sont saisis + phrase d'information
+		if (!empty($realamountsinfo)) {
+			$formquestion['text'] = (empty($formquestion['text']) ? '' : $formquestion['text'].'<br>').img_picto('', 'info', 'class="pictofixedwidth"').implode('<br>', $realamountsinfo);
+		}
+		// FIN MODIF PICHINOV JOSE
 		$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?facid='.$facture->id.'&socid='.$facture->socid.'&type='.$facture->type, $langs->trans('ReceivedCustomersPayments'), $text, 'confirm_paiement', $formquestion, $preselectedchoice);
 	}
 
