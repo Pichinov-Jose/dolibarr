@@ -58,6 +58,7 @@ $mode       = GETPOST('mode', 'aZ'); // The output mode ('list', 'kanban', 'hier
 $sref = GETPOST('sref', 'alphanohtml');
 $sRefSupplier = GETPOST('srefsupplier');
 $snom = GETPOST('snom', 'alphanohtml');
+$search_tva_tx = GETPOST('search_tva_tx', 'alphanohtml');
 $type = GETPOST('type', 'alphanohtml');
 
 // Load variable for pagination
@@ -108,6 +109,7 @@ $arrayfields = array(
 	'ppf.price' => array('label' => 'BuyingPrice', 'checked' => '1', 'position' => 50),
 	'ppf.quantity' => array('label' => 'QtyMin', 'checked' => '1', 'position' => 60),
 	'ppf.unitprice' => array('label' => 'UnitPrice', 'checked' => '1', 'position' => 70),
+	'ppf.tva_tx' => array('label' => 'VATRate', 'checked' => '0', 'position' => 80),
 );
 // Extra fields
 include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_array_fields.tpl.php';
@@ -143,6 +145,7 @@ if (empty($reshook)) {
 		$sref = '';
 		$sRefSupplier = '';
 		$snom = '';
+		$search_tva_tx = '';
 		$search_field1 = '';
 		$search_field2 = '';
 		$search_date_creation = '';
@@ -172,7 +175,7 @@ if ($fourn_id) {
 // Build and execute select
 // --------------------------------------------------------------------
 $sql = "SELECT p.rowid, p.label, p.ref, p.fk_product_type, p.entity, p.tosell, p.tobuy, p.barcode, p.fk_barcode_type,";
-$sql .= " ppf.fk_soc, ppf.ref_fourn, ppf.price as price, ppf.quantity as qty, ppf.unitprice,";
+$sql .= " ppf.fk_soc, ppf.ref_fourn, ppf.price as price, ppf.quantity as qty, ppf.unitprice, ppf.tva_tx,";
 $sql .= " s.rowid as socid, s.nom as name";
 // Add fields to SELECT from hooks
 $parameters = array();
@@ -208,6 +211,9 @@ if ($catid) {
 }
 if ($fourn_id > 0) {
 	$sql .= " AND ppf.fk_soc = ".((int) $fourn_id);
+}
+if ($search_tva_tx !== '') {
+	$sql .= natural_search('ppf.tva_tx', $search_tva_tx, 1);
 }
 
 // Add WHERE filters from hooks
@@ -289,7 +295,7 @@ if ($limit > 0 && $limit != $conf->liste_limit) {
 if ($optioncss != '') {
 	$param .= '&optioncss='.urlencode($optioncss);
 }
-$param = "&sref=".$sref."&snom=".$snom."&fourn_id=".$fourn_id.(isset($type) ? "&amp;type=".$type : "").(empty($sRefSupplier) ? "" : "&amp;srefsupplier=".$sRefSupplier);
+$param = "&sref=".$sref."&snom=".$snom."&fourn_id=".$fourn_id.(isset($type) ? "&amp;type=".$type : "").(empty($sRefSupplier) ? "" : "&amp;srefsupplier=".$sRefSupplier).($search_tva_tx !== '' ? "&amp;search_tva_tx=".urlencode($search_tva_tx) : "");
 
 $newcardbutton = '';
 $newcardbutton .= dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', DOL_URL_ROOT.'/product/list.php?action=create&backtopage='.urlencode($_SERVER['PHP_SELF']), '', (int) $permissiontoadd);
@@ -376,6 +382,11 @@ foreach (array('ppf.fk_soc', 'ppf.price', 'ppf.quantity', 'ppf.unitprice') as $k
 		print '<td></td>';
 	}
 }
+if (!empty($arrayfields['ppf.tva_tx']['checked'])) {
+	print '<td class="liste_titre right">';
+	print '<input class="flat maxwidth50 right" type="text" name="search_tva_tx" value="'.dol_escape_htmltag($search_tva_tx).'">';
+	print '</td>';
+}
 // add filters from hooks
 $parameters = array();
 $reshook = $hookmanager->executeHooks('printFieldPreListTitle', $parameters, $productstatic, $action);
@@ -412,6 +423,7 @@ $listoftitles = array(
 	'ppf.price' => array('BuyingPrice', 'right '),
 	'ppf.quantity' => array('QtyMin', 'right '),
 	'ppf.unitprice' => array('UnitPrice', 'right '),
+	'ppf.tva_tx' => array('VATRate', 'right '),
 );
 foreach ($listoftitles as $key => $titledef) {
 	if (!empty($arrayfields[$key]['checked'])) {
@@ -525,6 +537,13 @@ while ($i < $imaxinloop) {
 
 	if (!empty($arrayfields['ppf.unitprice']['checked'])) {
 		print '<td class="right">'.(isset($objp->unitprice) ? price($objp->unitprice) : '').'</td>';
+		if (!$i) {
+			$totalarray['nbfield']++;
+		}
+	}
+
+	if (!empty($arrayfields['ppf.tva_tx']['checked'])) {
+		print '<td class="right">'.(isset($objp->tva_tx) ? vatrate($objp->tva_tx, true) : '').'</td>';
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}
