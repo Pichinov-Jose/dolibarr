@@ -60,6 +60,7 @@ $sref = GETPOST('sref', 'alphanohtml');
 $sRefSupplier = GETPOST('srefsupplier');
 $snom = GETPOST('snom', 'alphanohtml');
 $search_barcode = GETPOST('search_barcode', 'alphanohtml');
+$search_supplier_barcode = GETPOST('search_supplier_barcode', 'alphanohtml');
 $search_tva_tx = GETPOST('search_tva_tx', 'array:alphanohtml');
 // Keep only numeric rates
 $search_tva_tx = array_values(array_unique(array_filter(array_map('strval', array_filter($search_tva_tx, 'is_numeric')), 'strlen')));
@@ -109,6 +110,7 @@ $arrayfields = array(
 	'p.ref' => array('label' => 'Ref', 'checked' => '1', 'position' => 10),
 	'ppf.ref_fourn' => array('label' => 'RefSupplierShort', 'checked' => '1', 'position' => 20),
 	'p.barcode' => array('label' => 'BarCode', 'checked' => '0', 'position' => 25),
+	'ppf.barcode' => array('label' => $langs->trans('BarCode').' ('.$langs->trans('Supplier').')', 'checked' => '0', 'position' => 26),
 	'p.label' => array('label' => 'Label', 'checked' => '1', 'position' => 30),
 	'ppf.fk_soc' => array('label' => 'Supplier', 'checked' => '1', 'position' => 40),
 	'ppf.price' => array('label' => 'BuyingPrice', 'checked' => '1', 'position' => 50),
@@ -152,6 +154,7 @@ if (empty($reshook)) {
 		$snom = '';
 		$search_tva_tx = array();
 		$search_barcode = '';
+		$search_supplier_barcode = '';
 		$search_field1 = '';
 		$search_field2 = '';
 		$search_date_creation = '';
@@ -181,7 +184,7 @@ if ($fourn_id) {
 // Build and execute select
 // --------------------------------------------------------------------
 $sql = "SELECT p.rowid, p.label, p.ref, p.fk_product_type, p.entity, p.tosell, p.tobuy, p.barcode, p.fk_barcode_type,";
-$sql .= " ppf.fk_soc, ppf.ref_fourn, ppf.price as price, ppf.quantity as qty, ppf.unitprice, ppf.tva_tx,";
+$sql .= " ppf.fk_soc, ppf.ref_fourn, ppf.price as price, ppf.quantity as qty, ppf.unitprice, ppf.tva_tx, ppf.barcode as supplier_barcode,";
 $sql .= " s.rowid as socid, s.nom as name";
 // Add fields to SELECT from hooks
 $parameters = array();
@@ -227,6 +230,9 @@ if (!empty($search_tva_tx)) {
 }
 if ($search_barcode != '') {
 	$sql .= natural_search('p.barcode', $search_barcode);
+}
+if ($search_supplier_barcode != '') {
+	$sql .= natural_search('ppf.barcode', $search_supplier_barcode);
 }
 
 // Add WHERE filters from hooks
@@ -322,6 +328,9 @@ foreach ($search_tva_tx as $searchvatrate) {
 }
 if ($search_barcode != '') {
 	$param .= '&search_barcode='.urlencode($search_barcode);
+}
+if ($search_supplier_barcode != '') {
+	$param .= '&search_supplier_barcode='.urlencode($search_supplier_barcode);
 }
 if ($fourn_id > 0) {
 	$param .= '&fourn_id='.((int) $fourn_id);
@@ -431,6 +440,11 @@ if (!empty($arrayfields['p.barcode']['checked'])) {
 	print '<input class="flat maxwidth100" type="text" name="search_barcode" value="'.dol_escape_htmltag($search_barcode).'">';
 	print '</td>';
 }
+if (!empty($arrayfields['ppf.barcode']['checked'])) {
+	print '<td class="liste_titre">';
+	print '<input class="flat maxwidth100" type="text" name="search_supplier_barcode" value="'.dol_escape_htmltag($search_supplier_barcode).'">';
+	print '</td>';
+}
 if (!empty($arrayfields['p.label']['checked'])) {
 	print '<td class="liste_titre">';
 	print '<input class="flat maxwidth100" type="text" name="snom" value="'.$snom.'">';
@@ -489,6 +503,7 @@ $listoftitles = array(
 	'p.ref' => array('Ref', ''),
 	'ppf.ref_fourn' => array('RefSupplierShort', ''),
 	'p.barcode' => array('BarCode', ''),
+	'ppf.barcode' => array($arrayfields['ppf.barcode']['label'], ''),
 	'p.label' => array('Label', ''),
 	'ppf.fk_soc' => array('Supplier', ''),
 	'ppf.price' => array('BuyingPrice', 'right '),
@@ -574,6 +589,13 @@ while ($i < $imaxinloop) {
 
 	if (!empty($arrayfields['p.barcode']['checked'])) {
 		print '<td>'.dol_escape_htmltag($objp->barcode).'</td>';
+		if (!$i) {
+			$totalarray['nbfield']++;
+		}
+	}
+
+	if (!empty($arrayfields['ppf.barcode']['checked'])) {
+		print '<td>'.dol_escape_htmltag($objp->supplier_barcode).'</td>';
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}
