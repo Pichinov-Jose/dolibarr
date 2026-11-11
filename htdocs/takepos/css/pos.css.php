@@ -5,6 +5,7 @@
  * Copyright (C) 2011		Philippe Grand			<philippe.grand@atoo-net.com>
  * Copyright (C) 2012		Juanjo Menent			<jmenent@2byte.es>
  * Copyright (C) 2018       Ferran Marcet           <fmarcet@2byte.es>
+ * Copyright (C) 2026       Jose Martinez           <jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -639,6 +640,26 @@ div#moreinfo, div#infowarehouse {
 }
 .basketnotselected {
 	opacity: 0.8;
+}
+
+.productpublicprice {
+	font-size: 0.6em;
+	opacity: 0.75;
+	white-space: nowrap;
+}
+
+.productstock {
+	position: absolute;
+	top: 5px;
+	left: 5px;
+	background: var(--colorbackhmenu1);
+	color: var(--colortextbackhmenu);
+	font-size: 1.1em;
+	padding: 4px;
+	border-radius: 2px;
+	opacity: 0.9;
+	white-space: nowrap;
+	z-index: 5;
 }
 
 .productprice {

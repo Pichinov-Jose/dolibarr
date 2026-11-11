@@ -3,6 +3,7 @@
  * Copyright (C) 2020		Thibault FOUCART	<support@ptibogxiv.net>
  * Copyright (C) 2024       Frédéric France         <frederic.france@free.fr>
  * Copyright (C) 2025		MDW						<mdeweerd@users.noreply.github.com>
+ * Copyright (C) 2026		Jose Martinez					<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -287,6 +288,18 @@ if ($action == 'getProducts' && $user->hasRight('takepos', 'run')) {
 			$sql .= ', SUM(ps.reel) as reel';
 		}
 	}
+	if (getDolGlobalInt('TAKEPOS_SHOW_PRODUCT_STOCK') == 1) {
+		// Read the stock independently of TAKEPOS_PRODUCT_IN_STOCK, which is about hiding products, not showing a value.
+		$warehouseidforstock = getDolGlobalInt('CASHDESK_ID_WAREHOUSE'.$_SESSION['takeposterminal']);
+		if ($warehouseidforstock > 0) {
+			$sql .= ', (SELECT SUM(psl.reel) FROM '.MAIN_DB_PREFIX.'product_stock as psl';
+			$sql .= ' WHERE psl.fk_product = p.rowid AND psl.fk_entrepot = '.((int) $warehouseidforstock).') as stock_local';
+		} else {
+			$sql .= ', NULL as stock_local';
+		}
+		$sql .= ', (SELECT SUM(pst.reel) FROM '.MAIN_DB_PREFIX.'product_stock as pst';
+		$sql .= ' WHERE pst.fk_product = p.rowid) as stock_total';
+	}
 	/* this will be possible when field archive will be supported into llx_product_price
 	if (getDolGlobalString('PRODUIT_MULTIPRICES')) {
 		$sql .= ', pp.price_level, pp.price as multiprice_ht, pp.price_ttc as multiprice_ttc';
@@ -388,6 +401,26 @@ if ($action == 'getProducts' && $user->hasRight('takepos', 'run')) {
 				'price_formated' => price(price2num(empty($objProd->multiprices[$pricelevel]) ? $obj->price : $objProd->multiprices[$pricelevel], 'MT'), 1, $langs, 1, -1, -1, $conf->currency),
 				'price_ttc_formated' => price(price2num(empty($objProd->multiprices_ttc[$pricelevel]) ? $obj->price_ttc : $objProd->multiprices_ttc[$pricelevel], 'MT'), 1, $langs, 1, -1, -1, $conf->currency)
 			);
+			if (getDolGlobalInt('TAKEPOS_SHOW_PUBLIC_PRICE') == 1) {
+				// The public price is the price of level 1. It only tells something when the
+				// customer is on another price level, and the caller drops it when both match.
+				$row['public_price_formated'] = price(price2num(empty($objProd->multiprices[1]) ? $obj->price : $objProd->multiprices[1], 'MT'), 1, $langs, 1, -1, -1, $conf->currency);
+				$row['public_price_ttc_formated'] = price(price2num(empty($objProd->multiprices_ttc[1]) ? $obj->price_ttc : $objProd->multiprices_ttc[1], 'MT'), 1, $langs, 1, -1, -1, $conf->currency);
+				// MODIF PICHINOV : pourcentage d'ecart entre le prix de vente (niveau courant) et le prix public (niveau 1)
+				$avspub = price2num(empty($objProd->multiprices_ttc[1]) ? $obj->price_ttc : $objProd->multiprices_ttc[1], 'MT');
+				$avssale = price2num(empty($objProd->multiprices_ttc[$pricelevel]) ? $obj->price_ttc : $objProd->multiprices_ttc[$pricelevel], 'MT');
+				if ($avspub > 0 && abs((float) $avspub - (float) $avssale) > 0.0001) {
+					$avspct = round((((float) $avspub - (float) $avssale) / (float) $avspub) * 100);
+					$row['public_price_ttc_formated'] .= ' ('.($avspct >= 0 ? '-' : '+').abs($avspct).'%)';
+					$row['public_price_formated'] .= ' ('.($avspct >= 0 ? '-' : '+').abs($avspct).'%)';
+				}
+			}
+			if (getDolGlobalInt('TAKEPOS_SHOW_PRODUCT_STOCK') == 1) {
+				// stock_local stays null when the terminal has no warehouse: there is no local stock to speak of,
+				// and the caller then shows the total alone rather than the same figure twice.
+				$row['stock_local'] = isset($obj->stock_local) ? (float) $obj->stock_local : null;
+				$row['stock_total'] = isset($obj->stock_total) ? (float) $obj->stock_total : 0;
+			}
 			// Add entries to row from hooks
 			$parameters = array();
 			$parameters['row'] = $row;

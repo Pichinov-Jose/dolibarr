@@ -3,6 +3,7 @@
  * Copyright (C) 2011-2017 Juanjo Menent		<jmenent@2byte.es>
  * Copyright (C) 2019-2020 Andreu Bisquerra Gaya		<jove@bisquerra.com>
  * Copyright (C) 2024       Frédéric France         <frederic.france@free.fr>
+ * Copyright (C) 2026       Jose Martinez           <jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -140,6 +141,20 @@ print '</td><td>';
 $array = array("0"=>$langs->trans("Label"), 1=>$langs->trans("Ref").'+'.$langs->trans("Label"), 2=>$langs->trans("Ref"));
 print $form->selectarray('TAKEPOS_SHOW_PRODUCT_REFERENCE', $array, getDolGlobalInt('TAKEPOS_SHOW_PRODUCT_REFERENCE', 2), 0);
 //print ajax_constantonoff("TAKEPOS_SHOW_PRODUCT_REFERENCE", array(), $conf->entity, 0, 0, 1, 0);
+print "</td></tr>\n";
+
+// View stock of products
+print '<tr class="oddeven"><td>';
+print $form->textwithpicto($langs->trans('ShowProductStock'), $langs->trans('ShowProductStockHelp'));
+print '</td><td>';
+print ajax_constantonoff("TAKEPOS_SHOW_PRODUCT_STOCK", array(), $conf->entity, 0, 0, 1, 0);
+print "</td></tr>\n";
+
+// View public price of products
+print '<tr class="oddeven"><td>';
+print $form->textwithpicto($langs->trans('ShowPublicPrice'), $langs->trans('ShowPublicPriceHelp'));
+print '</td><td>';
+print ajax_constantonoff("TAKEPOS_SHOW_PUBLIC_PRICE", array(), $conf->entity, 0, 0, 1, 0);
 print "</td></tr>\n";
 
 // Lines to show

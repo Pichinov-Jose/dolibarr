@@ -2544,22 +2544,43 @@ class Form
 		// phpcs:enable
 		global $langs, $conf;
 
+		$showsourceinvoice = getDolGlobalString('MAIN_SHOW_FACNUMBER_IN_DISCOUNT_LIST');
+
 		// On recherche les remises
 		$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
-		$sql .= " re.description, re.fk_facture_source";
+		$sql .= " re.multicurrency_amount_ttc, re.multicurrency_code, re.multicurrency_tx,";
+		$sql .= " re.description, re.fk_facture_source, re.fk_invoice_supplier_source";
+		if ($showsourceinvoice) {
+			// Resolve the source invoice (customer or supplier) in the main query instead of one fetch per line
+			$sql .= ", f.ref as src_cust_ref, f.datef as src_cust_date";
+			$sql .= ", ff.ref as src_supp_ref, ff.datef as src_supp_date";
+		}
 		$sql .= " FROM " . $this->db->prefix() . "societe_remise_except as re";
+		if ($showsourceinvoice) {
+			$sql .= " LEFT JOIN " . $this->db->prefix() . "facture as f ON f.rowid = re.fk_facture_source";
+			$sql .= " LEFT JOIN " . $this->db->prefix() . "facture_fourn as ff ON ff.rowid = re.fk_invoice_supplier_source";
+		}
 		$sql .= " WHERE re.fk_soc = " . (int) $socid;
 		$sql .= " AND re.entity = " . ((int) $conf->entity);
 		if ($filter) {
 			$sanitizedfilter = $filter;  // @phan-suppress-current-line SqlInjection
+			if ($showsourceinvoice) {
+				// The joined tables also carry a fk_facture_source column: qualify unprefixed references of the caller filter
+				$sanitizedfilter = preg_replace('/(?<![a-zA-Z0-9_.])fk_facture_source\b/', 're.fk_facture_source', $sanitizedfilter);
+			}
 			$sql .= " AND " . $sanitizedfilter;
 		}
-		$sql .= " ORDER BY re.description ASC";
+		if ($showsourceinvoice) {
+			// When the source invoices are shown, their date is the natural order (oldest deposit first)
+			$sql .= " ORDER BY COALESCE(ff.datef, f.datef, re.datec) ASC, re.rowid ASC";
+		} else {
+			$sql .= " ORDER BY re.description ASC";
+		}
 
 		dol_syslog(get_class($this) . "::select_remises", LOG_DEBUG);
 		$resql = $this->db->query($sql);
 		if ($resql) {
-			print '<select id="select_' . $htmlname . '" class="flat maxwidth200onsmartphone" name="' . $htmlname . '">';
+			print '<select id="select_' . $htmlname . '" class="flat maxwidth300 maxwidth200onsmartphone" name="' . $htmlname . '">';
 			$num = $this->db->num_rows($resql);
 
 			$qualifiedlines = $num;
@@ -2594,14 +2615,28 @@ class Form
 						$disabled = ' disabled';
 					}
 
-					if (getDolGlobalString('MAIN_SHOW_FACNUMBER_IN_DISCOUNT_LIST') && !empty($obj->fk_facture_source)) {
-						$tmpfac = new Facture($this->db);
-						if ($tmpfac->fetch($obj->fk_facture_source) > 0) {
-							$desc = $desc . ' - ' . $tmpfac->ref;
+					if ($showsourceinvoice) {
+						$srcref = !empty($obj->src_supp_ref) ? $obj->src_supp_ref : (!empty($obj->src_cust_ref) ? $obj->src_cust_ref : '');
+						$srcdate = !empty($obj->src_supp_date) ? $obj->src_supp_date : (!empty($obj->src_cust_date) ? $obj->src_cust_date : '');
+						if ($srcref) {
+							$desc = $desc . ' - ' . $srcref;
+							if ($srcdate) {
+								$desc .= ' (' . dol_print_date($this->db->jdate($srcdate), 'day') . ')';
+							}
 						}
 					}
 
-					print '<option value="' . $obj->rowid . '"' . $selectstring . $disabled . '>' . $desc . ' (' . price($obj->amount_ht) . ' ' . $langs->trans("HT") . ' - ' . price($obj->amount_ttc) . ' ' . $langs->trans("TTC") . ')</option>';
+					// Under MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS, append the foreign amount and rate of the credit
+					$multicurrencyinfo = '';
+					if (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) {
+						$multicurrencyinfo = ' (' . price($obj->multicurrency_amount_ttc, 0, $langs, 1, -1, -1, $obj->multicurrency_code);
+						if (!empty($obj->multicurrency_tx) && $obj->multicurrency_tx > 0) {
+							$multicurrencyinfo .= ' - ' . $langs->trans('Rate') . ' : ' . price2num($obj->multicurrency_tx, 'MU');
+						}
+						$multicurrencyinfo .= ')';
+					}
+
+					print '<option value="' . $obj->rowid . '"' . $selectstring . $disabled . '>' . $desc . ' (' . price($obj->amount_ht) . ' ' . $langs->trans("HT") . ' - ' . price($obj->amount_ttc) . ' ' . $langs->trans("TTC") . ')' . $multicurrencyinfo . '</option>';
 					$i++;
 				}
 			}
@@ -7613,6 +7648,8 @@ class Form
 				}
 			}
 			print $langs->trans($translationKey, price($amount, 0, $langs, 0, 0, -1, $conf->currency));
+			// Under MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS, also show the foreign-currency value and rate of the available credits
+			print $this->getMulticurrencyCreditsInfo($socid, $discount_type, $filter);
 			if (empty($hidelist)) {
 				print ' ';
 			}
@@ -7657,6 +7694,63 @@ class Form
 				print "0";
 			}
 		}
+	}
+
+	/**
+	 * Build a short HTML label with the foreign-currency value and the exchange rate of the available
+	 * multicurrency credits of a third party, to enrich the "available discounts/credits" messages.
+	 * Returns an empty string when the option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS is off, the
+	 * multicurrency module is disabled, or no available credit carries a currency code.
+	 *
+	 * @param	int		$socid			Third party id
+	 * @param	int		$discount_type	0 = customer discount, 1 = supplier discount
+	 * @param	string	$filter			Same SQL filter used to compute the company-currency total
+	 * @return	string					HTML fragment (empty string if nothing to show)
+	 */
+	public function getMulticurrencyCreditsInfo($socid, $discount_type = 0, $filter = '')
+	{
+		global $langs;
+
+		if (!getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') || !isModEnabled('multicurrency')) {
+			return '';
+		}
+
+		$sql = "SELECT multicurrency_code, SUM(multicurrency_amount_ttc) as mc_total, MIN(multicurrency_tx) as mintx, MAX(multicurrency_tx) as maxtx";
+		$sql .= " FROM ".MAIN_DB_PREFIX."societe_remise_except";
+		$sql .= " WHERE fk_soc = ".((int) $socid);
+		$sql .= " AND discount_type = ".((int) $discount_type);
+		if (!empty($discount_type)) {
+			$sql .= " AND fk_invoice_supplier IS NULL AND fk_invoice_supplier_line IS NULL";
+		} else {
+			$sql .= " AND fk_facture IS NULL AND fk_facture_line IS NULL";
+		}
+		if ($filter) {
+			$sql .= " AND (".$filter.")";  // @phan-suppress-current-line SqlInjection
+		}
+		$sql .= " AND multicurrency_code IS NOT NULL AND multicurrency_code <> ''";
+		$sql .= " GROUP BY multicurrency_code";
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			return '';
+		}
+
+		$tmparray = array();
+		while ($obj = $this->db->fetch_object($resql)) {
+			$txt = price($obj->mc_total, 0, $langs, 1, -1, -1, $obj->multicurrency_code);
+			if ($obj->mintx > 0 && $obj->mintx == $obj->maxtx) {
+				$txt .= ' - '.$langs->trans('Rate').' : '.price2num($obj->mintx, 'MU');
+			}
+			$tmparray[] = $txt;
+		}
+		$this->db->free($resql);
+
+		if (empty($tmparray)) {
+			return '';
+		}
+
+		// On its own line: appended inline it can push the card left column into the right one
+		return '<br><span class="opacitymedium">('.implode(', ', $tmparray).')</span>';
 	}
 
 

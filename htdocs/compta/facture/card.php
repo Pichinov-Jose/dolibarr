@@ -22,6 +22,10 @@
  * Copyright (C) 2025		Lenin Rivas					<lenin.rivas777@gmail.com>
  * Copyright (C) 2026		Vincent de Grandpré			<vincent@de-grandpre.quebec>
  * Copyright (C) 2026		Joachim Küter				<git-jk@bloxera.com>
+ * Copyright (C) 2026		Lionel Vessiller			<lvessiller@open-dsi.fr>
+ * Copyright (C) 2026		José MARTINEZ		<jose.martinez@pichinov.com>
+ * Copyright (C) 2026		José MARTINEZ			<jose.martinez@pichinov.com>
+*
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -392,6 +396,11 @@ if (empty($reshook)) {
 		$result = $discount->fetch(GETPOSTINT("discountid"));
 		if ($result > 0 && $discount->fk_facture == $object->id) {	// The credit note must be linked to this invoice
 			$discount->unlink_invoice();
+			// Serious: removing the credit note can leave something to pay on an invoice classified paid, re-open it
+			$object->fetch($id);
+			if ($object->paye == 1 && (float) $object->getRemainToPay() > 0) {
+				$object->setUnpaid($user);
+			}
 		} else {
 			setEventMessages($langs->trans("ErrorRecordNotFound"), null, 'errors');
 		}
@@ -713,18 +722,73 @@ if (empty($reshook)) {
 
 			//var_dump($object->getRemainToPay(0));
 			//var_dump($discount->amount_ttc);exit;
-			$remaintopay = $object->getRemainToPay(0);
-			if (price2num($discount->total_ttc) > price2num($remaintopay)) {
-				// TODO Split the discount in 2 automatically
-				$error++;
-				setEventMessages($langs->trans("ErrorDiscountLargerThanRemainToPaySplitItBefore"), null, 'errors');
+			// Under MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS, when the credit is in the invoice currency, compare and settle
+			// in that currency (the company-currency amounts may use different exchange rates and would compare wrongly).
+			$usemccompare = (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency')
+				&& !empty($discount->multicurrency_code) && !empty($object->multicurrency_code)
+				&& $discount->multicurrency_code == $object->multicurrency_code && $object->multicurrency_code != $conf->currency);
+			$remaintopay = $usemccompare ? $object->getRemainToPay(1) : $object->getRemainToPay(0);
+			$discountamountforcompare = $usemccompare ? $discount->multicurrency_amount_ttc : $discount->amount_ttc;
+			$discounttolink = $discount;
+			$depositwassplit = false;
+			$splitappliedmsg = '';
+			$splitremainmsg = '';
+			if (price2num($discountamountforcompare, 'MT') > price2num($remaintopay, 'MT')) {
+				if ((float) $remaintopay <= 0) {
+					$error++;
+					setEventMessages($langs->trans("ErrorDiscountLargerThanRemainToPaySplitItBefore"), null, 'errors');
+				} else {
+					// Credit larger than the remaining: split it automatically, apply up to the remaining amount (max, in the invoice currency) and keep the rest available
+					$depositeur = (float) $discount->amount_ttc;
+					$depositdev = (float) $discount->multicurrency_amount_ttc;
+					if ($usemccompare && $depositdev != 0) {
+						$applydev = (float) $remaintopay;
+						$applyeur = (float) price2num($applydev / $depositdev * $depositeur, 'MT');
+					} else {
+						$applyeur = (float) $remaintopay;
+						$applydev = ($depositeur != 0 ? (float) price2num($applyeur / $depositeur * $depositdev, 'MT') : 0);
+					}
+					$splitparts = $discount->splitAmount($applyeur, (float) price2num($depositeur - $applyeur, 'MT'));
+					$applypart = $splitparts[0];
+					$remainpart = $splitparts[1];
+					$remaindev = 0.0;
+					if (!empty($discount->multicurrency_code) && $depositdev != 0) {
+						$remaindev = (float) price2num($depositdev - $applydev, 'MT');
+						$applypart->multicurrency_amount_ttc = $applydev;
+						$applypart->multicurrency_amount_ht = price2num($applydev / (1 + (float) $applypart->tva_tx / 100), 'MT');
+						$applypart->multicurrency_amount_tva = price2num($applydev - (float) $applypart->multicurrency_amount_ht);
+						$remainpart->multicurrency_amount_ttc = $remaindev;
+						$remainpart->multicurrency_amount_ht = price2num($remaindev / (1 + (float) $remainpart->tva_tx / 100), 'MT');
+						$remainpart->multicurrency_amount_tva = price2num($remaindev - (float) $remainpart->multicurrency_amount_ht);
+					}
+					$discount->fk_facture_source = 0;
+					$discount->fk_invoice_supplier_source = 0;
+					$resdelete = $discount->delete($user);
+					$newidapply = $applypart->create($user);
+					$newidremain = $remainpart->create($user);
+					if ($resdelete > 0 && $newidapply > 0 && $newidremain > 0) {
+						$discounttolink = new DiscountAbsolute($db);
+						$discounttolink->fetch($newidapply);
+						// Build a positive feedback message about the automatic split (amount applied / amount kept available)
+						$depositwassplit = true;
+						$splitappliedmsg = price($applyeur, 0, $langs, 1, -1, -1, $conf->currency);
+						$splitremainmsg = price((float) price2num($depositeur - $applyeur, 'MT'), 0, $langs, 1, -1, -1, $conf->currency);
+						if (!empty($discount->multicurrency_code) && $depositdev != 0) {
+							$splitappliedmsg .= ' / '.price($applydev, 0, $langs, 1, -1, -1, $discount->multicurrency_code);
+							$splitremainmsg .= ' / '.price($remaindev, 0, $langs, 1, -1, -1, $discount->multicurrency_code);
+						}
+					} else {
+						$error++;
+						setEventMessages($langs->trans("Error"), null, 'errors');
+					}
+				}
 			}
 
 			if (!$error) {
-				$result = $discount->link_to_invoice(0, $id);
+				$result = $discounttolink->link_to_invoice(0, $id);
 				if ($result < 0) {
 					$error++;
-					setEventMessages($discount->error, $discount->errors, 'errors');
+					setEventMessages($discounttolink->error, $discounttolink->errors, 'errors');
 				}
 			}
 
@@ -734,10 +798,13 @@ if (empty($reshook)) {
 				// yet a legally issued document (ref is still PROV-...), so closing it would
 				// leave it stuck as paid+PROV (see #37744).
 				if ($object->status == Facture::STATUS_VALIDATED) {
-					$newremaintopay = $object->getRemainToPay(0);
+					$newremaintopay = $usemccompare ? $object->getRemainToPay(1) : $object->getRemainToPay(0);
 					if ($newremaintopay == 0) {
 						$object->setPaid($user);
 					}
+				}
+				if ($depositwassplit) {
+					setEventMessages($langs->trans('DepositSplitAutomaticallyApplied', $splitappliedmsg, $splitremainmsg), null, 'warnings');
 				}
 			}
 		}
@@ -1110,6 +1177,9 @@ if (empty($reshook)) {
 			$discount->fk_soc = $object->socid;
 			$discount->socid = $object->socid;
 			$discount->fk_facture_source = $object->id;
+			// Carry the currency and rate of the source invoice so the resulting discount keeps its foreign-currency identity
+			$discount->multicurrency_code = $object->multicurrency_code;
+			$discount->multicurrency_tx = $object->multicurrency_tx;
 
 			$error = 0;
 
@@ -6332,6 +6402,7 @@ if ($action == 'create') {
 			$creditnoteamount = 0;
 			$depositamount = 0;
 			$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
+			$sql .= " re.multicurrency_amount_ttc, re.multicurrency_code, re.multicurrency_tx,";
 			$sql .= " re.description, re.fk_facture_source";
 			$sql .= " FROM ".MAIN_DB_PREFIX."societe_remise_except as re";
 			$sql .= " WHERE fk_facture = ".((int) $object->id);
@@ -6353,6 +6424,14 @@ if ($action == 'create') {
 						print $langs->trans("Deposit").' ';
 					}
 					print $invoice->getNomUrl(0);
+					// Foreign-currency amount and rate, kept on a single line in the (wide) label cell (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+					if (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) {
+						print ' <span class="small nowraponall">'.price($obj->multicurrency_amount_ttc, 0, $langs, 1, -1, -1, $obj->multicurrency_code);
+						if (!empty($obj->multicurrency_tx) && $obj->multicurrency_tx > 0) {
+							print ' - '.$langs->trans('Rate').' : '.price2num($obj->multicurrency_tx, 'MU');
+						}
+						print '</span>';
+					}
 					print '</span>';
 					print '</td>';
 					// Delete discount

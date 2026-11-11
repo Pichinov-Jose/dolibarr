@@ -140,7 +140,8 @@ if (isModEnabled("product") || isModEnabled("service")) {
 
 	echo '<span class="prod_entry_mode_predef nowraponall">';
 
-	$statustoshow = -1;
+	// MODIF PICHINOV JOSE - n afficher que les produits en vente dans les nomenclatures
+	$statustoshow = 1;
 	if (getDolGlobalString('ENTREPOT_EXTRA_STATUS')) {
 		// hide products in closed warehouse, but show products for internal transfer
 		print $form->select_produits(GETPOSTINT('idprod'), (($filtertype == 1) ? 'idprodservice' : 'idprod'), $filtertype, getDolGlobalInt('PRODUIT_LIMIT_SIZE'), 0, $statustoshow, 2, '', 1, array(), 0, '1', 0, 'maxwidth500 widthcentpercentminusx', 0, 'warehouseopen,warehouseinternal', GETPOST('combinations', 'array:alphanohtml'), 1);

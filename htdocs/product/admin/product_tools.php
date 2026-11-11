@@ -263,6 +263,26 @@ if ($action == 'convert') {
 					$newpercent = $objectstatic2->fourn_remise_percent;
 					$newdeliverydelay = $objectstatic2->delivery_time_days;
 					$newsupplierreputation = $objectstatic2->supplier_reputation;
+					// When the multicurrency module is on, update_buyprice() always recomputes the base price from
+					// the currency price it receives. Passing nothing here means the defaults (price 0, rate 1) are
+					// used and the price of every line is rewritten to 0, so the values read by
+					// fetch_product_fournisseur_price() above have to be given back. A line recorded before the
+					// module was enabled has no currency: it keeps its own price, at rate 1.
+					$newmulticurrencyprice = 0;
+					$newmulticurrencytx = 1;
+					$newmulticurrencycode = '';
+					if (isModEnabled("multicurrency")) {
+						$newmulticurrencycode = (string) $objectstatic2->fourn_multicurrency_code;
+						if (!empty($newmulticurrencycode)) {
+							$newmulticurrencyprice = (float) $objectstatic2->fourn_multicurrency_price;
+							$newmulticurrencytx = (float) $objectstatic2->fourn_multicurrency_tx;
+						} else {
+							$newmulticurrencyprice = (float) $newprice;
+						}
+						if (empty($newmulticurrencytx)) {
+							$newmulticurrencytx = 1;
+						}
+					}
 
 					// When the multicurrency module is on, update_buyprice() always recomputes the base price from
 					// the currency price it receives. Passing nothing here means the defaults (price 0, rate 1) are
@@ -416,6 +436,17 @@ if (empty($mysoc->country_code)) {
 	print '</div>';
 
 	print '</form>';
+
+	// The conversion loops over every matching product with updatePrice(): on a large
+	// catalog the request runs for minutes with no feedback, which invites re-submits.
+	// Show the native blocking overlay (dolBlockUI + working.gif) while it runs.
+	print '<script>
+	jQuery(function() {
+		jQuery("#convert_vatrate").closest("form").on("submit", function() {
+			dolBlockUI("'.dol_escape_js($langs->transnoentities("MassConvertInProgress")).'");
+		});
+	});
+	</script>';
 }
 
 // End of page

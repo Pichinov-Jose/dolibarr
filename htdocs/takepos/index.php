@@ -4,6 +4,7 @@
  * Copyright (C) 2020	Thibault FOUCART	<support@ptibogxiv.net>
  * Copyright (C) 2024-2026	MDW				<mdeweerd@users.noreply.github.com>
  * Copyright (C) 2024-2025  Frédéric France         <frederic.france@free.fr>
+ * Copyright (C) 2026       Jose Martinez           <jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -211,6 +212,49 @@ if(localStorage.hasKeyboard) {
 	console.log("has keyboard from localStorage")
 }
 */
+
+/* Show the stock of a product on its own badge on the tile, opposite the price.
+ * A badge is used rather than the label, because appending the figure to the label
+ * makes the description overflow on the smaller breakpoints and would force every
+ * installation to shrink its font, option on or off.
+ * Both figures are shown when they differ: what the terminal has at hand, and what the
+ * company holds in total, which is what tells a salesperson a transfer is possible. */
+function takeposSetStock(position, row) {
+	if ($("#prostock" + position).length === 0) {
+		return;
+	}
+	if (typeof row === 'undefined' || row === null || typeof row['stock_total'] === 'undefined' || row['stock_total'] === null) {
+		takeposClearStock(position);
+		return;
+	}
+	var total = row['stock_total'];
+	var local = row['stock_local'];
+	var text = (typeof local === 'undefined' || local === null || local === total) ? total : (local + ' / ' + total);
+
+	$("#prostock" + position).attr("class", "productstock");
+	$("#prostock" + position).attr("title", "<?php echo dol_escape_js($langs->transnoentities('ShowProductStockHelp')); ?>");
+	$("#prostock" + position).html("<?php echo dol_escape_js($langs->transnoentities('ProductStockShort')); ?>: " + text);
+}
+
+/* Append the public price to the price badge of a tile.
+ * Only meaningful when the customer sits on a price level that is not the public one:
+ * the salesperson then sees both what is charged and the reference price. Nothing is
+ * appended when the two are equal. */
+function takeposAppendPublicPrice(position, publicprice) {
+	if (typeof publicprice === 'undefined' || publicprice === null || publicprice === '') {
+		return;
+	}
+	var el = $("#proprice" + position);
+	if (el.length === 0 || el.html() === publicprice) {
+		return;
+	}
+	el.append(' <span class="productpublicprice">' + publicprice + '</span>');
+}
+
+/* Empty the stock badge of a tile. */
+function takeposClearStock(position) {
+	$("#prostock" + position).attr("class", "").attr("title", "").html("");
+}
 
 function ClearSearch(clearSearchResults) {
 	console.log("ClearSearch");
@@ -432,6 +476,9 @@ function LoadProducts(position, issubcat) {
 					} else {
 						echo '$("#prodesc"+ishow).html(data[parseInt(idata)][\'label\']);';
 					}
+					if (getDolGlobalInt('TAKEPOS_SHOW_PRODUCT_STOCK') == 1) {
+						echo 'takeposSetStock(ishow, data[parseInt(idata)]);';
+					}
 					echo '$("#proimg"+ishow).attr("title", titlestring);';
 					echo '$("#proimg"+ishow).attr("src", "genimg/index.php?query=pro&id="+data[idata][\'id\']);';
 				} else {
@@ -445,10 +492,12 @@ function LoadProducts(position, issubcat) {
 					if (getDolGlobalInt('TAKEPOS_CHANGE_PRICE_HT')) {
 						?>
 						$("#proprice" + ishow).html(data[parseInt(idata)]['price_formated']);
+						takeposAppendPublicPrice(ishow, data[parseInt(idata)]['public_price_formated']);
 						<?php
 					} else {
 						?>
 						$("#proprice" + ishow).html(data[parseInt(idata)]['price_ttc_formated']);
+						takeposAppendPublicPrice(ishow, data[parseInt(idata)]['public_price_ttc_formated']);
 						<?php
 					}
 					?>
@@ -540,6 +589,7 @@ function MoreProducts(moreorless) {
 				$("#probutton"+ishow).text("");
 				$("#probutton"+ishow).hide();
 				$("#proprice"+ishow).attr("class", "");
+				takeposClearStock(ishow);
 				$("#proprice"+ishow).html("");
 				$("#proimg"+ishow).attr("src","genimg/empty.png");
 				$("#prodiv"+ishow).data("rowid","");
@@ -555,6 +605,9 @@ function MoreProducts(moreorless) {
 				<?php } else { ?>
 					$("#prodesc"+ishow).html(data[parseInt(idata)]['label']);
 				<?php } ?>
+				<?php if (getDolGlobalInt('TAKEPOS_SHOW_PRODUCT_STOCK') == 1) { ?>
+					takeposSetStock(ishow, data[parseInt(idata)]);
+				<?php } ?>
 				$("#probutton"+ishow).html(data[parseInt(idata)]['label']);
 				$("#probutton"+ishow).show();
 				if (data[parseInt(idata)]['price_formated']) {
@@ -563,10 +616,12 @@ function MoreProducts(moreorless) {
 					if (getDolGlobalInt('TAKEPOS_CHANGE_PRICE_HT')) {
 						?>
 						$("#proprice" + ishow).html(data[parseInt(idata)]['price_formated']);
+						takeposAppendPublicPrice(ishow, data[parseInt(idata)]['public_price_formated']);
 						<?php
 					} else {
 						?>
 						$("#proprice" + ishow).html(data[parseInt(idata)]['price_ttc_formated']);
+						takeposAppendPublicPrice(ishow, data[parseInt(idata)]['public_price_ttc_formated']);
 						<?php
 					}
 					?>
@@ -810,6 +865,7 @@ function Search2(keyCodeForEnter, moreorless) {
 		$("[id^=probutton]").hide();
 		$("[id^=proprice]").attr("class", "hidden");
 		$("[id^=proprice]").html("");
+		$("[id^=prostock]").attr("class", "").attr("title", "").html("");
 		$("[id^=proimg]").attr("src", "genimg/empty.png");
 		$("[id^=prodiv]").data("rowid", "");
 		$("[id^=prodiv]").attr("data-rowid", "");
@@ -866,6 +922,9 @@ function Search2(keyCodeForEnter, moreorless) {
 					<?php } else { ?>
 						$("#prodesc" + i).html(data[i]['label']);
 					<?php } ?>
+					<?php if (getDolGlobalInt('TAKEPOS_SHOW_PRODUCT_STOCK') == 1) { ?>
+						takeposSetStock(i, data[i]);
+					<?php } ?>
 					$("#prodivdesc" + i).show();
 					$("#probutton" + i).html(data[i]['label']);
 					$("#probutton" + i).show();
@@ -875,10 +934,12 @@ function Search2(keyCodeForEnter, moreorless) {
 						if (getDolGlobalInt('TAKEPOS_CHANGE_PRICE_HT')) {
 							?>
 							$("#proprice" + i).html(data[i]['price_formated']);
+						takeposAppendPublicPrice(i, data[i]['public_price_formated']);
 							<?php
 						} else {
 							?>
 							$("#proprice" + i).html(data[i]['price_ttc_formated']);
+						takeposAppendPublicPrice(i, data[i]['public_price_ttc_formated']);
 							<?php
 						}
 						?>
@@ -1765,6 +1826,9 @@ if ($reshook == 0) {  //add buttons
 					} else {
 						if (!getDolGlobalString('TAKEPOS_HIDE_PRODUCT_PRICES')) {
 							print '<div class="" id="proprice'.$count.'"></div>';
+						}
+						if (getDolGlobalInt('TAKEPOS_SHOW_PRODUCT_STOCK') == 1) {
+							print '<div class="" id="prostock'.$count.'"></div>';
 						}
 						if (getDolGlobalString('TAKEPOS_HIDE_PRODUCT_IMAGES')) {
 							print '<button type="button" id="probutton'.$count.'" class="productbutton" style="display: none;"></button>';

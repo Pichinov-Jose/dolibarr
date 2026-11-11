@@ -1401,7 +1401,7 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 
 					// Show detailed of already consumed with js code to collapse
 					foreach ($arrayoflines as $line2) {
-						print '<tr class="expanddetail'.$line->id.' hideobject opacitylow">';
+						print '<tr class="expanddetail'.$line->id.' opacitylow">';
 
 						// Date
 						print '<td>';
@@ -1880,7 +1880,7 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 
 					// Show detailed of already consumed with js code to collapse
 					foreach ($arrayoflines as $line2) {
-						print '<tr class="expanddetailtoproduce'.$line->id.' hideobject opacitylow">';
+						print '<tr class="expanddetailtoproduce'.$line->id.' opacitylow">';
 						// Product
 						print '<td>';
 						$tmpstockmovement->id = $line2['fk_stock_movement'];

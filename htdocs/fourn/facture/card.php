@@ -16,6 +16,7 @@
  * Copyright (C) 2024-2026	MDW						<mdeweerd@users.noreply.github.com>
  * Copyright (C) 2026		Vincent de Grandpré		<vincent@de-grandpre.quebec>
  * Copyright (C) 2026		Lionel Vessiller		<lvessiller@open-dsi.fr>
+ * Copyright (C) 2026		José MARTINEZ		<jose.martinez@pichinov.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -367,6 +368,11 @@ if (empty($reshook)) {
 		$result = $discount->fetch(GETPOSTINT("discountid"));
 		if ($result > 0 && $object->id > 0 && $discount->fk_invoice_supplier == $object->id) {	// The credit note must be linked to this invoice
 			$discount->unlink_invoice();
+			// Serious: removing the credit note can leave something to pay on an invoice classified paid, re-open it
+			$object->fetch($id);
+			if ($object->paye == 1 && (float) $object->getRemainToPay() > 0) {
+				$object->setUnpaid($user);
+			}
 		} else {
 			setEventMessages($langs->trans("ErrorRecordNotFound"), null, 'errors');
 		}
@@ -573,24 +579,82 @@ if (empty($reshook)) {
 
 			//var_dump($object->getRemainToPay(0));
 			//var_dump($discount->amount_ttc);exit;
-			$remaintopay = $object->getRemainToPay(0);
-			if (price2num($discount->amount_ttc) > price2num($remaintopay)) {
-				// TODO Split the discount in 2 automatically
-				$error++;
-				setEventMessages($langs->trans("ErrorDiscountLargerThanRemainToPaySplitItBefore"), null, 'errors');
+			// Under MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS, when the credit is in the invoice currency, compare and settle
+			// in that currency (the company-currency amounts may use different exchange rates and would compare wrongly).
+			$usemccompare = (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency')
+				&& !empty($discount->multicurrency_code) && !empty($object->multicurrency_code)
+				&& $discount->multicurrency_code == $object->multicurrency_code && $object->multicurrency_code != $conf->currency);
+			$remaintopay = $usemccompare ? $object->getRemainToPay(1) : $object->getRemainToPay(0);
+			$discountamountforcompare = $usemccompare ? $discount->multicurrency_amount_ttc : $discount->amount_ttc;
+			$discounttolink = $discount;
+			$depositwassplit = false;
+			$splitappliedmsg = '';
+			$splitremainmsg = '';
+			if (price2num($discountamountforcompare, 'MT') > price2num($remaintopay, 'MT')) {
+				if ((float) $remaintopay <= 0) {
+					$error++;
+					setEventMessages($langs->trans("ErrorDiscountLargerThanRemainToPaySplitItBefore"), null, 'errors');
+				} else {
+					// Credit larger than the remaining: split it automatically, apply up to the remaining amount (max, in the invoice currency) and keep the rest available
+					$depositeur = (float) $discount->amount_ttc;
+					$depositdev = (float) $discount->multicurrency_amount_ttc;
+					$remaindev = 0.0;
+					if ($usemccompare && $depositdev != 0) {
+						$applydev = (float) $remaintopay;
+						$applyeur = (float) price2num($applydev / $depositdev * $depositeur, 'MT');
+					} else {
+						$applyeur = (float) $remaintopay;
+						$applydev = ($depositeur != 0 ? (float) price2num($applyeur / $depositeur * $depositdev, 'MT') : 0);
+					}
+					$splitparts = $discount->splitAmount($applyeur, (float) price2num($depositeur - $applyeur, 'MT'));
+					$applypart = $splitparts[0];
+					$remainpart = $splitparts[1];
+					if (!empty($discount->multicurrency_code) && $depositdev != 0) {
+						$remaindev = (float) price2num($depositdev - $applydev, 'MT');
+						$applypart->multicurrency_amount_ttc = $applydev;
+						$applypart->multicurrency_amount_ht = price2num($applydev / (1 + (float) $applypart->tva_tx / 100), 'MT');
+						$applypart->multicurrency_amount_tva = price2num($applydev - (float) $applypart->multicurrency_amount_ht);
+						$remainpart->multicurrency_amount_ttc = $remaindev;
+						$remainpart->multicurrency_amount_ht = price2num($remaindev / (1 + (float) $remainpart->tva_tx / 100), 'MT');
+						$remainpart->multicurrency_amount_tva = price2num($remaindev - (float) $remainpart->multicurrency_amount_ht);
+					}
+					$discount->fk_facture_source = 0;
+					$discount->fk_invoice_supplier_source = 0;
+					$resdelete = $discount->delete($user);
+					$newidapply = $applypart->create($user);
+					$newidremain = $remainpart->create($user);
+					if ($resdelete > 0 && $newidapply > 0 && $newidremain > 0) {
+						$discounttolink = new DiscountAbsolute($db);
+						$discounttolink->fetch($newidapply);
+						// Build a positive feedback message about the automatic split (amount applied / amount kept available)
+						$depositwassplit = true;
+						$splitappliedmsg = price($applyeur, 0, $langs, 1, -1, -1, $conf->currency);
+						$splitremainmsg = price((float) price2num($depositeur - $applyeur, 'MT'), 0, $langs, 1, -1, -1, $conf->currency);
+						if (!empty($discount->multicurrency_code) && $depositdev != 0) {
+							$splitappliedmsg .= ' / '.price($applydev, 0, $langs, 1, -1, -1, $discount->multicurrency_code);
+							$splitremainmsg .= ' / '.price($remaindev, 0, $langs, 1, -1, -1, $discount->multicurrency_code);
+						}
+					} else {
+						$error++;
+						setEventMessages($langs->trans("Error"), null, 'errors');
+					}
+				}
 			}
 
 			if (!$error) {
-				$result = $discount->link_to_invoice(0, $id);
+				$result = $discounttolink->link_to_invoice(0, $id);
 				if ($result < 0) {
 					$error++;
-					setEventMessages($discount->error, $discount->errors, 'errors');
+					setEventMessages($discounttolink->error, $discounttolink->errors, 'errors');
 				}
 			}
 			if (!$error) {
-				$newremaintopay = $object->getRemainToPay(0);
+				$newremaintopay = $usemccompare ? $object->getRemainToPay(1) : $object->getRemainToPay(0);
 				if ($newremaintopay == 0) {
 					$object->setPaid($user);
+				}
+				if ($depositwassplit) {
+					setEventMessages($langs->trans('DepositSplitAutomaticallyApplied', $splitappliedmsg, $splitremainmsg), null, 'warnings');
 				}
 			}
 		}
@@ -619,6 +683,56 @@ if (empty($reshook)) {
 				setEventMessages($object->error, $object->errors, 'errors');
 			}
 		}
+	} elseif ($action == 'confirm_realignmulticurrencyrate' && $confirm == 'yes' && $usercancreate) {
+		// Align the invoice multicurrency rate on the real effective rate so the exchange difference is absorbed (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+		$object->fetch($id);
+		$object->fetch_thirdparty();
+		$object->fetch_lines();
+		if (!getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') || !isModEnabled('multicurrency') || empty($object->multicurrency_code) || $object->multicurrency_code == $conf->currency) {
+			setEventMessages($langs->trans('NotAvailable'), null, 'errors');
+		} elseif ($object->getVentilExportCompta() != 0) {
+			setEventMessages($langs->trans('ErrorCannotRealignRateInvoiceTransferredInAccountancy'), null, 'errors');
+		} else {
+			$realeurpaid = (float) $object->getSommePaiement(0) + (float) $object->getSumCreditNotesUsed(0) + (float) $object->getSumDepositsUsed(0);
+			$foreignpaid = (float) $object->getSommePaiement(1) + (float) $object->getSumCreditNotesUsed(1) + (float) $object->getSumDepositsUsed(1);
+			if ($realeurpaid != 0 && $foreignpaid != 0) {
+				$neweffectivetx = (float) round($foreignpaid / $realeurpaid, 8); // 8 = max precision of multicurrency_tx column, to minimize the residual exchange difference
+				$db->begin();
+				require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+				// Keep the rate before re-alignment to allow restoring it later
+				dolibarr_set_const($db, 'MULTICURRENCY_REALIGN_BACKUP_invoice_supplier_'.$object->id, (string) $object->multicurrency_tx, 'chaine', 0, '', $conf->entity);
+				$result = $object->setMulticurrencyRate($neweffectivetx, 1);
+				if ($result > 0) {
+					$db->commit();
+					setEventMessages($langs->trans('InvoiceRateRealigned', price2num($neweffectivetx, 'MU')), null, 'mesgs');
+				} else {
+					$db->rollback();
+					setEventMessages($object->error, $object->errors, 'errors');
+				}
+			} else {
+				setEventMessages($langs->trans('NotAvailable'), null, 'warnings');
+			}
+		}
+		$action = '';
+	} elseif ($action == 'confirm_revertmulticurrencyrate' && $confirm == 'yes' && $usercancreate) {
+		// Restore the invoice multicurrency rate to its value before the last re-alignment (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+		$object->fetch($id);
+		$object->fetch_lines();
+		$backuptx = getDolGlobalString('MULTICURRENCY_REALIGN_BACKUP_invoice_supplier_'.$object->id);
+		if ($backuptx !== '' && $object->getVentilExportCompta() == 0) {
+			$db->begin();
+			$result = $object->setMulticurrencyRate((float) $backuptx, 1);
+			if ($result > 0) {
+				require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+				dolibarr_del_const($db, 'MULTICURRENCY_REALIGN_BACKUP_invoice_supplier_'.$object->id, $conf->entity);
+				$db->commit();
+				setEventMessages($langs->trans('InvoiceRateReverted', price2num($backuptx, 'MU')), null, 'mesgs');
+			} else {
+				$db->rollback();
+				setEventMessages($object->error, $object->errors, 'errors');
+			}
+		}
+		$action = '';
 	} elseif ($action == 'confirm_converttoreduc' && $confirm == 'yes' && $usercancreate) {
 		// Convertir en reduc
 		$object->fetch($id);
@@ -2142,6 +2256,20 @@ if (empty($reshook)) {
 	$permissiontoadd = $usercancreate;
 	include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 
+	// Set which currency drives the totals. Separate from the VAT calculation rule below:
+	// the two are independent, so they get their own action.
+	if ($action == 'settotalsreference' && $usercancreate) {
+		$object->fetch($id);
+		$object->fetch_thirdparty();
+		$result = $object->update_price(0, 'auto', 0, $object->thirdparty, (GETPOST('totalsreference', 'aZ09') == 'currency') ? '1' : '0');
+		if ($result <= 0) {
+			dol_print_error($db, $object->error, $object->errors);
+			exit;
+		}
+		header('Location: '.$_SERVER["PHP_SELF"].'?id='.$object->id);
+		exit;
+	}
+
 	// Make calculation according to calculationrule
 	if ($action == 'calculate' && $usercancreate) {
 		$calculationrule = GETPOST('calculationrule');
@@ -3182,6 +3310,20 @@ if ($action == 'create') {
 
 		$formconfirm = '';
 
+		// Confirmation of the multicurrency rate re-alignment on the real effective rate (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+		if ($action == 'realignmulticurrencyrate') {
+			$realeurpaidtmp = (float) $object->getSommePaiement(0) + (float) $object->getSumCreditNotesUsed(0) + (float) $object->getSumDepositsUsed(0);
+			$foreignpaidtmp = (float) $object->getSommePaiement(1) + (float) $object->getSumCreditNotesUsed(1) + (float) $object->getSumDepositsUsed(1);
+			$neweffectivetxtmp = ($realeurpaidtmp != 0) ? round($foreignpaidtmp / $realeurpaidtmp, 8) : 0;
+			$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?facid='.$object->id, $langs->trans('RealignInvoiceRateOnRealRate'), $langs->trans('ConfirmRealignInvoiceRate', price2num($object->multicurrency_tx, 'MU'), $neweffectivetxtmp), 'confirm_realignmulticurrencyrate', '', 'yes', 1);
+		}
+
+		// Confirmation of the multicurrency rate restore to its previous value (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+		if ($action == 'revertmulticurrencyrate') {
+			$backuptxtmp = getDolGlobalString('MULTICURRENCY_REALIGN_BACKUP_invoice_supplier_'.$object->id);
+			$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?facid='.$object->id, $langs->trans('RevertInvoiceRateRealign'), $langs->trans('ConfirmRevertInvoiceRate', price2num($backuptxtmp, 'MU')), 'confirm_revertmulticurrencyrate', '', 'yes', 1);
+		}
+
 		// Confirmation de la conversion de l'avoir en reduc
 		if ($action == 'converttoreduc') {
 			$type_fac = '';
@@ -3779,7 +3921,56 @@ if ($action == 'create') {
 
 			print '<table class="border tableforfield centpercent">';
 
+			// Build the exchange gain/loss info and the rate re-alignment buttons shown next to the rate (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+			$morehtmlmulticurrencyrate = '';
+			if (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency')
+				&& !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
+				$realeurpaidtmp = (float) $object->getSommePaiement(0) + (float) $object->getSumCreditNotesUsed(0) + (float) $object->getSumDepositsUsed(0);
+				$foreignpaidtmp = (float) $object->getSommePaiement(1) + (float) $object->getSumCreditNotesUsed(1) + (float) $object->getSumDepositsUsed(1);
+				$exchangedifftmp = (!empty($object->multicurrency_tx)) ? price2num(($foreignpaidtmp / $object->multicurrency_tx) - $realeurpaidtmp, 'MT') : 0;
+				$canrealign = ($usercancreate && ($object->status == FactureFournisseur::STATUS_VALIDATED || !empty($object->paye)) && $object->getVentilExportCompta() == 0);
+				if ($foreignpaidtmp != 0 && (float) $exchangedifftmp != 0) {
+					// Exchange gain/loss amount, next to the rate
+					$morehtmlmulticurrencyrate .= '<div class="inline-block paddingleft opacitymedium">'.$langs->trans((float) $exchangedifftmp >= 0 ? 'ExchangeGain' : 'ExchangeLoss').' : '.price($exchangedifftmp, 0, $langs, 1, -1, -1, $conf->currency).'</div>';
+					// Short "Align" button with an info tooltip explaining what it does
+					if ($canrealign) {
+						$morehtmlmulticurrencyrate .= '<div class="inline-block paddingleft"><a class="button smallpaddingimp" href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&action=realignmulticurrencyrate&token='.newToken().'">'.dol_escape_htmltag($langs->trans('RealignInvoiceRateShort')).'</a> '.$form->textwithpicto('', $langs->trans('RealignInvoiceRateOnRealRate')).'</div>';
+					}
+				}
+				$backuptxtmp = getDolGlobalString('MULTICURRENCY_REALIGN_BACKUP_invoice_supplier_'.$object->id);
+				if ($canrealign && $backuptxtmp !== '') {
+					$morehtmlmulticurrencyrate .= '<div class="inline-block paddingleft"><a class="button smallpaddingimp" href="'.$_SERVER["PHP_SELF"].'?facid='.$object->id.'&action=revertmulticurrencyrate&token='.newToken().'">'.dol_escape_htmltag($langs->trans('RevertInvoiceRateShort')).'</a> '.$form->textwithpicto('', $langs->trans('RevertInvoiceRateRealign')).'</div>';
+				}
+			}
+
 			include DOL_DOCUMENT_ROOT.'/core/tpl/object_currency_amount.tpl.php';
+
+			// Which currency drives the totals. Shown next to the currency and the exchange rate, as it is a
+			// property of that relation, and only where the recalculation is available.
+			if (isModEnabled("multicurrency") && !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency
+				&& !empty($object->multicurrency_tx) && $object->multicurrency_tx != 1) {
+				$exactconversion = (float) price2num((float) $object->multicurrency_total_ttc / (float) $object->multicurrency_tx, 'MT');
+				$isalignedoncurrency = (abs((float) $object->total_ttc - $exactconversion) < 0.005);
+				$lblLines = $langs->trans("TotalsFromLines");
+				$lblCurrency = $langs->trans("TotalsAlignedOnForeignCurrency", $object->multicurrency_code);
+				print '<tr><td>' . $langs->trans("TotalsReference") . '</td>';
+				print '<td colspan="2">';
+				if ($object->getVentilExportCompta() == 0) {
+					// Same pattern as the VAT calculation rule below: the active choice is plain text,
+					// the other one is the link that switches to it.
+					$url = $_SERVER["PHP_SELF"] . '?id=' . $object->id . '&action=settotalsreference&token=' . newToken() . '&totalsreference=';
+					$s = '<span class="hideonsmartphone opacitymedium">' . $langs->trans("ReCalculate") . ' </span>';
+					$s .= $isalignedoncurrency ? '<a href="' . $url . 'lines">' . $lblLines . '</a>' : '<span class="opacitymedium">' . $lblLines . '</span>';
+					$s .= ' / ';
+					$s .= $isalignedoncurrency ? '<span class="opacitymedium">' . $lblCurrency . '</span>' : '<a href="' . $url . 'currency">' . $lblCurrency . '</a>';
+					print '<div class="inline-block">';
+					print $form->textwithtooltip($s, $langs->trans("TotalsReferenceDesc", $object->multicurrency_code, price($exactconversion, 0, $langs, 0, -1, -1, $conf->currency)), 2, 1, img_picto('', 'help', 'class="paddingleft paddingright"'), '', 3, '', 0, 'totalsreference');
+					print '</div>';
+				} else {
+					print $isalignedoncurrency ? $lblCurrency : $lblLines;
+				}
+				print '</td></tr>';
+			}
 
 			print '<tr>';
 			print '<td class="titlefieldmiddle">' . $langs->trans('AmountHT') . '</td>';
@@ -3879,7 +4070,7 @@ if ($action == 'create') {
 
 			$sql = 'SELECT p.datep as dp, p.ref, p.num_paiement as num_payment, p.rowid, p.fk_bank,';
 			$sql .= ' c.id as payment_type, c.code as payment_code,';
-			$sql .= ' pf.amount,';
+			$sql .= ' pf.amount, pf.multicurrency_amount, pf.multicurrency_code,';
 			$sql .= ' ba.rowid as baid, ba.ref as baref, ba.label, ba.number as banumber, ba.account_number, ba.fk_accountancy_journal';
 			$sql .= ' FROM '.MAIN_DB_PREFIX.'paiementfourn as p';
 			$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'bank as b ON p.fk_bank = b.rowid';
@@ -3917,6 +4108,8 @@ if ($action == 'create') {
 						$paymentstatic->datepaye = $db->jdate($objp->dp);
 						$paymentstatic->ref = ($objp->ref ? $objp->ref : $objp->rowid);
 						$paymentstatic->num_payment = $objp->num_payment;
+						$paymentstatic->amount = $objp->amount;
+						$paymentstatic->multicurrency_amount = $objp->multicurrency_amount;
 
 						$paymentstatic->paiementcode = $objp->payment_code;
 						$paymentstatic->type_code = $objp->payment_code;
@@ -3960,7 +4153,14 @@ if ($action == 'create') {
 						}
 						print '</td>';
 						// Amount
-						print '<td class="right">'.price($sign * $objp->amount).'</td>';
+						print '<td class="right">'.price($sign * $objp->amount);
+						// Amount in the invoice currency and derived rate as a sub-line (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+						if (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency') && !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency && (float) $objp->amount != 0 && abs((float) $objp->multicurrency_amount - (float) $objp->amount) > 0.0001) {
+							print '<br><span class="opacitymedium small">'.price($objp->multicurrency_amount, 0, $langs, 1, -1, -1, $object->multicurrency_code);
+							print '<br>'.$langs->trans('Rate').' : '.price2num((float) $objp->multicurrency_amount / (float) $objp->amount, 'MU');
+							print '</span>';
+						}
+						print '</td>';
 						print '</tr>';
 						$totalpaid += $objp->amount;
 						$i++;
@@ -4015,6 +4215,7 @@ if ($action == 'create') {
 				$depositamount = 0;
 
 				$sql = "SELECT re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc,";
+				$sql .= " re.multicurrency_amount_ttc, re.multicurrency_code, re.multicurrency_tx,";
 				$sql .= " re.description, re.fk_invoice_supplier_source";
 				$sql .= " FROM ".MAIN_DB_PREFIX."societe_remise_except as re";
 				$sql .= " WHERE fk_invoice_supplier = ".((int) $object->id);
@@ -4042,7 +4243,16 @@ if ($action == 'create') {
 						print '</a>';
 						print '</td>';
 						// Amount
-						print '<td class="right">'.price($obj->amount_ttc).'</td>';
+						print '<td class="right">'.price($obj->amount_ttc);
+						// Amount in the invoice currency and rate as a sub-line, consistent with payments (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+						if (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency') && !empty($obj->multicurrency_code)) {
+							print '<br><span class="opacitymedium small">'.price($obj->multicurrency_amount_ttc, 0, $langs, 1, -1, -1, $obj->multicurrency_code);
+							if (!empty($obj->multicurrency_tx) && $obj->multicurrency_tx > 0) {
+								print '<br>'.$langs->trans('Rate').' : '.price2num($obj->multicurrency_tx, 'MU');
+							}
+							print '</span>';
+						}
+						print '</td>';
 						print '</tr>';
 						$i++;
 						if ($invoice->type == FactureFournisseur::TYPE_CREDIT_NOTE) {
@@ -4150,6 +4360,21 @@ if ($action == 'create') {
 					//print '<td></td>';
 					print '<td class="right'.($resteapayeraffiche ? ' amountremaintopaynoresize' : (' '.$cssforamountpaymentcomplete)).'">'.price(price2num($multicurrency_resteapayer, 'MT'), 0, $langs, 1, -1, -1, $object->multicurrency_code).'</td>';
 					print '</tr>';
+				}
+				// Exchange gain/loss line, right after "Remainder to pay, original currency" - red on loss, orange on gain, nothing if zero (option MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS)
+				if (getDolGlobalInt('MULTICURRENCY_PAYMENT_USE_REAL_AMOUNTS') && isModEnabled('multicurrency')
+						&& !empty($object->multicurrency_code) && $object->multicurrency_code != $conf->currency) {
+						$realeurpaidexch = (float) $object->getSommePaiement(0) + (float) $object->getSumCreditNotesUsed(0) + (float) $object->getSumDepositsUsed(0);
+						$foreignpaidexch = (float) $object->getSommePaiement(1) + (float) $object->getSumCreditNotesUsed(1) + (float) $object->getSumDepositsUsed(1);
+						$exchangediffline = (!empty($object->multicurrency_tx)) ? price2num(($foreignpaidexch / $object->multicurrency_tx) - $realeurpaidexch, 'MT') : 0;
+					if ($foreignpaidexch != 0 && (float) $exchangediffline != 0) {
+							$exchangecolor = ((float) $exchangediffline >= 0) ? '#e67e22' : '#c0392b'; // orange = exchange gain, red = exchange loss
+							print '<tr><td colspan="'.($nbcols + 1).'" class="right">';
+							print '<span style="color: '.$exchangecolor.';">'.$langs->trans((float) $exchangediffline >= 0 ? 'ExchangeGain' : 'ExchangeLoss').'</span>';
+							print '</td>';
+							print '<td class="right nowrap" style="color: '.$exchangecolor.';">'.price($exchangediffline, 0, $langs, 1, -1, -1, $conf->currency).'</td>';
+							print '</tr>';
+					}
 				}
 			} else { // Credit note
 				$cssforamountpaymentcomplete = 'amountpaymentneutral';
