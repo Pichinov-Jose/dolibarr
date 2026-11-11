@@ -328,6 +328,9 @@ if ($optioncss != '') {
 	print '<input type="hidden" name="optioncss" value="'.$optioncss.'">';
 }
 print '<input type="hidden" name="token" value="'.newToken().'">';
+print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="list">';
+print '<input type="hidden" name="action" value="list">';
+print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 if ($fourn_id > 0) {
 	print '<input type="hidden" name="fourn_id" value="'.$fourn_id.'">';
 }
