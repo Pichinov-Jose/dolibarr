@@ -108,7 +108,7 @@ $object = new ProductFournisseurPrice($db);
 $arrayfields = array(
 	'p.ref' => array('label' => 'Ref', 'checked' => '1', 'position' => 10),
 	'ppf.ref_fourn' => array('label' => 'RefSupplierShort', 'checked' => '1', 'position' => 20),
-	'p.barcode' => array('label' => 'BarCode', 'checked' => '0', 'position' => 15),
+	'p.barcode' => array('label' => 'BarCode', 'checked' => '0', 'position' => 25),
 	'p.label' => array('label' => 'Label', 'checked' => '1', 'position' => 30),
 	'ppf.fk_soc' => array('label' => 'Supplier', 'checked' => '1', 'position' => 40),
 	'ppf.price' => array('label' => 'BuyingPrice', 'checked' => '1', 'position' => 50),
@@ -421,14 +421,14 @@ if (!empty($arrayfields['p.ref']['checked'])) {
 	print '<input class="flat maxwidth100" type="text" name="sref" value="'.$sref.'">';
 	print '</td>';
 }
-if (!empty($arrayfields['p.barcode']['checked'])) {
-	print '<td class="liste_titre">';
-	print '<input class="flat maxwidth100" type="text" name="search_barcode" value="'.dol_escape_htmltag($search_barcode).'">';
-	print '</td>';
-}
 if (!empty($arrayfields['ppf.ref_fourn']['checked'])) {
 	print '<td class="liste_titre">';
 	print '<input class="flat maxwidth100" type="text" name="srefsupplier" value="'.$sRefSupplier.'">';
+	print '</td>';
+}
+if (!empty($arrayfields['p.barcode']['checked'])) {
+	print '<td class="liste_titre">';
+	print '<input class="flat maxwidth100" type="text" name="search_barcode" value="'.dol_escape_htmltag($search_barcode).'">';
 	print '</td>';
 }
 if (!empty($arrayfields['p.label']['checked'])) {
@@ -565,15 +565,15 @@ while ($i < $imaxinloop) {
 		}
 	}
 
-	if (!empty($arrayfields['p.barcode']['checked'])) {
-		print '<td>'.dol_escape_htmltag($objp->barcode).'</td>';
+	if (!empty($arrayfields['ppf.ref_fourn']['checked'])) {
+		print '<td>'.$objp->ref_fourn.'</td>';
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}
 	}
 
-	if (!empty($arrayfields['ppf.ref_fourn']['checked'])) {
-		print '<td>'.$objp->ref_fourn.'</td>';
+	if (!empty($arrayfields['p.barcode']['checked'])) {
+		print '<td>'.dol_escape_htmltag($objp->barcode).'</td>';
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}
