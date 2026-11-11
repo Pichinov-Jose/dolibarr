@@ -664,7 +664,7 @@ function getEntity($element, $shared = 1, $currentobject = null)
 		$out = $mc->getEntity($element, $shared, $currentobject);
 	} else {
 		$out = '';
-		$addzero = array('user', 'usergroup', 'cronjob', 'c_email_templates', 'email_template', 'default_values', 'overwrite_trans');
+		$addzero = array('user', 'usergroup', 'cronjob', 'c_email_templates', 'email_template', 'default_values', 'overwrite_trans', 'extrafields');
 		if (getDolGlobalString('HOLIDAY_ALLOW_ZERO_IN_DIC')) { // this constant break the dictionary admin without Multicompany
 			$addzero[] = 'c_holiday_types';
 		}
@@ -2359,7 +2359,9 @@ function dol_escape_all($stringtoescape)
  */
 function dol_escape_xml($stringtoescape)
 {
-	return $stringtoescape;
+	$stringtoescape = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', (string) $stringtoescape);	// Characters not allowed in XML 1.0
+
+	return htmlspecialchars($stringtoescape, ENT_XML1 | ENT_QUOTES, 'UTF-8');
 }
 
 /**
@@ -5029,7 +5031,10 @@ function dol_print_phone($phone, $countrycode = '', $contactid = 0, $socid = 0, 
 	$newphoneastart = $newphoneaend = '';
 	if (!empty($addlink)) {	// Link on phone number (+ link to add action if conf->global->AGENDA_ADDACTIONFORPHONE set)
 		if ($addlink == 'tel' || $conf->browser->layout == 'phone' || (isModEnabled('clicktodial') && getDolGlobalString('CLICKTODIAL_USE_TEL_LINK_ON_PHONE_NUMBERS'))) {	// If phone or option for, we use link of phone
-			$newphoneastart = '<a href="tel:' . urlencode($phone) . '">';
+			// Keep the leading '+' of international numbers: it is allowed in a tel: URI (RFC 3966) and many
+			// softphones/CTI handlers do not decode '%2B', so they drop the '%' and dial a wrong leading '2'.
+			// Spaces were removed above, so a '+' produced here can only come from a real '+'.
+			$newphoneastart = '<a href="tel:' . str_replace('%2B', '+', urlencode($phone)) . '">';
 			$newphoneaend .= '</a>';
 		} elseif (isModEnabled('clicktodial') && $addlink == 'AC_TEL') {		// If click to dial, we use click to dial url
 			if (empty($user->clicktodial_loaded)) {
@@ -8623,12 +8628,12 @@ function get_default_tva(Societe $thirdparty_seller, Societe $thirdparty_buyer, 
 			// Special case for india.
 			//print 'VATRULE 3b';
 			$reg = array();
-			if (preg_match('/C+S-(\d+)/', $tmpvat, $reg) && $thirdparty_seller->state_id != $thirdparty_buyer->state_id) {
-				// we must revert the C+S into I
-				$tmpvat = str_replace("C+S", "I", $tmpvat);
-			} elseif (preg_match('/I-(\d+)/', $tmpvat, $reg) && $thirdparty_seller->state_id == $thirdparty_buyer->state_id) {
-				// we must revert the I into C+S
-				$tmpvat = str_replace("I", "C+S", $tmpvat);
+			if (preg_match('/\(C\+S-(\d+(?:\.\d+)?)\)/', $tmpvat, $reg) && $thirdparty_seller->state_id != $thirdparty_buyer->state_id) {
+				// we must revert the C+S into I (rate of I-xx is xx)
+				$tmpvat = $reg[1].' (I-'.$reg[1].')';
+			} elseif (preg_match('/\(I-(\d+(?:\.\d+)?)\)/', $tmpvat, $reg) && $thirdparty_seller->state_id == $thirdparty_buyer->state_id) {
+				// we must revert the I into C+S (rate of C+S-xx is 0, xx is shared between localtax1 and localtax2)
+				$tmpvat = '0 (C+S-'.$reg[1].')';
 			}
 		}
 
@@ -9164,6 +9169,9 @@ function dol_string_onlythesehtmltags($stringtoclean, $cleanalsosomestyles = 1, 
 			"strong",
 			"title",
 			"table",
+			"tbody",
+			"thead",
+			"tfoot",
 			"tr",
 			"th",
 			"td",
@@ -15793,7 +15801,7 @@ function fetchObjectByElement($element_id, $element_type, $element_ref = '', $us
 
 			if ($element_id > 0 || !empty($element_ref)) {
 				$ret = $objecttmp->fetch($element_id, $element_ref);
-				if ($ret >= 0) {
+				if ($ret > 0) {
 					if (empty($objecttmp->module)) {
 						$objecttmp->module = $element_prop['module'];
 					}
@@ -16403,9 +16411,16 @@ function dolForgeSQLCriteriaCallback($matches)
 	// Add fields that are ALWAYS forbidden when using USF search criteria
 	$newforbiddenfields[] = 'pass';
 	$newforbiddenfields[] = 'pass_crypted';
+	$newforbiddenfields[] = 'pass_temp';
 	$newforbiddenfields[] = 'api_key';
 
 	$operand = preg_replace('/[^a-z0-9\._]/i', '', trim($tmp[0]));
+
+	// An operand with more than one level of prefix (example: dbprefix.table.field) is not valid into a USF criteria,
+	// we neutralize it like a forbidden field to avoid any leak or SQL error based on db prefix existence
+	if (substr_count($operand, '.') > 1) {
+		return '1=1';
+	}
 
 	// Test that operand is not a forbidden search field
 	if (!empty($newforbiddenfields)) {

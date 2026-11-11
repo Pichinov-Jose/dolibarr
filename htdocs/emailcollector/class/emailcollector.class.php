@@ -790,7 +790,7 @@ class EmailCollector extends CommonObject
 	{
 		$this->actions = array();
 
-		$sql = 'SELECT rowid, type, actionparam, status';
+		$sql = 'SELECT rowid, type, actionparam, status, position';
 		$sql .= ' FROM '.MAIN_DB_PREFIX.'emailcollector_emailcollectoraction';
 		$sql .= ' WHERE fk_emailcollector = '.((int) $this->id);
 		$sql .= ' ORDER BY position';
@@ -801,7 +801,7 @@ class EmailCollector extends CommonObject
 			$i = 0;
 			while ($i < $num) {
 				$obj = $this->db->fetch_object($resql);
-				$this->actions[$obj->rowid] = array('id' => $obj->rowid, 'type' => $obj->type, 'actionparam' => $obj->actionparam, 'status' => $obj->status);
+				$this->actions[$obj->rowid] = array('id' => $obj->rowid, 'type' => $obj->type, 'actionparam' => $obj->actionparam, 'status' => $obj->status, 'position' => $obj->position);
 				$i++;
 			}
 			$this->db->free($resql);
@@ -1270,8 +1270,10 @@ class EmailCollector extends CommonObject
 						$refreshtoken = $tokenobj->getRefreshToken();
 						$tokenobj = $apiService->refreshAccessToken($tokenobj);
 
-						// We have to save the token because answer give it only once
-						$tokenobj->setRefreshToken($refreshtoken);
+						// Keep the previous refresh token only when the provider did not return a new one.
+						if (empty($tokenobj->getRefreshToken())) {
+							$tokenobj->setRefreshToken($refreshtoken);
+						}
 						$storage->storeAccessToken($OAUTH_SERVICENAME, $tokenobj);
 					}
 					$tokenobj = $storage->retrieveAccessToken($OAUTH_SERVICENAME);
@@ -3204,7 +3206,7 @@ class EmailCollector extends CommonObject
 								$actioncomm->percentage  = -1; // Not applicable
 								$actioncomm->socid       = $thirdpartystatic->id;
 								$actioncomm->contact_id = $contactstatic->id;
-								$actioncomm->socpeopleassigned = (!empty($contactstatic->id) ? array($contactstatic->id) : array());
+								$actioncomm->socpeopleassigned = (!empty($contactstatic->id) ? array($contactstatic->id => $contactstatic->id) : array());
 								$actioncomm->authorid    = $user->id; // User saving action
 								$actioncomm->userownerid = $user->id; // Owner of action
 								// Fields when action is an email (content should be added into note)
@@ -3265,7 +3267,12 @@ class EmailCollector extends CommonObject
 												}
 												if (getDolGlobalString('MAIN_IMAP_USE_PHPIMAP')) {
 													foreach ($attachments as $attachment) {
-														$attachment->save($destdir.'/');
+														try {
+															$filename = (string) $attachment->getName();
+														} catch (Throwable $e) {
+															$filename = '';
+														}
+														$this->saveAttachment($destdir, $filename, (string) $attachment->getContent());
 													}
 												} else {
 													$this->getmsg($connection, $imapemail, $destdir);
@@ -3583,7 +3590,7 @@ class EmailCollector extends CommonObject
 													foreach ($attachments as $attachment) {
 														// $attachment->save($destdir.'/');
 														$typeattachment = (string) $attachment->getDisposition();
-														$filename = $attachment->getFilename();
+														$filename = $attachment->getName();
 														$content = $attachment->getContent();
 														$this->saveAttachment($destdir, $filename, $content);
 													}
@@ -4196,41 +4203,8 @@ class EmailCollector extends CommonObject
 			$attachments[$filename] = $data; // this is a problem if two files have same name
 
 			if (strlen($destdir)) {
-				if (substr($destdir, -1) != '/') {
-					$destdir .= '/';
-				}
-
-				// Get file name (with extension)
-				$file_name_complete = $filename;
-				$destination = $destdir.$file_name_complete;
-
-				// Extract file extension
-				$extension = pathinfo($file_name_complete, PATHINFO_EXTENSION);
-
-				// Extract file name without extension
-				$file_name = pathinfo($file_name_complete, PATHINFO_FILENAME);
-
-				// Save an original file name variable to track while renaming if file already exists
-				$file_name_original = $file_name;
-
-				// Increment file name by 1
-				$num = 1;
-
-				/**
-				 * Check if the same file name already exists in the upload folder,
-				 * append increment number to the original filename
-				 */
-				while (file_exists($destdir.$file_name.".".$extension)) {
-					$file_name = $file_name_original . ' (' . $num . ')';
-					$file_name_complete = $file_name . "." . $extension;
-					$destination = $destdir.$file_name_complete;
-					$num++;
-				}
-
-				$destination = dol_sanitizePathName($destination);
-
-				file_put_contents($destination, $data);
-				dolChmod($destination);
+				// Same name sanitization and same rules as for an uploaded file (see saveAttachment())
+				$this->saveAttachment($destdir, $filename, $data);
 			}
 		}
 
@@ -4437,7 +4411,11 @@ class EmailCollector extends CommonObject
 					$n++;
 				}
 
-				$this->saveAttachment($destdir, $finalName, $content);
+				$resultsave = $this->saveAttachment($destdir, $finalName, $content);
+				if (!is_string($resultsave)) {
+					continue;	// Not saved (refused by the antivirus or error)
+				}
+				$finalName = basename($resultsave);	// The name may have been changed (suffix .noexe, no dot at the beginning...)
 				$seenHashes[$contentHash] = $finalName;
 			}
 
@@ -4469,10 +4447,19 @@ class EmailCollector extends CommonObject
 	 */
 	private function saveAttachment($destdir, $filename, $content)
 	{
+		global $conf;
+
 		require_once DOL_DOCUMENT_ROOT .'/core/lib/images.lib.php';
 
-		$destdir = dol_sanitizePathName($destdir);
+		$destdir = dol_sanitizePathName($destdir, '_', 0);	// The directory is not built from the email, so we keep its accents
 		$filename = dol_sanitizeFileName($filename);
+		// Same rules as for an uploaded file: no control character, no dot or space at the end (removed by some OS, so the
+		// extension tested would not be the real one), no dot at the beginning (hidden or setup file like .htaccess)
+		$filename = preg_replace('/[\x00-\x1F\x7F]/', '', $filename);
+		$filename = preg_replace('/^\.+/', '', rtrim($filename, '. '));
+		if ($filename === '') {
+			$filename = 'attachment';
+		}
 
 		if (!file_exists($destdir)) {
 			if (dol_mkdir($destdir) < 0) {
@@ -4481,19 +4468,48 @@ class EmailCollector extends CommonObject
 		}
 
 		$tmp = explode('.', $filename);
-		$ext = array_pop($tmp);
+		$ext = (count($tmp) > 1 ? '.' . array_pop($tmp) : '');	// A file name with no dot has no extension
 		$filename = implode('.', $tmp);
 
+		// Same rule as for an uploaded file (see dol_move_uploaded_file()): a file with an executable content gets the suffix .noexe,
+		// so it can't be run on demand if the documents directory is inside the web root
+		if (isAFileWithExecutableContent($filename . $ext) && !getDolGlobalString('MAIN_DOCUMENT_IS_OUTSIDE_WEBROOT_SO_NOEXE_NOT_REQUIRED')) {
+			$ext .= '.noexe';
+		}
+
 		$i = 1;
-		$filepath = $destdir . (preg_match('/\/$/', $destdir) ? '' : '/') . $filename . '.' . $ext;
+		$filepath = $destdir . (preg_match('/\/$/', $destdir) ? '' : '/') . $filename . $ext;
 
 		while (file_exists($filepath)) {
-			$filepath = $destdir . (preg_match('/\/$/', $destdir) ? '' : '/') . $filename . '(' . $i . ').' . $ext;
+			$filepath = $destdir . (preg_match('/\/$/', $destdir) ? '' : '/') . $filename . '(' . $i . ')' . $ext;
 			$i++;
 		}
 
-		file_put_contents($filepath, $content);
+		// Same rule as for an uploaded file: the antivirus checks the content before it is moved into the documents. It is
+		// written first into a temporary file with a neutral name, as the name of the attachment comes from the email.
+		$tmpdir = $conf->admin->dir_temp;
+		if (!dol_is_dir($tmpdir)) {
+			dol_mkdir($tmpdir);
+		}
+		$tmpfile = $tmpdir.'/emailcollector_attachment_'.dol_hash(uniqid((string) mt_rand(), true), 'md5');
+		if (file_put_contents($tmpfile, $content) === false) {
+			return -1;	// Nothing saved, so nothing to index
+		}
+		$checkvirusarray = dolCheckVirus($tmpfile, $filepath);
+		if (count($checkvirusarray)) {
+			dol_syslog('EmailCollector::saveAttachment File "'.$filepath.'" KO with antivirus: errors='.implode(',', $checkvirusarray), LOG_WARNING);
+			dol_delete_file($tmpfile, 0, 0, 0, null, false, 0);
+			return -1;
+		}
+		if (!dol_move($tmpfile, $filepath, '0', 0, 0, 0)) {
+			dol_delete_file($tmpfile, 0, 0, 0, null, false, 0);
+			return -1;	// Nothing saved, so nothing to index
+		}
+
 		dolChmod($filepath);
+
+		// The name of the file saved, with its extension and the suffix added if a file with the same name already exists
+		$filename = basename($filepath);
 
 		if (image_format_supported($filename) == 1) {
 			$tmparraysize = getDefaultImageSizes();

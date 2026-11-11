@@ -367,6 +367,11 @@ if ($nolinesbefore) {
 
 			$addproducton = (isModEnabled('product') && $user->hasRight('produit', 'creer'));
 			$addserviceon = (isModEnabled('service') && $user->hasRight('service', 'creer'));
+			// After creation, product card replaces __ID__ with the new product id so it is preselected in the line form.
+			// The supplier combo uses 'idprod_ID' for a product without supplier price.
+			$urlbacktoobject = $_SERVER["PHP_SELF"].'?id='.$object->id;
+			$paramforselectedproduct = (empty($senderissupplier) ? 'idprod=__ID__' : 'idprodfournprice=idprod___ID__');
+			$paramsbacktoobject = '&backtopage='.urlencode($urlbacktoobject.'&prod_entry_mode=predef&'.$paramforselectedproduct).'&backtopageforcancel='.urlencode($urlbacktoobject);
 			if ($addproducton || $addserviceon) {
 				if ($addproducton && $addserviceon) {
 					echo '<div id="dropdownAddProductAndService" class="dropdown inline-block">';
@@ -381,8 +386,8 @@ if ($nolinesbefore) {
 						echo '<span class="dropdown-item">'.dolButtonToOpenUrlInDialogPopup('addproduct', $langs->transnoentitiesnoconv('NewProduct'), $langs->trans("NewProduct"), $urlnewp, '', 'classlink').'</span>';
 						echo '<span class="dropdown-item">'.dolButtonToOpenUrlInDialogPopup('addservice', $langs->transnoentitiesnoconv('NewService'), $langs->trans("NewService"), $urlnews, '', 'classlink').'</span>';
 					} else {
-						echo '<a class="dropdown-item" href="'.DOL_URL_ROOT.'/product/card.php?action=create&type=0&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id).'"> '.$langs->trans("NewProduct").'</a>';
-						echo '<a class="dropdown-item" href="'.DOL_URL_ROOT.'/product/card.php?action=create&type=1&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id).'"> '.$langs->trans("NewService").'</a>';
+						echo '<a class="dropdown-item" href="'.DOL_URL_ROOT.'/product/card.php?action=create&type=0'.$paramsbacktoobject.'"> '.$langs->trans("NewProduct").'</a>';
+						echo '<a class="dropdown-item" href="'.DOL_URL_ROOT.'/product/card.php?action=create&type=1'.$paramsbacktoobject.'"> '.$langs->trans("NewService").'</a>';
 					}
 					echo '</div>';
 					echo '</div>';
@@ -396,7 +401,7 @@ if ($nolinesbefore) {
 							// @phan-suppress-next-line PhanPluginSuspiciousParamOrder
 							print dolButtonToOpenUrlInDialogPopup('addproduct', $langs->transnoentitiesnoconv('AddProduct'), $newbutton, $url, '', '', $jsonclode);
 						} else {
-							print '<a href="'.DOL_URL_ROOT.'/product/card.php?action=create&type=0&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id.($object->element == 'reception' ? '&idprodfournprice=idprod___ID__' : '')).'" title="'.dol_escape_htmltag($langs->trans("NewProduct")).'"><span class="fa fa-plus-circle valignmiddle paddingleft"></span></a>';
+							print '<a href="'.DOL_URL_ROOT.'/product/card.php?action=create&type=0'.($object->element == 'reception' ? '&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id.'&idprodfournprice=idprod___ID__') : $paramsbacktoobject).'" title="'.dol_escape_htmltag($langs->trans("NewProduct")).'"><span class="fa fa-plus-circle valignmiddle paddingleft"></span></a>';
 						}
 					}
 					if ($addserviceon) {
@@ -408,7 +413,7 @@ if ($nolinesbefore) {
 							// @phan-suppress-next-line PhanPluginSuspiciousParamOrder
 							print dolButtonToOpenUrlInDialogPopup('addproduct', $langs->transnoentitiesnoconv('AddService'), $newbutton, $url, '', '', $jsonclode);
 						} else {
-							print '<a href="'.DOL_URL_ROOT.'/product/card.php?action=create&type=1&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id.($object->element == 'reception' ? '&idprodfournprice=idprod___ID__' : '')).'" title="'.dol_escape_htmltag($langs->trans("NewService")).'"><span class="fa fa-plus-circle valignmiddle paddingleft"></span></a>';
+							print '<a href="'.DOL_URL_ROOT.'/product/card.php?action=create&type=1'.($object->element == 'reception' ? '&backtopage='.urlencode($_SERVER["PHP_SELF"].'?id='.$object->id.'&idprodfournprice=idprod___ID__') : $paramsbacktoobject).'" title="'.dol_escape_htmltag($langs->trans("NewService")).'"><span class="fa fa-plus-circle valignmiddle paddingleft"></span></a>';
 						}
 					}
 				}
@@ -1082,7 +1087,7 @@ if (!empty($object->thirdparty)) {
 								jQuery('#date_end').removeClass('inputmandatory');
 							}
 
-							if (jsConf.conf.inputalsopricewithtax == 1 && data.pricebasetype == 'TTC' && jsConf.conf.MAIN_NO_INPUT_PRICE_WITH_TAX) {
+							if (jsConf.conf.inputalsopricewithtax == 1 && data.pricebasetype == 'TTC' && !jsConf.conf.MAIN_NO_INPUT_PRICE_WITH_TAX) {
 								console.log("objectline_create.tpl set content of price_ttc");
 								jQuery("#price_ttc").val(data.price_ttc);
 							} else {

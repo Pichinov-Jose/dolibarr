@@ -815,7 +815,7 @@ function restrictedArea(User $user, $features, $object = 0, $tableandshare = '',
  */
 function checkUserAccessToDocumentObject(User $user, $modulepart, $original_file, $mode = 'read')
 {
-	// Moduleparts of documents linked to a thirdparty: modulepart => array(element used to fetch the object, feature for restrictedArea())
+	// Moduleparts of documents linked to a thirdparty: modulepart => array(element used to fetch the object, feature for restrictedArea(), [table for restrictedArea(), [feature2 for restrictedArea()]])
 	$modulepartlinkedtothirdparty = array(
 		'societe' => array('societe', 'societe'),
 		'company' => array('societe', 'societe'),
@@ -829,12 +829,12 @@ function checkUserAccessToDocumentObject(User $user, $modulepart, $original_file
 		'proposal' => array('propal', 'propal'),
 		'commande' => array('commande', 'commande'),
 		'order' => array('commande', 'commande'),
-		'commande_fournisseur' => array('order_supplier', 'order_supplier'),
-		'order_supplier' => array('order_supplier', 'order_supplier'),
-		'supplier_order' => array('order_supplier', 'order_supplier'),
-		'facture_fournisseur' => array('invoice_supplier', 'invoice_supplier'),
-		'invoice_supplier' => array('invoice_supplier', 'invoice_supplier'),
-		'supplier_invoice' => array('invoice_supplier', 'invoice_supplier'),
+		'commande_fournisseur' => array('order_supplier', 'fournisseur', 'commande_fournisseur', 'commande'),
+		'order_supplier' => array('order_supplier', 'fournisseur', 'commande_fournisseur', 'commande'),
+		'supplier_order' => array('order_supplier', 'fournisseur', 'commande_fournisseur', 'commande'),
+		'facture_fournisseur' => array('invoice_supplier', 'fournisseur', 'facture_fourn', 'facture'),
+		'invoice_supplier' => array('invoice_supplier', 'fournisseur', 'facture_fourn', 'facture'),
+		'supplier_invoice' => array('invoice_supplier', 'fournisseur', 'facture_fourn', 'facture'),
 		'contract' => array('contrat', 'contrat'),
 		'contrat' => array('contrat', 'contrat'),
 		'fichinter' => array('fichinter', 'ficheinter'),
@@ -846,9 +846,14 @@ function checkUserAccessToDocumentObject(User $user, $modulepart, $original_file
 		'shipping' => array('expedition', 'expedition'),
 		'reception' => array('reception', 'reception'),
 		'supplier_proposal' => array('supplier_proposal', 'supplier_proposal'),
+		'project' => array('project', 'project'),
+		'projet' => array('project', 'project'),
+		'project_task' => array('project', 'project'),
 	);
 	// For these moduleparts, the first subdirectory is the id of the object instead of its ref
 	$modulepartwithid = array('societe', 'company', 'thirdparty', 'contact', 'socpeople');
+	// For these moduleparts, the first subdirectory is the ref of the object (files of tasks are into the directory of their project)
+	$modulepartwithfirstdirasref = array('project', 'projet', 'project_task');
 
 	// Same fix than into dol_check_secure_access_document(): files of 'expedition' into 'receipt/' are delivery notes
 	if ($modulepart == 'expedition' && strpos($original_file, 'receipt/') === 0) {
@@ -877,12 +882,17 @@ function checkUserAccessToDocumentObject(User $user, $modulepart, $original_file
 	if (in_array($modulepart, $modulepartwithid)) {
 		$tmparray = explode('/', ltrim($original_file, '/'));
 		$object = fetchObjectByElement((int) $tmparray[0], $modulepartlinkedtothirdparty[$modulepart][0]);
+	} elseif (in_array($modulepart, $modulepartwithfirstdirasref)) {
+		$tmparray = explode('/', ltrim($original_file, '/'));
+		$object = fetchObjectByElement(0, $modulepartlinkedtothirdparty[$modulepart][0], (count($tmparray) > 1 ? $tmparray[0] : ''));
 	} else {
 		$object = fetchObjectByElement(0, $modulepartlinkedtothirdparty[$modulepart][0], $refname);
 	}
 
 	if (is_object($object) && $object->id > 0) {
-		return restrictedArea($user, $modulepartlinkedtothirdparty[$modulepart][1], $object, '', '', 'fk_soc', 'rowid', 0, 1, $mode);
+		$tableandshare = (empty($modulepartlinkedtothirdparty[$modulepart][2]) ? '' : $modulepartlinkedtothirdparty[$modulepart][2]);
+		$feature2 = (empty($modulepartlinkedtothirdparty[$modulepart][3]) ? '' : $modulepartlinkedtothirdparty[$modulepart][3]);
+		return restrictedArea($user, $modulepartlinkedtothirdparty[$modulepart][1], $object, $tableandshare, $feature2, 'fk_soc', 'rowid', 0, 1, $mode);
 	}
 
 	// Object not found (file outside the directory of an object or faked path like 'REF/./file'): refused to users restricted to some thirdparties
@@ -928,6 +938,7 @@ function checkUserAccessToObject($user, array $featuresarray, $object = 0, $tabl
 	$params = explode('&', $tableandshare);
 	$dbtablename = (!empty($params[0]) ? $params[0] : '');
 	$sharedelement = (!empty($params[1]) ? $params[1] : $dbtablename);
+	$tablegivenbycaller = !empty($params[0]);	// The table of the object given by the caller must not be replaced by the default table of the feature
 
 	foreach ($featuresarray as $feature) {
 		$sql = '';
@@ -945,7 +956,7 @@ function checkUserAccessToObject($user, array $featuresarray, $object = 0, $tabl
 		if ($feature == 'category') {
 			$feature = 'categorie';
 		}
-		if ($feature == 'produit') {
+		if (!$tablegivenbycaller && $feature == 'produit') {
 			// The module (and its permissions) is named 'produit', but the table of the product object is 'llx_product'
 			$dbtablename = 'product';
 		}
@@ -989,6 +1000,30 @@ function checkUserAccessToObject($user, array $featuresarray, $object = 0, $tabl
 		if (empty($dbtablename)) {
 			$dbtablename = $feature;
 			$sharedelement = (!empty($params[1]) ? $params[1] : $dbtablename); // We change dbtablename, so we set sharedelement too.
+		}
+
+		// The default rule reads the columns entity and $dbt_keyfield of the table, but some tables own neither of
+		// them. The sql was then built on columns that do not exist, so it always failed and the access was refused
+		// to the users that this rule applies to.
+		// The rule is selected on the table and not on the element of the object, because $object is an id and not
+		// an object for most of the callers, the card of an asset and the card of a workstation included.
+		if (!empty($objectid) && in_array($dbtablename, array('asset', 'paiement', 'paiementfourn', 'workstation_workstation', 'hrm_job', 'hrm_job_user', 'hrm_skill', 'tva', 'localtax', 'chargesociales', 'loan'))) {
+			// None of these objects is linked to a third party, so an external user can own none of them. The
+			// default rule refused him through a link that does not exist, we must refuse him explicitly instead,
+			// otherwise the rules below, which do not look at the third party of the user at all, would grant it.
+			if (!empty($user->socid)) {
+				return false;
+			}
+			if (in_array($dbtablename, array('hrm_job', 'hrm_job_user', 'hrm_skill'))) {
+				// These 3 tables have no entity column either, so no rule that reads the table can be run on them.
+				// The permission is still checked by restrictedArea(), and the $checkhierarchy rule below still runs.
+				// Note that these 3 objects are therefore not partitioned between entities at all, in the database
+				// itself: their cards already answer to a user of another entity, and their lists already show the
+				// records of all of them. This rule does not widen that, it aligns with it.
+				$nocheck[] = $feature;
+			} else {
+				$check[] = $feature;	// Test on the entity only, there is no third party to restrict on
+			}
 		}
 
 		// $objectid was already sanitized at begin of this method (can be an int or a list of int separated by comma).
@@ -1278,6 +1313,67 @@ function checkUserAccessToObject($user, array $featuresarray, $object = 0, $tabl
 
 	dol_syslog("security.lib.php::checkUserAccessToObject::return True", LOG_DEBUG);
 	return true;
+}
+
+/**
+ * Return, among a list of ids of objects of the same type, the ids of the objects the user is not allowed to access,
+ * with the same rules as checkUserAccessToObject(): entity, third parties of the sales representative when the user can not
+ * see all third parties, projects the user can see... It is used by the mass actions of the lists, where the ids come from
+ * the request and not from the list (the list only showed the objects the user can see, the request can contain any id).
+ * Only the types of objects linked to a third party or to a project are checked, an empty array is returned for the others.
+ *
+ * @param	User			$user		User
+ * @param	CommonObject	$object		An instance of the class of the objects (used for its element and table_element)
+ * @param	int[]			$ids		Ids of the objects
+ * @return	int[]						Ids of the objects the user can not access (empty if the user can access all of them)
+ * @see checkUserAccessToObject()
+ */
+function getObjectIdsRefusedToUser(User $user, $object, array $ids)
+{
+	$feature = '';
+	switch ($object->element) {
+		case 'societe':
+		case 'contact':
+		case 'contrat':
+		case 'ticket':
+		case 'facture':
+		case 'commande':
+		case 'propal':
+		case 'supplier_proposal':
+		case 'fichinter':
+		case 'shipping':
+		case 'reception':
+		case 'order_supplier':
+		case 'invoice_supplier':
+			$feature = $object->element;
+			break;
+		case 'action':
+			$feature = 'agenda';
+			break;
+		case 'project':
+			$feature = 'projet';
+			break;
+		case 'project_task':
+			include_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
+			$feature = 'project_task';
+			break;
+	}
+	if (empty($feature)) {
+		return [];
+	}
+
+	$refusedids = [];
+	foreach ($ids as $id) {
+		$id = (int) $id;
+		if ($id <= 0) {
+			continue;
+		}
+		if (!checkUserAccessToObject($user, [$feature], $id, $object->table_element.'&'.$object->element, '', 'fk_soc', 'rowid')) {
+			$refusedids[] = $id;
+		}
+	}
+
+	return $refusedids;
 }
 
 

@@ -443,6 +443,9 @@ class Ai
 
 			// Extraction content
 			if (!empty($decodedResponse['error'])) {
+				// Casts needed because is_scalar() also accepts bool, int and float, and
+				// var_export() is typed as returning null when its second argument is not true,
+				// while the method is declared to return a string or the error array.
 				if (is_scalar($decodedResponse['error'])) {
 					// Casts needed because is_scalar() also accepts bool, int and float, and
 					// var_export() is typed as returning null when its second argument is not

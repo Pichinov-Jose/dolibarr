@@ -62,6 +62,7 @@
  * @var ?string $permissiontoread
  * @var ?string $permissiontodelete
  * @var ?string $permissiontoclose
+ * @var ?string $permissiontocancel
  * @var ?string $permissiontoapprove
  * @var ?string $option
  * @var int $deliveryreceipt
@@ -79,6 +80,7 @@
 @phan-var-force ?string $permissiontoread
 @phan-var-force ?string $permissiontodelete
 @phan-var-force ?string $permissiontoclose
+@phan-var-force ?string $permissiontocancel
 @phan-var-force ?string $permissiontoapprove
 @phan-var-force ?int[] $toselect
 @phan-var-force ?string $diroutputmassaction
@@ -135,6 +137,19 @@ if ($massaction && is_array($toselect) && count($toselect) < 1) {
 if (!$error && isset($toselect) && is_array($toselect) && count($toselect) > $maxformassaction) {
 	setEventMessages($langs->trans('TooManyRecordForMassAction', $maxformassaction), null, 'errors');
 	$error++;
+}
+
+// The ids in $toselect come from the request and not from the list: the list only showed the objects the user can see, the
+// request can contain any id. Refuse the selection if the user can not access one of the objects, with the same rules as the
+// lists and the cards (entity, third parties of the sales representative, projects the user can see...).
+if (!$error && $massaction && !empty($toselect) && is_array($toselect)) {
+	$objecttmpforaccesscheck = new $objectclass($db);
+	$refusedids = getObjectIdsRefusedToUser($user, $objecttmpforaccesscheck, $toselect);
+	if (!empty($refusedids)) {
+		$langs->load("errors");
+		setEventMessages($langs->trans("NotEnoughPermissions"), null, 'errors');
+		$error++;
+	}
 }
 
 if (!$error && $massaction == 'confirm_presend' && !GETPOST('sendmail')) {  // If we do not choose button send (for example when we change template or limit), we must not send email, but keep on send email form
@@ -293,7 +308,7 @@ if (!$error && $massaction == 'confirm_presend') {
 				foreach ($receiver as $key => $val) {
 					// Recipient was provided from combo list
 					if ($val == 'thirdparty') { // Id of third party or user
-						$tmparray[] = $thirdparty->name.' <'.$thirdparty->email.'>';
+						$tmparray[] = dol_string_nospecial((string) $thirdparty->name, ' ', array(",")).' <'.$thirdparty->email.'>';
 					} elseif ($val && method_exists($thirdparty, 'contact_get_property')) {		// Id of contact
 						$tmparray[] = $thirdparty->contact_get_property((int) $val, 'email');
 						//$sendtoid[] = $val;
@@ -319,7 +334,7 @@ if (!$error && $massaction == 'confirm_presend') {
 				foreach ($receivercc as $key => $val) {
 					// Recipient was provided from combo list
 					if ($val == 'thirdparty') { // Id of third party
-						$tmparray[] = $thirdparty->name.' <'.$thirdparty->email.'>';
+						$tmparray[] = dol_string_nospecial((string) $thirdparty->name, ' ', array(",")).' <'.$thirdparty->email.'>';
 					} elseif ($val) {	// Id du contact
 						$tmparray[] = $thirdparty->contact_get_property((int) $val, 'email');
 						//$sendtoid[] = $val;  TODO Add also id of contact in CC ?
@@ -803,7 +818,7 @@ if (!$error && $massaction == 'confirm_presend') {
 }
 
 
-if (!$error && $massaction == 'cancelorders') {
+if (!$error && $massaction == 'cancelorders' && !empty($permissiontocancel)) {
 	$db->begin();
 
 	$nbok = 0;
@@ -813,6 +828,12 @@ if (!$error && $massaction == 'cancelorders') {
 		$cmd = new Commande($db);
 		if ($cmd->fetch($id_order) <= 0) {
 			continue;
+		}
+		// Check the user can access this order (external users, sales representatives restrictions)
+		if (!checkUserAccessToObject($user, array('commande'), $cmd, 'commande', '', 'fk_soc', 'rowid')) {
+			setEventMessages($langs->trans("ErrorForbidden"), null, 'errors');
+			$error++;
+			break;
 		}
 
 		if ($cmd->status != Commande::STATUS_VALIDATED) {
