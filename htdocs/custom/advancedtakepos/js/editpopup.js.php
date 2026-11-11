@@ -80,6 +80,10 @@ $reset = dol_escape_js($langs->transnoentitiesnoconv('AdvTakeposInitialTariff'))
 $token = newToken();
 $pdmode = getDolGlobalInt('ADVANCEDTAKEPOS_PRICE_DISCOUNT_MODE', 1);
 $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
+$resetc = (getDolGlobalInt('ADVANCEDTAKEPOS_C_RESETS_LINE') == 1);
+$reseturl = dol_buildpath('/advancedtakepos/ajax/resetline.php', 1);
+// %s remplace par un repere : transnoentitiesnoconv() passe toujours par sprintf.
+$resetmsg = dol_escape_js($langs->transnoentitiesnoconv('AdvTakeposResetLineConfirm', '__ADVTPLINE__'));
 ?>
 (function () {
 	if (window.__advtpEditPopupLoaded) { return; }
@@ -91,6 +95,7 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 	var HDR = { qty: '<?php echo $hdr['qty']; ?>', r: '<?php echo $hdr['r']; ?>', ttc: '<?php echo $hdr['ttc']; ?>' };
 	var PDMODE = <?php echo (int) $pdmode; ?>;
 	var UPLINE = '<?php echo $uplineurl; ?>'; // 0=garder la remise (natif), 1=remise a zero, 2=convertir en remise
+	var RESETC = <?php echo $resetc ? 'true' : 'false'; ?>, RESETURL = '<?php echo $reseturl; ?>', RESETMSG = '<?php echo $resetmsg; ?>';
 	var open = false, kind = '', value = '', fresh = false, openR = 0, openUnit = 0;
 	var editing = false;
 
@@ -254,8 +259,13 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 			if (!catal) {
 				catal = (openR < 100 && openUnit > 0) ? (openUnit / (1 - openR / 100)) : 0;
 			}
-			if (catal > 0) {
-				var nr = Math.min(100, Math.max(0, Math.round((1 - parseFloat(value) / catal) * 10000) / 100));
+			var net = num(value);
+			if (catal > 0 && net !== null) {
+				// 4 decimales, comme la remise auto du module : a 2 decimales, 590 sur un PPC de 649 donnait
+				// 9,09 % et un net de 590,01. 2 decimales seulement quand le net retombe exactement sur le prix saisi.
+				var nr = Math.min(100, Math.max(0, Math.round((1 - net / catal) * 1000000) / 10000));
+				var nr2 = Math.round(nr * 100) / 100;
+				if (Math.abs(catal * (1 - nr2 / 100) - net) < 0.005) { nr = nr2; }
 				jQuery('#poslines').load(urlFor('r', String(nr)), function () { close(); });
 				return;
 			}
@@ -343,6 +353,18 @@ $uplineurl = dol_buildpath('/advancedtakepos/ajax/updatepriceline.php', 1);
 			if (k === 'c') { close(); return; }
 			if (k === 'qty' || k === 'p' || k === 'r') { validate(); return; } // OK depuis le pave
 			append(String(k));
+			return;
+		}
+		// C (option) : remet la ligne selectionnee a ses valeurs d'ajout, apres confirmation. Sans ligne : natif.
+		if (k === 'c' && RESETC && typeof selectedline !== 'undefined' && selectedline) {
+			var lid = selectedline;
+			var lt = (typeof selectedtext !== 'undefined') ? jQuery('<div>').html(String(selectedtext).replace(/<br\s*\/?>/gi, ' ')).text().replace(/\s+/g, ' ').trim() : '';
+			window.advtpConfirm(RESETMSG.replace('__ADVTPLINE__', lt), function () {
+				jQuery.getJSON(RESETURL + '?token=' + freshToken() + '&place=' + place + '&idline=' + lid, function (dd) {
+					if (dd && dd.ok) { if (typeof nativeEdit === 'function') { nativeEdit('c'); } else if (typeof Refresh === 'function') { Refresh(); } }
+					else { alert((dd && dd.error) ? dd.error : 'Error'); }
+				});
+			});
 			return;
 		}
 		if (k === 'qty' || k === 'p' || k === 'r') {

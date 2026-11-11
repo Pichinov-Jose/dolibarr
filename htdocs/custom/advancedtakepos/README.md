@@ -20,9 +20,9 @@ une constante `ADVANCEDTAKEPOS_*`, activable dans la page de réglages du module
 ## Structure
 
 - `class/actions_advancedtakepos.class.php` — tous les hooks (`completeAjaxReturnArray`,
-  `completeJSProductDisplay`, `completeTakePosInvoiceHeader`, `ActionButtons`) + CSS généré.
-- `js/editpopup.js.php`, `js/editinline.js.php` — modes de saisie.
-- `ajax/` — `updatepriceline.php`, `deletesale.php`, `setgridsize.php`.
+  `completeJSProductDisplay`, `completeTakePosInvoiceHeader`, `ActionButtons`, `TakeposReceipt`) + CSS généré.
+- `js/editpopup.js.php`, `js/editinline.js.php` — modes de saisie ; `js/linedesc.js.php` — fenêtre Description de ligne.
+- `ajax/` — `updatepriceline.php`, `deletesale.php`, `linedesc.php` (description d'une ligne), `sendchoice.php` (fenêtre Envoyer).
 - `admin/setup.php` — réglages (modes, presets, grilles, bascules).
 - `core/modules/modAdvancedTakepos.class.php` — descripteur (n° 500124).
 

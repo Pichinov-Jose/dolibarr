@@ -16,9 +16,10 @@
  */
 
 /**
- * \file    ajax/setgridsize.php
+ * \file    ajax/linedesc.php
  * \ingroup advancedtakepos
- * \brief   Ajuste TAKEPOS_NB_MAXPRODUCT selon l'appareil (le coeur ne connait qu'une valeur globale).
+ * \brief   Renvoie la description d'une ligne du panier courant, pour pre-remplir la fenetre Description.
+ *          L'enregistrement passe par l'action native takepos/invoice.php?action=addnote.
  */
 
 if (!defined('NOREQUIREMENU')) {
@@ -57,17 +58,48 @@ if (!$res) {
 	die("Include of main fails");
 }
 
-require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
 global $conf, $db, $user;
 
 top_httphead('application/json');
-$out = array('ok' => false);
 
-$value = GETPOSTINT('value');
-if ($value >= 6 && $value <= 60 && ($user->hasRight('takepos', 'run') || !empty($user->admin))) {
-	$r = dolibarr_set_const($db, 'TAKEPOS_NB_MAXPRODUCT', $value, 'chaine', 0, '', $conf->entity);
-	$out['ok'] = ($r > 0);
-	$out['value'] = $value;
+$out = array('ok' => false, 'error' => '');
+
+// Droits : meme exigence que l'action native addnote.
+if (empty($user->id) || (!$user->hasRight('takepos', 'run') && empty($user->admin))) {
+	$out['error'] = 'Forbidden';
+	echo json_encode($out);
+	exit;
 }
+
+$place = GETPOST('place', 'alpha');
+$idline = GETPOSTINT('idline');
+$term = isset($_SESSION['takeposterminal']) ? $_SESSION['takeposterminal'] : '';
+if ($place === '' || $term === '' || $idline <= 0) {
+	$out['error'] = 'Missing place/terminal/line';
+	echo json_encode($out);
+	exit;
+}
+
+// Meme facture que celle que modifiera invoice.php : le brouillon (PROV-POS<terminal>-<place>).
+$invoice = new Facture($db);
+if ($invoice->fetch(0, '(PROV-POS'.$term.'-'.$place.')') <= 0 || (int) $invoice->statut != Facture::STATUS_DRAFT) {
+	$out['error'] = 'No draft sale';
+	echo json_encode($out);
+	exit;
+}
+foreach ($invoice->lines as $line) {
+	if ((int) $line->id == $idline) {
+		$out['ok'] = true;
+		$out['label'] = (string) ($line->product_label ? $line->product_label : '');
+		// Description de la ligne, sauf quand elle reprend le libelle (ligne libre) : le champ part vide.
+		$out['desc'] = ($line->desc !== $line->product_label) ? (string) $line->desc : '';
+		break;
+	}
+}
+if (!$out['ok']) {
+	$out['error'] = 'Line not found';
+}
+
 echo json_encode($out);

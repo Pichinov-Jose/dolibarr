@@ -416,10 +416,14 @@ class ActionsTakeposvendeur
 
 	/**
 	 * Ticket (hook TakeposReceipt, contexte takeposfrontend) : imprime le vendeur.
+	 *
+	 * takepos/receipt.php imprime SEULEMENT la sortie de ce hook quand elle n'est pas vide (le hook sert a
+	 * remplacer le ticket) : on n'ecrit donc rien dans resprints. Le vendeur est ajoute, pour cette requete
+	 * seulement, a l'en-tete libre TAKEPOS_HEADER que le ticket standard imprime juste apres.
 	 */
 	public function TakeposReceipt($parameters, &$object, &$action, $hookmanager)
 	{
-		global $db, $langs;
+		global $db, $langs, $conf;
 
 		$langs->load('takeposvendeur@takeposvendeur');
 
@@ -433,7 +437,8 @@ class ActionsTakeposvendeur
 			if ($res && ($o = $db->fetch_object($res))) {
 				$nm = trim(($o->firstname ? $o->firstname.' ' : '').$o->lastname);
 				if ($nm === '') $nm = $o->login;
-				$this->resprints = '<div style="text-align:center;">'.$langs->trans('TpvVendor').' : '.dol_escape_htmltag($nm).'</div>';
+				$header = getDolGlobalString('TAKEPOS_HEADER');
+				$conf->global->TAKEPOS_HEADER = ($header !== '' ? $header."\n" : '').$langs->trans('TpvVendor').' : '.dol_escape_htmltag($nm);
 			}
 		}
 		return 0;
