@@ -59,7 +59,10 @@ $mode       = GETPOST('mode', 'aZ'); // The output mode ('list', 'kanban', 'hier
 $sref = GETPOST('sref', 'alphanohtml');
 $sRefSupplier = GETPOST('srefsupplier');
 $snom = GETPOST('snom', 'alphanohtml');
-$search_tva_tx = GETPOST('search_tva_tx', 'alphanohtml');
+$search_barcode = GETPOST('search_barcode', 'alphanohtml');
+$search_tva_tx = GETPOST('search_tva_tx', 'array:alphanohtml');
+// Keep only numeric rates
+$search_tva_tx = array_values(array_unique(array_filter(array_map('strval', array_filter($search_tva_tx, 'is_numeric')), 'strlen')));
 $type = GETPOST('type', 'alphanohtml');
 
 // Load variable for pagination
@@ -105,6 +108,7 @@ $object = new ProductFournisseurPrice($db);
 $arrayfields = array(
 	'p.ref' => array('label' => 'Ref', 'checked' => '1', 'position' => 10),
 	'ppf.ref_fourn' => array('label' => 'RefSupplierShort', 'checked' => '1', 'position' => 20),
+	'p.barcode' => array('label' => 'BarCode', 'checked' => '0', 'position' => 15),
 	'p.label' => array('label' => 'Label', 'checked' => '1', 'position' => 30),
 	'ppf.fk_soc' => array('label' => 'Supplier', 'checked' => '1', 'position' => 40),
 	'ppf.price' => array('label' => 'BuyingPrice', 'checked' => '1', 'position' => 50),
@@ -146,7 +150,8 @@ if (empty($reshook)) {
 		$sref = '';
 		$sRefSupplier = '';
 		$snom = '';
-		$search_tva_tx = '';
+		$search_tva_tx = array();
+		$search_barcode = '';
 		$search_field1 = '';
 		$search_field2 = '';
 		$search_date_creation = '';
@@ -217,8 +222,11 @@ if ($catid) {
 if ($fourn_id > 0) {
 	$sql .= " AND ppf.fk_soc = ".((int) $fourn_id);
 }
-if ($search_tva_tx !== '') {
-	$sql .= natural_search('ppf.tva_tx', $search_tva_tx, 1);
+if (!empty($search_tva_tx)) {
+	$sql .= " AND ppf.tva_tx IN (".implode(',', array_map('floatval', $search_tva_tx)).")";
+}
+if ($search_barcode != '') {
+	$sql .= natural_search('p.barcode', $search_barcode);
 }
 
 // Add WHERE filters from hooks
@@ -309,8 +317,11 @@ if ($sRefSupplier != '') {
 if ($snom != '') {
 	$param .= '&snom='.urlencode($snom);
 }
-if ($search_tva_tx !== '') {
-	$param .= '&search_tva_tx='.urlencode($search_tva_tx);
+foreach ($search_tva_tx as $searchvatrate) {
+	$param .= '&search_tva_tx[]='.urlencode($searchvatrate);
+}
+if ($search_barcode != '') {
+	$param .= '&search_barcode='.urlencode($search_barcode);
 }
 if ($fourn_id > 0) {
 	$param .= '&fourn_id='.((int) $fourn_id);
@@ -410,6 +421,11 @@ if (!empty($arrayfields['p.ref']['checked'])) {
 	print '<input class="flat maxwidth100" type="text" name="sref" value="'.$sref.'">';
 	print '</td>';
 }
+if (!empty($arrayfields['p.barcode']['checked'])) {
+	print '<td class="liste_titre">';
+	print '<input class="flat maxwidth100" type="text" name="search_barcode" value="'.dol_escape_htmltag($search_barcode).'">';
+	print '</td>';
+}
 if (!empty($arrayfields['ppf.ref_fourn']['checked'])) {
 	print '<td class="liste_titre">';
 	print '<input class="flat maxwidth100" type="text" name="srefsupplier" value="'.$sRefSupplier.'">';
@@ -426,8 +442,22 @@ foreach (array('ppf.fk_soc', 'ppf.price', 'ppf.quantity', 'ppf.unitprice') as $k
 	}
 }
 if (!empty($arrayfields['ppf.tva_tx']['checked'])) {
-	print '<td class="liste_titre right">';
-	print '<input class="flat maxwidth50 right" type="text" name="search_tva_tx" value="'.dol_escape_htmltag($search_tva_tx).'">';
+	// List of VAT rates of the dictionary of VAT rates, for the country of the company
+	$form->load_cache_vatrates("'".$mysoc->country_code."'");
+	$arrayofvatrates = array();
+	foreach ($form->cache_vatrates as $vatdef) {
+		$arrayofvatrates[(string) ((float) $vatdef['txtva'])] = vatrate($vatdef['txtva'], true);
+	}
+	foreach ($search_tva_tx as $searchvatrate) {	// A selected rate that is not in the dictionary is still shown
+		if (!isset($arrayofvatrates[$searchvatrate])) {
+			$arrayofvatrates[$searchvatrate] = vatrate($searchvatrate, true);
+		}
+	}
+	uksort($arrayofvatrates, function ($a, $b) {
+		return (float) $a <=> (float) $b;
+	});
+	print '<td class="liste_titre center">';
+	print $form->multiselectarray('search_tva_tx', $arrayofvatrates, $search_tva_tx, 0, 0, 'minwidth75 maxwidth100', 0, 0);
 	print '</td>';
 }
 // Fields from hook
@@ -458,6 +488,7 @@ if ($conf->main_checkbox_left_column) {
 $listoftitles = array(
 	'p.ref' => array('Ref', ''),
 	'ppf.ref_fourn' => array('RefSupplierShort', ''),
+	'p.barcode' => array('BarCode', ''),
 	'p.label' => array('Label', ''),
 	'ppf.fk_soc' => array('Supplier', ''),
 	'ppf.price' => array('BuyingPrice', 'right '),
@@ -529,6 +560,13 @@ while ($i < $imaxinloop) {
 		print '<td>';
 		print $productstatic->getNomUrl(1, 'supplier');
 		print '</td>';
+		if (!$i) {
+			$totalarray['nbfield']++;
+		}
+	}
+
+	if (!empty($arrayfields['p.barcode']['checked'])) {
+		print '<td>'.dol_escape_htmltag($objp->barcode).'</td>';
 		if (!$i) {
 			$totalarray['nbfield']++;
 		}
