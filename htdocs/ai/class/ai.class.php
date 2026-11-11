@@ -424,10 +424,10 @@ class Ai
 
 			// Extraction content
 			if (!empty($decodedResponse['error'])) {
+				// Casts needed because is_scalar() also accepts bool, int and float, and
+				// var_export() is typed as returning null when its second argument is not true,
+				// while the method is declared to return a string or the error array.
 				if (is_scalar($decodedResponse['error'])) {
-					// Casts needed because is_scalar() also accepts bool, int and float, and
-					// var_export() is typed as returning null when its second argument is not
-					// true, while the method is declared to return a string or the error array.
 					$generatedContent = (string) $decodedResponse['error'];
 				} else {
 					$generatedContent = (string) var_export($decodedResponse['error'], true);
@@ -445,12 +445,11 @@ class Ai
 					}
 				}
 			} else {
-				// A provider answering 200 with a body that does not carry
-				// choices[0].message.content must not reach the code below: reading the missing
-				// keys emits PHP warnings, and a 'choices' entry that is a string instead of an
-				// array raises a TypeError, which the catch below does not take (TypeError
-				// implements Throwable but does not extend Exception) and so ends as a fatal
-				// error on the ajax endpoints calling this method.
+				// A provider answering 200 with a body that does not carry choices[0].message.content
+				// must not reach the code below: reading the missing keys emits PHP warnings, and a
+				// 'choices' entry that is a string instead of an array raises a TypeError, which the
+				// catch below does not take (TypeError implements Throwable but does not extend
+				// Exception) and so ends as a fatal error on the ajax endpoints calling this method.
 				if (!isset($decodedResponse['choices'][0]['message']['content'])
 					|| !is_string($decodedResponse['choices'][0]['message']['content'])) {
 					throw new Exception('API response of AI endpoint '.$this->apiEndpoint.' does not contain the expected choices[0].message.content string');
