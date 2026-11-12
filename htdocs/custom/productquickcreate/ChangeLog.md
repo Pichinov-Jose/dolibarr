@@ -1,5 +1,12 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.2.3 (2026-11-12)
+- Correctif du préremplissage de la 1.2.1, qui ne s'affichait pas : le formulaire de ligne lit la réf.
+  fournisseur et le prix en POST seulement (GETPOST(..., 2)), les valeurs étaient posées en GET
+- Au retour sur la réception, le champ de recherche produit est validé automatiquement : la recherche est
+  rejouée et le prix fournisseur du nouveau produit est sélectionné comme par un clic dans la liste, donc
+  Dolibarr remplit lui-même la ligne (prix d'achat, réf. fournisseur, TVA, quantité minimum). Hook formConfirm
+
 ## 1.2.2 (2026-11-12)
 - Champ « Prix de vente niveau 1 » (libellé du niveau, ex. Magasin) sur le formulaire de création quand
   le multiprix est actif (Dolibarr n'affiche alors aucun prix à la création), TTC par défaut, HT possible ;

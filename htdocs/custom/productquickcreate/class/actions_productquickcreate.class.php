@@ -193,19 +193,47 @@ class ActionsProductQuickCreate
 	 */
 	private function prefillReceptionLineAfterQuickCreate($object, $action)
 	{
-		if (!empty($action) || !getDolGlobalString('PRODUCTQUICKCREATE_SUPPLIER_BLOCK')) {
+		if (!empty($action) || GETPOSTISSET('price_ht') || GETPOSTISSET('fourn_ref')) {
 			return 0;
+		}
+		$obj = $this->fetchSupplierPriceOfReturnedProduct($object);
+		if ($obj) {
+			// The line form reads these fields with GETPOST(..., 2) = POST only: a value put into $_GET is ignored.
+			// This is the fallback without javascript; formConfirm() then validates the product search field.
+			if ((float) $obj->unitprice > 0) {
+				$_POST['price_ht'] = price(price2num($obj->unitprice, 'MU'));
+			}
+			if ((string) $obj->ref_fourn !== '') {
+				$_POST['fourn_ref'] = $obj->ref_fourn;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Supplier price (at the supplier of the reception) of the product given back by the "New product" popup
+	 * in the URL (idprodfournprice=idprod_ID), or null
+	 *
+	 * @param CommonObject $object Reception
+	 * @return ?object Row with pfpid, ref_fourn, unitprice, productref
+	 */
+	private function fetchSupplierPriceOfReturnedProduct($object)
+	{
+		if (!getDolGlobalString('PRODUCTQUICKCREATE_SUPPLIER_BLOCK') || empty($object->socid) || (int) $object->socid <= 0) {
+			return null;
+		}
+		if (isset($object->status) && (int) $object->status != 0) {
+			return null;	// Lines can be added on a draft only
 		}
 		$reg = array();
 		if (!preg_match('/^idprod_([0-9]+)$/', (string) GETPOST('idprodfournprice', 'alpha'), $reg)) {
-			return 0;
-		}
-		if (GETPOSTISSET('price_ht') || GETPOSTISSET('fourn_ref') || empty($object->socid) || (int) $object->socid <= 0) {
-			return 0;
+			return null;
 		}
 
-		$sql = "SELECT pfp.ref_fourn, pfp.unitprice";
+		$sql = "SELECT pfp.rowid as pfpid, pfp.ref_fourn, pfp.unitprice, p.ref as productref";
 		$sql .= " FROM ".$this->db->prefix()."product_fournisseur_price as pfp";
+		$sql .= " INNER JOIN ".$this->db->prefix()."product as p ON p.rowid = pfp.fk_product";
 		$sql .= " WHERE pfp.fk_product = ".((int) $reg[1]);
 		$sql .= " AND pfp.fk_soc = ".((int) $object->socid);
 		$sql .= " AND pfp.entity IN (".getEntity('productsupplierprice').")";
@@ -214,14 +242,70 @@ class ActionsProductQuickCreate
 		$sql .= $this->db->plimit(1);
 		$resql = $this->db->query($sql);
 		if ($resql && ($obj = $this->db->fetch_object($resql))) {
-			// The line form reads these values with GETPOST (fields price_ht and fourn_ref of the reception line)
-			if ((float) $obj->unitprice > 0) {
-				$_GET['price_ht'] = price(price2num($obj->unitprice, 'MU'));
-			}
-			if ((string) $obj->ref_fourn !== '') {
-				$_GET['fourn_ref'] = $obj->ref_fourn;
-			}
+			return $obj;
 		}
+
+		return null;
+	}
+
+	/**
+	 * Back on the reception after the "New product" popup: validate the product search field of the line
+	 * as if the user had picked the supplier price of the new product in the list. Dolibarr then fills the
+	 * line itself (buying price, supplier ref, VAT, minimum quantity) exactly like after a manual choice.
+	 * The formConfirm hook is used because the reception card always prints its output.
+	 *
+	 * @param array<string,mixed> $parameters Hook parameters
+	 * @param CommonObject $object Current object
+	 * @param string $action Current action
+	 * @param HookManager $hookmanager Hook manager
+	 * @return int 0
+	 */
+	public function formConfirm($parameters, &$object, &$action, $hookmanager)
+	{
+		$contexts = explode(':', (string) $parameters['currentcontext']);
+		if (!in_array('receptioncard', $contexts) || !empty($action) || empty($object->id)) {
+			return 0;
+		}
+		$obj = $this->fetchSupplierPriceOfReturnedProduct($object);
+		if (!$obj) {
+			return 0;
+		}
+
+		$this->resprints = '<script>
+		jQuery(function() {
+			var pqcPfpId = "'.((int) $obj->pfpid).'";
+			var pqcSearchKey = "'.dol_escape_js((string) $obj->productref).'";
+			var pqcTries = 0;
+			function pqcValidateProductSearch() {
+				var input = jQuery("#search_idprodfournprice");
+				var inst = null;
+				try { inst = (input.length ? input.autocomplete("instance") : null); } catch (e) { inst = null; }
+				if (!inst) {
+					if (++pqcTries < 50) { setTimeout(pqcValidateProductSearch, 100); }
+					return;
+				}
+				if (String(jQuery("#idprodfournprice").val()).indexOf("idprod_") !== 0) {
+					return;	// Another product was chosen meanwhile
+				}
+				input.one("autocompleteresponse", function(event, ui) {
+					var found = null;
+					jQuery.each(ui.content || [], function(i, item) {
+						if (String(item.id) === pqcPfpId) { found = item; return false; }
+					});
+					if (found) {
+						console.log("productquickcreate: validate the product search field with the supplier price " + pqcPfpId);
+						inst._trigger("select", event, { item: found });
+						input.val(found.value);
+					} else {
+						console.log("productquickcreate: supplier price " + pqcPfpId + " not found in the search results of " + pqcSearchKey);
+					}
+					setTimeout(function() { inst.close(); }, 0);
+				});
+				inst.search(pqcSearchKey);
+			}
+			setTimeout(pqcValidateProductSearch, 0);
+		});
+		</script>';
 
 		return 0;
 	}
