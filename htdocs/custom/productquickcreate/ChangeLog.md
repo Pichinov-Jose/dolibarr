@@ -1,5 +1,15 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.2.0 (2026-11-12)
+- Le bloc fournisseur ne perd plus les saisies en silence : une réf. fournisseur déjà utilisée chez ce
+  fournisseur par un autre produit, un EAN déjà porté par un autre produit, ou une réf./un EAN saisis sans
+  prix d'achat refusent la création avec un message qui nomme le produit existant ; le formulaire se
+  réaffiche avec les valeurs saisies (contrôle avant création, hook doActions)
+- Si le prix d'achat ne peut quand même pas être enregistré, la création du produit est annulée avec la
+  raison (le trigger échoue au lieu de renvoyer 0)
+- Nouveau champ « EAN fournisseur » (type + valeur) dans le bloc, enregistré sur le prix d'achat comme
+  dans l'onglet « Prix d'achat » (si le module Codes-barres est actif)
+
 ## 1.1.1 (2026-08-27)
 - Compatibilité Dolibarr 24 : filtre fournisseur du select_company en syntaxe universelle ((s.fournisseur:=:1))
 

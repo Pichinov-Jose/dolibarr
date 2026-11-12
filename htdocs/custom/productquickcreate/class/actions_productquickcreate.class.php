@@ -13,9 +13,121 @@
 class ActionsProductQuickCreate
 {
 	/**
+	 * @var DoliDB Database handler
+	 */
+	public $db;
+
+	/**
+	 * @var string Error
+	 */
+	public $error = '';
+
+	/**
+	 * @var string[] Errors
+	 */
+	public $errors = array();
+
+	/**
+	 * @var string[] Warnings
+	 */
+	public $warnings = array();
+
+	/**
+	 * @var array<string,mixed> Hook results
+	 */
+	public $results = array();
+
+	/**
 	 * @var string Hook output
 	 */
 	public $resprints;
+
+	/**
+	 * @param DoliDB $db Database handler
+	 */
+	public function __construct($db)
+	{
+		$this->db = $db;
+	}
+
+	/**
+	 * Before the product is created, check the supplier block: a supplier ref or an EAN already used by
+	 * another product, or a supplier ref / EAN without buying price, would be lost. In that case the
+	 * creation is refused and the form is displayed again with the typed values and the reason.
+	 *
+	 * @param array<string,mixed> $parameters Hook parameters
+	 * @param CommonObject $object Current object
+	 * @param string $action Current action
+	 * @param HookManager $hookmanager Hook manager
+	 * @return int 0 to go on, <0 to refuse the creation
+	 */
+	public function doActions($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs;
+
+		$contexts = explode(':', (string) $parameters['currentcontext']);
+		if (!in_array('productcard', $contexts) || $action != 'add') {
+			return 0;
+		}
+		if (!getDolGlobalString('PRODUCTQUICKCREATE_SUPPLIER_BLOCK') || GETPOSTINT('fourn_socid') <= 0) {
+			return 0;
+		}
+
+		$reffourn = trim(GETPOST('fourn_ref', 'alphanohtml'));
+		$barcode = (isModEnabled('barcode') ? trim(GETPOST('fourn_barcode', 'alphanohtml')) : '');
+		$priceht = (float) price2num(GETPOST('fourn_price', 'alpha'), 'MU');
+		if ($reffourn === '' && $barcode === '' && $priceht <= 0) {
+			return 0;	// Supplier block left empty: nothing to create
+		}
+
+		$langs->load('productquickcreate@productquickcreate');
+
+		if ($priceht <= 0) {
+			$this->errors[] = $langs->trans('PqcSupplierPriceRequired');
+		}
+
+		if ($reffourn !== '') {
+			$sql = "SELECT p.ref, p.label, s.nom as socname";
+			$sql .= " FROM ".$this->db->prefix()."product_fournisseur_price as pfp";
+			$sql .= " INNER JOIN ".$this->db->prefix()."product as p ON p.rowid = pfp.fk_product";
+			$sql .= " INNER JOIN ".$this->db->prefix()."societe as s ON s.rowid = pfp.fk_soc";
+			$sql .= " WHERE pfp.fk_soc = ".((int) GETPOSTINT('fourn_socid'));
+			$sql .= " AND pfp.ref_fourn = '".$this->db->escape($reffourn)."'";
+			$sql .= " AND pfp.entity IN (".getEntity('productsupplierprice').")";
+			$sql .= " ORDER BY p.rowid";
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if ($resql && ($obj = $this->db->fetch_object($resql))) {
+				$this->errors[] = $langs->trans('PqcSupplierRefAlreadyUsed', $reffourn, $obj->socname, $obj->ref, $obj->label);
+			}
+		}
+
+		if ($barcode !== '') {
+			// An EAN identifies one article: refuse it if a supplier price or a product already carries it
+			$sql = "SELECT p.ref, p.label";
+			$sql .= " FROM ".$this->db->prefix()."product_fournisseur_price as pfp";
+			$sql .= " INNER JOIN ".$this->db->prefix()."product as p ON p.rowid = pfp.fk_product";
+			$sql .= " WHERE pfp.barcode = '".$this->db->escape($barcode)."'";
+			$sql .= " AND pfp.entity IN (".getEntity('productsupplierprice').")";
+			$sql .= " UNION";
+			$sql .= " SELECT p.ref, p.label";
+			$sql .= " FROM ".$this->db->prefix()."product as p";
+			$sql .= " WHERE p.barcode = '".$this->db->escape($barcode)."'";
+			$sql .= " AND p.entity IN (".getEntity('product').")";
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if ($resql && ($obj = $this->db->fetch_object($resql))) {
+				$this->errors[] = $langs->trans('PqcSupplierBarcodeAlreadyUsed', $barcode, $obj->ref, $obj->label);
+			}
+		}
+
+		if (count($this->errors)) {
+			$action = 'create';	// Display the creation form again, with the typed values
+			return -1;
+		}
+
+		return 0;
+	}
 
 	/**
 	 * Add the optional supplier block and the collapsible-sections script on the product creation form
@@ -49,13 +161,24 @@ class ActionsProductQuickCreate
 			$out .= img_picto('', 'company', 'class="pictofixedwidth"').'<strong>'.$langs->trans("Supplier").' / '.$langs->trans("BuyingPrice").'</strong> <span id="supplierblockchevron" class="fa fa-chevron-down paddingleft"></span>';
 			$out .= '</td></tr>';
 			// Dolibarr >= 24 requires the universal search filter syntax; older versions accept raw SQL
-		$filterfourn = version_compare(DOL_VERSION, '24.0', '>=') ? '(s.fournisseur:=:1)' : 's.fournisseur = 1';
-		$out .= '<tr class="trsupplierblock hideobject"><td class="titlefieldcreate">'.$langs->trans("Supplier").'</td><td>';
+			$filterfourn = version_compare(DOL_VERSION, '24.0', '>=') ? '(s.fournisseur:=:1)' : 's.fournisseur = 1';
+			$out .= '<tr class="trsupplierblock hideobject"><td class="titlefieldcreate">'.$langs->trans("Supplier").'</td><td>';
 			$out .= img_picto('', 'company', 'class="pictofixedwidth"').$form->select_company(GETPOSTINT('fourn_socid'), 'fourn_socid', $filterfourn, 'SelectThirdParty', 0, 0, array(), 0, 'minwidth200');
 			$out .= '</td></tr>';
 			$out .= '<tr class="trsupplierblock hideobject"><td>'.$langs->trans("SupplierRef").'</td><td><input type="text" name="fourn_ref" class="minwidth150" value="'.dol_escape_htmltag(GETPOST('fourn_ref', 'alphanohtml')).'"></td></tr>';
 			$out .= '<tr class="trsupplierblock hideobject"><td>'.$langs->trans("BuyingPrice").'</td><td><input type="text" name="fourn_price" class="width75 right" value="'.dol_escape_htmltag(GETPOST('fourn_price', 'alpha')).'"> '.$langs->trans("HT").'</td></tr>';
 			$out .= '<tr class="trsupplierblock hideobject"><td>'.$langs->trans("QtyMin").'</td><td><input type="text" name="fourn_qty" class="width50 right" value="'.dol_escape_htmltag(GETPOSTISSET('fourn_qty') ? GETPOST('fourn_qty', 'alpha') : '1').'"></td></tr>';
+			// Supplier EAN, saved on the buying price like in the "Buying prices" tab (field names differ from
+			// the product's own barcode fields of the same form)
+			if (isModEnabled('barcode')) {
+				require_once DOL_DOCUMENT_ROOT.'/core/class/html.formbarcode.class.php';
+				$formbarcode = new FormBarCode($this->db ?? $object->db);
+				$out .= '<tr class="trsupplierblock hideobject"><td>'.$langs->trans("PqcSupplierBarcode").'</td><td>';
+				$out .= img_picto('', 'barcode', 'class="pictofixedwidth"');
+				$out .= $formbarcode->selectBarcodeType(GETPOSTISSET('fourn_fk_barcode_type') ? GETPOSTINT('fourn_fk_barcode_type') : getDolGlobalInt('PRODUIT_DEFAULT_BARCODE_TYPE'), 'fourn_fk_barcode_type', 1);
+				$out .= ' <input type="text" name="fourn_barcode" class="minwidth150" value="'.dol_escape_htmltag(GETPOST('fourn_barcode', 'alphanohtml')).'">';
+				$out .= '</td></tr>';
+			}
 			$out .= '<script>
 			jQuery(document).ready(function() {
 				jQuery("#supplierblocktoggle").on("click", function() { jQuery(".trsupplierblock").toggleClass("hideobject"); jQuery("#supplierblockchevron").toggleClass("fa-chevron-down fa-chevron-up"); });

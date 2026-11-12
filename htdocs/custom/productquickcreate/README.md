@@ -3,12 +3,13 @@
 Module Dolibarr maison Pichinov. Enrichit le formulaire de création de produit :
 
 - **Bloc Fournisseur / Prix d'achat** (optionnel, repliable) : fournisseur, réf. fournisseur,
-  prix d'achat HT, quantité min — le prix fournisseur est créé en même temps que le produit
-  (trigger `PRODUCT_CREATE`), compatible module Multidevise.
+  prix d'achat HT, quantité min, EAN fournisseur — le prix fournisseur est créé en même temps que le
+  produit (trigger `PRODUCT_CREATE`), compatible module Multidevise. Une réf. fournisseur ou un EAN
+  déjà utilisés par un autre produit refusent la création avec un message (hook `doActions`).
 - **Sections repliables** (mobile ready) : Codes-barres & lots, Poids & dimensions,
   Description & notes, Comptabilité — état mémorisé par navigateur.
 
-Aucune modification du core (hook `formObjectOptions` + trigger). Compatible Dolibarr 22–24.
+Aucune modification du core (hooks `formObjectOptions`/`doActions` + trigger). Compatible Dolibarr 22–24.
 
 ## Installation
 Copier le dossier dans `htdocs/custom/` puis activer « Pichinov — Création rapide de produit »

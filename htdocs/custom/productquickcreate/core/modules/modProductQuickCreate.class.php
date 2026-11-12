@@ -27,10 +27,10 @@ class modProductQuickCreate extends DolibarrModules
 		$this->module_position = '90';
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'Product creation form: supplier ref/buying price block + collapsible sections';
-		$this->descriptionlong = 'Adds an optional supplier block (supplier, supplier ref, buying price, min qty) on the product creation form and collapses optional sections to keep the form short on mobile.';
+		$this->descriptionlong = 'Adds an optional supplier block (supplier, supplier ref, buying price, min qty, supplier EAN) on the product creation form and collapses optional sections to keep the form short on mobile.';
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.1.1';
+		$this->version = '1.2.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'product';
 		$this->config_page_url = array('setup.php@productquickcreate');

@@ -11,7 +11,11 @@ require_once DOL_DOCUMENT_ROOT.'/core/triggers/dolibarrtriggers.class.php';
 
 /**
  * On PRODUCT_CREATE, create the supplier buying price posted by the optional
- * supplier block of the creation form (fourn_socid / fourn_ref / fourn_price / fourn_qty).
+ * supplier block of the creation form (fourn_socid / fourn_ref / fourn_price / fourn_qty / fourn_barcode).
+ *
+ * The values are checked before the creation by ActionsProductQuickCreate::doActions(). If the supplier
+ * price still cannot be saved here, the trigger fails so the product creation is rolled back and the
+ * form is displayed again with the reason: the supplier data typed by the user is never lost silently.
  */
 class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 {
@@ -21,7 +25,7 @@ class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 		$this->name = preg_replace('/^Interface/i', '', get_class($this));
 		$this->family = 'products';
 		$this->description = 'Create the supplier price posted by the product creation form supplier block';
-		$this->version = '1.0';
+		$this->version = '1.2.0';
 		$this->picto = 'product';
 	}
 
@@ -48,29 +52,50 @@ class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 
 		require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.product.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+		$langs->load('productquickcreate@productquickcreate');
 
 		$prodfourn = new ProductFournisseur($this->db);
 		if ($prodfourn->fetch($object->id) <= 0) {
-			return 0;
+			$this->errors[] = $langs->trans('PqcSupplierPriceNotSaved', $prodfourn->error);
+			return -1;
 		}
 		$fournsoc = new Societe($this->db);
 		if ($fournsoc->fetch(GETPOSTINT('fourn_socid')) <= 0) {
-			return 0;
+			$this->errors[] = $langs->trans('PqcSupplierPriceNotSaved', $langs->trans('ErrorRecordNotFound'));
+			return -1;
 		}
 		$qtyfourn = (float) price2num(GETPOST('fourn_qty', 'alpha'), 'MS');
 		if ($qtyfourn <= 0) {
 			$qtyfourn = 1;
 		}
-		$reffourn = GETPOST('fourn_ref', 'alphanohtml');
+		$reffourn = trim(GETPOST('fourn_ref', 'alphanohtml'));
+		$barcode = '';
+		$fk_barcode_type = 0;
+		if (isModEnabled('barcode')) {
+			$barcode = trim(GETPOST('fourn_barcode', 'alphanohtml'));
+			$fk_barcode_type = ($barcode !== '' ? GETPOSTINT('fourn_fk_barcode_type') : 0);
+		}
 
 		$retf = $prodfourn->add_fournisseur($user, $fournsoc->id, $reffourn, $qtyfourn);
+		if ($retf == -3) {
+			// The supplier ref is already used by another product of this supplier
+			$other = new Product($this->db);
+			$other->fetch((int) $prodfourn->product_id_already_linked);
+			$this->errors[] = $langs->trans('PqcSupplierRefAlreadyUsed', $reffourn, $fournsoc->name, $other->ref, $other->label);
+			return -1;
+		}
 		if ($retf < 0) {
-			return 0;
+			$this->errors[] = $langs->trans('PqcSupplierPriceNotSaved', $prodfourn->error);
+			return -1;
 		}
 		// With the multicurrency module on, update_buyprice always derives the price from the
 		// multicurrency one: pass it also in company currency so it is not reset to 0
-		$ret = $prodfourn->update_buyprice($qtyfourn, $priceht, $user, 'HT', $fournsoc, 0, $reffourn, (float) $object->tva_tx, 0, 0, 0, 0, 0, '', array(), '', $priceht, 'HT', 1, $conf->currency, '', '', '', array());
+		$ret = $prodfourn->update_buyprice($qtyfourn, $priceht, $user, 'HT', $fournsoc, 0, $reffourn, (float) $object->tva_tx, 0, 0, 0, 0, 0, '', array(), '', $priceht, 'HT', 1, $conf->currency, '', $barcode, $fk_barcode_type, array());
+		if ($ret < 0) {
+			$this->errors[] = $langs->trans('PqcSupplierPriceNotSaved', $prodfourn->error ? $prodfourn->error : implode(', ', $prodfourn->errors));
+			return -1;
+		}
 
-		return ($ret >= 0 ? 1 : 0);
+		return 1;
 	}
 }
