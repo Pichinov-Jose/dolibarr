@@ -25,7 +25,7 @@ class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 		$this->name = preg_replace('/^Interface/i', '', get_class($this));
 		$this->family = 'products';
 		$this->description = 'Create the supplier price posted by the product creation form supplier block';
-		$this->version = '1.2.1';
+		$this->version = '1.2.2';
 		$this->picto = 'product';
 	}
 
@@ -42,6 +42,22 @@ class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 		if ($action != 'PRODUCT_CREATE') {
 			return 0;
 		}
+		$langs->load('productquickcreate@productquickcreate');
+
+		// Selling price of level 1, typed in the creation form when multiprices are enabled
+		// (Dolibarr itself shows no price at creation in that case)
+		if (getDolGlobalString('PRODUIT_MULTIPRICES') && GETPOST('pqc_sell_price', 'alpha') !== '') {
+			$sellprice = (float) price2num(GETPOST('pqc_sell_price', 'alpha'), 'MU');
+			if ($sellprice > 0) {
+				$sellbase = (GETPOST('pqc_sell_price_base_type', 'aZ09') == 'HT' ? 'HT' : 'TTC');
+				$retp = $object->updatePrice($sellprice, $sellbase, $user, $object->tva_tx, 0, 1, 0, 0, 0, array(), (string) $object->default_vat_code);
+				if ($retp < 0) {
+					$this->errors[] = $langs->trans('PqcSellPriceNotSaved', $object->error ? $object->error : implode(', ', $object->errors));
+					return -1;
+				}
+			}
+		}
+
 		if (GETPOSTINT('fourn_socid') <= 0) {
 			return 0;
 		}
@@ -52,7 +68,6 @@ class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 
 		require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.product.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
-		$langs->load('productquickcreate@productquickcreate');
 
 		$prodfourn = new ProductFournisseur($this->db);
 		if ($prodfourn->fetch($object->id) <= 0) {

@@ -19,3 +19,6 @@ PqcSupplierBarcodeAlreadyUsed=The EAN "%s" is already used by the product %s (%s
 PqcSupplierPriceRequired=Enter the buying price: without a price, the supplier ref and the EAN cannot be saved. The product was not created.
 PqcSupplierPriceNotSaved=The buying price could not be saved, so the product was not created: %s
 PqcUnitBuyingPrice=Unit buying price
+PqcSellPriceLevel1=Selling price level 1
+PqcSellPriceInvalid=Invalid selling price: "%s". The product was not created.
+PqcSellPriceNotSaved=The selling price could not be saved, so the product was not created: %s

@@ -7,6 +7,8 @@ Module Dolibarr maison Pichinov. Enrichit le formulaire de création de produit 
   produit (trigger `PRODUCT_CREATE`), compatible module Multidevise. Une réf. fournisseur ou un EAN
   déjà utilisés par un autre produit refusent la création avec un message (hook `doActions`).
   Au retour sur une réception, la réf. fournisseur et le prix d'achat de la ligne sont préremplis.
+- **Prix de vente niveau 1** à la création quand le multiprix est actif (TTC par défaut), et
+  **entrepôt par défaut présélectionné**.
 - **Sections repliables** (mobile ready) : Codes-barres & lots, Poids & dimensions,
   Description & notes, Comptabilité — état mémorisé par navigateur.
 

@@ -69,9 +69,26 @@ class ActionsProductQuickCreate
 		if (in_array('receptioncard', $contexts)) {
 			return $this->prefillReceptionLineAfterQuickCreate($object, $action);
 		}
+		if (in_array('productcard', $contexts) && $action == 'create') {
+			return $this->preselectDefaultWarehouse();
+		}
 		if (!in_array('productcard', $contexts) || $action != 'add') {
 			return 0;
 		}
+
+		// Selling price of level 1: refuse a value that is not a positive number instead of ignoring it
+		$sellprice = trim(GETPOST('pqc_sell_price', 'alpha'));
+		if (getDolGlobalString('PRODUIT_MULTIPRICES') && $sellprice !== '') {
+			// price2num() turns any text into 0, so check the typed format itself (digits, one decimal separator)
+			$sellpriceclean = str_replace(array(' ', "\xc2\xa0", "\xe2\x80\xaf"), '', $sellprice);
+			if (!preg_match('/^[0-9]+([.,][0-9]+)?$/', $sellpriceclean)) {
+				$langs->load('productquickcreate@productquickcreate');
+				$this->errors[] = $langs->trans('PqcSellPriceInvalid', $sellprice);
+				$action = 'create';
+				return -1;
+			}
+		}
+
 		if (!getDolGlobalString('PRODUCTQUICKCREATE_SUPPLIER_BLOCK') || GETPOSTINT('fourn_socid') <= 0) {
 			return 0;
 		}
@@ -127,6 +144,38 @@ class ActionsProductQuickCreate
 		if (count($this->errors)) {
 			$action = 'create';	// Display the creation form again, with the typed values
 			return -1;
+		}
+
+		return 0;
+	}
+
+	/**
+	 * On the creation form, preselect the default warehouse of the product: the warehouse of the
+	 * constant MAIN_DEFAULT_WAREHOUSE if it is open, else the only open warehouse if there is one.
+	 * The form reads the field with GETPOSTINT('fk_default_warehouse'), so a choice already posted is kept.
+	 *
+	 * @return int 0
+	 */
+	private function preselectDefaultWarehouse()
+	{
+		if (!isModEnabled('stock') || GETPOSTISSET('fk_default_warehouse')) {
+			return 0;
+		}
+		$sql = "SELECT rowid FROM ".$this->db->prefix()."entrepot";
+		$sql .= " WHERE statut = 1 AND entity IN (".getEntity('stock').")";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			return 0;
+		}
+		$open = array();
+		while ($obj = $this->db->fetch_object($resql)) {
+			$open[] = (int) $obj->rowid;
+		}
+		$default = getDolGlobalInt('MAIN_DEFAULT_WAREHOUSE');
+		if ($default > 0 && in_array($default, $open)) {
+			$_GET['fk_default_warehouse'] = $default;
+		} elseif (count($open) == 1) {
+			$_GET['fk_default_warehouse'] = $open[0];
 		}
 
 		return 0;
@@ -202,6 +251,15 @@ class ActionsProductQuickCreate
 		$langs->load('productquickcreate@productquickcreate');
 
 		$out = '';
+
+		// Selling price of level 1: with multiprices enabled, Dolibarr shows no price at creation (prices tab only)
+		if (getDolGlobalString('PRODUIT_MULTIPRICES') && !getDolGlobalString('PRODUCT_DISABLE_PRICES')) {
+			$labellevel1 = getDolGlobalString('PRODUIT_MULTIPRICES_LABEL1');
+			$out .= '<tr class="trpqcsellprice"><td class="titlefieldcreate">'.$langs->trans("PqcSellPriceLevel1").($labellevel1 ? ' ('.dol_escape_htmltag($langs->trans($labellevel1)).')' : '').'</td><td>';
+			$out .= '<input type="text" name="pqc_sell_price" class="width75 right" value="'.dol_escape_htmltag(GETPOST('pqc_sell_price', 'alpha')).'"> ';
+			$out .= $form->selectPriceBaseType(GETPOSTISSET('pqc_sell_price_base_type') ? GETPOST('pqc_sell_price_base_type', 'aZ09') : 'TTC', 'pqc_sell_price_base_type');
+			$out .= '</td></tr>';
+		}
 
 		// Optional block: supplier & buying price (created with the product)
 		if ((isModEnabled('fournisseur') || isModEnabled('supplier_order')) && getDolGlobalString('PRODUCTQUICKCREATE_SUPPLIER_BLOCK')) {

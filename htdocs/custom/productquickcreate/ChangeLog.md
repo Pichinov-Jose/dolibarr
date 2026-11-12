@@ -1,5 +1,12 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.2.2 (2026-11-12)
+- Champ « Prix de vente niveau 1 » (libellé du niveau, ex. Magasin) sur le formulaire de création quand
+  le multiprix est actif (Dolibarr n'affiche alors aucun prix à la création), TTC par défaut, HT possible ;
+  enregistré par updatePrice() au niveau 1. Valeur non numérique ou négative refusée avec un message
+- Entrepôt par défaut présélectionné sur le formulaire de création : MAIN_DEFAULT_WAREHOUSE s'il est
+  ouvert, sinon l'unique entrepôt ouvert (un choix déjà saisi est conservé)
+
 ## 1.2.1 (2026-11-12)
 - Retour sur la réception après « + Nouveau produit » : la réf. fournisseur et le prix d'achat de la
   ligne sont préremplis depuis le prix fournisseur du produit chez le fournisseur de la réception
