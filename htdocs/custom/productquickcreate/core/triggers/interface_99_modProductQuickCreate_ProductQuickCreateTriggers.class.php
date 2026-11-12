@@ -25,7 +25,7 @@ class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 		$this->name = preg_replace('/^Interface/i', '', get_class($this));
 		$this->family = 'products';
 		$this->description = 'Create the supplier price posted by the product creation form supplier block';
-		$this->version = '1.2.0';
+		$this->version = '1.2.1';
 		$this->picto = 'product';
 	}
 
@@ -88,9 +88,12 @@ class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 			$this->errors[] = $langs->trans('PqcSupplierPriceNotSaved', $prodfourn->error);
 			return -1;
 		}
+		// The block asks for a UNIT buying price, while update_buyprice() expects the price of the minimum
+		// quantity (like the "Buying prices" tab): convert, so 5 pieces at 5 each give 25 for 5 (unit price 5)
+		$totalht = (float) price2num($priceht * $qtyfourn, 'MU');
 		// With the multicurrency module on, update_buyprice always derives the price from the
 		// multicurrency one: pass it also in company currency so it is not reset to 0
-		$ret = $prodfourn->update_buyprice($qtyfourn, $priceht, $user, 'HT', $fournsoc, 0, $reffourn, (float) $object->tva_tx, 0, 0, 0, 0, 0, '', array(), '', $priceht, 'HT', 1, $conf->currency, '', $barcode, $fk_barcode_type, array());
+		$ret = $prodfourn->update_buyprice($qtyfourn, $totalht, $user, 'HT', $fournsoc, 0, $reffourn, (float) $object->tva_tx, 0, 0, 0, 0, 0, '', array(), '', $totalht, 'HT', 1, $conf->currency, '', $barcode, $fk_barcode_type, array());
 		if ($ret < 0) {
 			$this->errors[] = $langs->trans('PqcSupplierPriceNotSaved', $prodfourn->error ? $prodfourn->error : implode(', ', $prodfourn->errors));
 			return -1;

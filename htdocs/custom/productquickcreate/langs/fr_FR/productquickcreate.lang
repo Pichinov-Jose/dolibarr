@@ -18,3 +18,4 @@ PqcSupplierRefAlreadyUsed=La réf. fournisseur « %s » est déjà utilisée che
 PqcSupplierBarcodeAlreadyUsed=L'EAN « %s » est déjà utilisé par le produit %s (%s). Le produit n'a pas été créé : sélectionnez ce produit sur la ligne au lieu d'en créer un nouveau, ou corrigez l'EAN.
 PqcSupplierPriceRequired=Saisissez le prix d'achat : sans prix, la réf. fournisseur et l'EAN ne peuvent pas être enregistrés. Le produit n'a pas été créé.
 PqcSupplierPriceNotSaved=Le prix d'achat n'a pas pu être enregistré, le produit n'a donc pas été créé : %s
+PqcUnitBuyingPrice=Prix d'achat unitaire

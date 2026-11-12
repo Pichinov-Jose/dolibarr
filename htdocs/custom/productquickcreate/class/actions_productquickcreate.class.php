@@ -66,6 +66,9 @@ class ActionsProductQuickCreate
 		global $langs;
 
 		$contexts = explode(':', (string) $parameters['currentcontext']);
+		if (in_array('receptioncard', $contexts)) {
+			return $this->prefillReceptionLineAfterQuickCreate($object, $action);
+		}
 		if (!in_array('productcard', $contexts) || $action != 'add') {
 			return 0;
 		}
@@ -130,6 +133,51 @@ class ActionsProductQuickCreate
 	}
 
 	/**
+	 * Back on the reception after a product was created from the "New product" popup, the line form
+	 * preselects the product as "idprod_ID" (the return URL is built before the product exists, so it
+	 * cannot point to its supplier price): the supplier ref and buying price of the line stay empty.
+	 * Prefill them from the supplier price of the product at the supplier of the reception.
+	 *
+	 * @param CommonObject $object Reception
+	 * @param string $action Current action
+	 * @return int 0
+	 */
+	private function prefillReceptionLineAfterQuickCreate($object, $action)
+	{
+		if (!empty($action) || !getDolGlobalString('PRODUCTQUICKCREATE_SUPPLIER_BLOCK')) {
+			return 0;
+		}
+		$reg = array();
+		if (!preg_match('/^idprod_([0-9]+)$/', (string) GETPOST('idprodfournprice', 'alpha'), $reg)) {
+			return 0;
+		}
+		if (GETPOSTISSET('price_ht') || GETPOSTISSET('fourn_ref') || empty($object->socid) || (int) $object->socid <= 0) {
+			return 0;
+		}
+
+		$sql = "SELECT pfp.ref_fourn, pfp.unitprice";
+		$sql .= " FROM ".$this->db->prefix()."product_fournisseur_price as pfp";
+		$sql .= " WHERE pfp.fk_product = ".((int) $reg[1]);
+		$sql .= " AND pfp.fk_soc = ".((int) $object->socid);
+		$sql .= " AND pfp.entity IN (".getEntity('productsupplierprice').")";
+		$sql .= " AND (pfp.status IS NULL OR pfp.status = 1)";
+		$sql .= " ORDER BY pfp.quantity ASC, pfp.rowid DESC";
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if ($resql && ($obj = $this->db->fetch_object($resql))) {
+			// The line form reads these values with GETPOST (fields price_ht and fourn_ref of the reception line)
+			if ((float) $obj->unitprice > 0) {
+				$_GET['price_ht'] = price(price2num($obj->unitprice, 'MU'));
+			}
+			if ((string) $obj->ref_fourn !== '') {
+				$_GET['fourn_ref'] = $obj->ref_fourn;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
 	 * Add the optional supplier block and the collapsible-sections script on the product creation form
 	 *
 	 * @param array<string,mixed> $parameters Hook parameters
@@ -166,7 +214,7 @@ class ActionsProductQuickCreate
 			$out .= img_picto('', 'company', 'class="pictofixedwidth"').$form->select_company(GETPOSTINT('fourn_socid'), 'fourn_socid', $filterfourn, 'SelectThirdParty', 0, 0, array(), 0, 'minwidth200');
 			$out .= '</td></tr>';
 			$out .= '<tr class="trsupplierblock hideobject"><td>'.$langs->trans("SupplierRef").'</td><td><input type="text" name="fourn_ref" class="minwidth150" value="'.dol_escape_htmltag(GETPOST('fourn_ref', 'alphanohtml')).'"></td></tr>';
-			$out .= '<tr class="trsupplierblock hideobject"><td>'.$langs->trans("BuyingPrice").'</td><td><input type="text" name="fourn_price" class="width75 right" value="'.dol_escape_htmltag(GETPOST('fourn_price', 'alpha')).'"> '.$langs->trans("HT").'</td></tr>';
+			$out .= '<tr class="trsupplierblock hideobject"><td>'.$langs->trans("PqcUnitBuyingPrice").'</td><td><input type="text" name="fourn_price" class="width75 right" value="'.dol_escape_htmltag(GETPOST('fourn_price', 'alpha')).'"> '.$langs->trans("HT").'</td></tr>';
 			$out .= '<tr class="trsupplierblock hideobject"><td>'.$langs->trans("QtyMin").'</td><td><input type="text" name="fourn_qty" class="width50 right" value="'.dol_escape_htmltag(GETPOSTISSET('fourn_qty') ? GETPOST('fourn_qty', 'alpha') : '1').'"></td></tr>';
 			// Supplier EAN, saved on the buying price like in the "Buying prices" tab (field names differ from
 			// the product's own barcode fields of the same form)

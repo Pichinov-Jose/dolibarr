@@ -1,5 +1,12 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.2.1 (2026-11-12)
+- Retour sur la réception après « + Nouveau produit » : la réf. fournisseur et le prix d'achat de la
+  ligne sont préremplis depuis le prix fournisseur du produit chez le fournisseur de la réception
+  (avant : champs vides, il fallait rechercher à nouveau le produit). Hook doActions, contexte receptioncard
+- Le prix saisi dans le bloc est un prix d'achat UNITAIRE (libellé « Prix d'achat unitaire ») : il est
+  converti en prix de la quantité minimum attendu par Dolibarr (5 pièces à 5 € → 25 € pour 5, unitaire 5 €)
+
 ## 1.2.0 (2026-11-12)
 - Le bloc fournisseur ne perd plus les saisies en silence : une réf. fournisseur déjà utilisée chez ce
   fournisseur par un autre produit, un EAN déjà porté par un autre produit, ou une réf./un EAN saisis sans

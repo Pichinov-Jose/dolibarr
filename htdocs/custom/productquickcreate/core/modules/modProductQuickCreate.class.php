@@ -30,13 +30,13 @@ class modProductQuickCreate extends DolibarrModules
 		$this->descriptionlong = 'Adds an optional supplier block (supplier, supplier ref, buying price, min qty, supplier EAN) on the product creation form and collapses optional sections to keep the form short on mobile.';
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.2.0';
+		$this->version = '1.2.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'product';
 		$this->config_page_url = array('setup.php@productquickcreate');
 
 		$this->module_parts = array(
-			'hooks' => array('productcard'),
+			'hooks' => array('productcard', 'receptioncard'),
 			'triggers' => 1,
 		);
 
