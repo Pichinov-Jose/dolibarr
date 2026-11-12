@@ -1,5 +1,22 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.3.0 (2026-11-12)
+- Réglages : tableau « Champs du formulaire de création » pour rendre des champs OBLIGATOIRES ou les
+  MASQUER (code-barres, lots, description, URL, note privée, entrepôt par défaut, seuils de stock, nature,
+  poids, dimensions, surface, volume, douane, pays d'origine, unité, catégories, codes comptables, prix de
+  vente niveau 1, fournisseur, réf. fournisseur, prix d'achat, qté min, EAN fournisseur)
+- Un champ obligatoire est marqué en rouge et reste visible même dans une section repliée ; s'il est vide,
+  la création est refusée avec la liste des champs manquants et le formulaire est réaffiché (doActions)
+- Champs exigés par Dolibarr (réf., libellé, états vente/achat, code-barres si un module de numérotation
+  l'exige) : affichés verrouillés, jamais masqués ; sur le formulaire, une ligne que Dolibarr marque
+  obligatoire n'est jamais masquée
+- Un champ masqué reste dans le formulaire avec sa valeur par défaut ; obligatoire et masqué s'excluent
+- Code-barres : sans module de numérotation, Dolibarr affiche son libellé en rouge mais accepte un code
+  vide ; il reste donc masquable (protégé seulement si un module de numérotation l'exige)
+- Un champ obligatoire du bloc fournisseur reste visible quand on replie le bloc
+- Seuls les champs réellement présents dans le formulaire sont contrôlés (liste postée par le script),
+  pour qu'un champ absent (service, configuration) ne bloque jamais la création
+
 ## 1.2.3 (2026-11-12)
 - Correctif du préremplissage de la 1.2.1, qui ne s'affichait pas : le formulaire de ligne lit la réf.
   fournisseur et le prix en POST seulement (GETPOST(..., 2)), les valeurs étaient posées en GET

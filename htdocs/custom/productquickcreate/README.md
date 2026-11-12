@@ -9,6 +9,8 @@ Module Dolibarr maison Pichinov. Enrichit le formulaire de création de produit 
   Au retour sur une réception, la réf. fournisseur et le prix d'achat de la ligne sont préremplis.
 - **Prix de vente niveau 1** à la création quand le multiprix est actif (TTC par défaut), et
   **entrepôt par défaut présélectionné**.
+- **Champs obligatoires ou masqués** au choix dans les réglages du module (les champs exigés par
+  Dolibarr restent verrouillés) ; un champ obligatoire reste visible même dans une section repliée.
 - **Sections repliables** (mobile ready) : Codes-barres & lots, Poids & dimensions,
   Description & notes, Comptabilité — état mémorisé par navigateur.
 

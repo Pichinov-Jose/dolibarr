@@ -25,7 +25,7 @@ class InterfaceProductQuickCreateTriggers extends DolibarrTriggers
 		$this->name = preg_replace('/^Interface/i', '', get_class($this));
 		$this->family = 'products';
 		$this->description = 'Create the supplier price posted by the product creation form supplier block';
-		$this->version = '1.2.3';
+		$this->version = '1.3.0';
 		$this->picto = 'product';
 	}
 

@@ -76,6 +76,15 @@ class ActionsProductQuickCreate
 			return 0;
 		}
 
+		// Mandatory fields chosen in the module setup
+		$missing = $this->getMissingRequiredFields();
+		if (count($missing)) {
+			$langs->load('productquickcreate@productquickcreate');
+			$this->errors[] = $langs->trans('PqcRequiredFieldsMissing', implode(', ', $missing));
+			$action = 'create';	// Display the creation form again, with the typed values
+			return -1;
+		}
+
 		// Selling price of level 1: refuse a value that is not a positive number instead of ignoring it
 		$sellprice = trim(GETPOST('pqc_sell_price', 'alpha'));
 		if (getDolGlobalString('PRODUIT_MULTIPRICES') && $sellprice !== '') {
@@ -147,6 +156,58 @@ class ActionsProductQuickCreate
 		}
 
 		return 0;
+	}
+
+	/**
+	 * Labels of the mandatory fields (module setup) left empty in the posted creation form.
+	 * Only the fields really displayed by the form are checked (list posted by the creation form script),
+	 * so a mandatory field that a configuration or the product type removes from the form never blocks.
+	 *
+	 * @return string[] Translated labels of the missing fields
+	 */
+	private function getMissingRequiredFields()
+	{
+		global $langs;
+
+		dol_include_once('/productquickcreate/lib/productquickcreate.lib.php');
+		$required = productquickcreateConfiguredFields('required');
+		if (!count($required)) {
+			return array();
+		}
+		$langs->load('productquickcreate@productquickcreate');
+		$catalog = productquickcreateFieldCatalog();
+		$present = (GETPOSTISSET('pqc_present_fields') ? array_filter(explode(',', GETPOST('pqc_present_fields', 'aZ09comma'))) : null);
+		$isservice = (GETPOSTINT('type') == 1);
+
+		$missing = array();
+		foreach ($required as $key) {
+			$field = $catalog[$key];
+			if (($isservice && !empty($field['productonly'])) || (is_array($present) && !in_array($key, $present))) {
+				continue;
+			}
+			$filled = false;
+			foreach ($field['post'] as $name) {
+				if ($key == 'categories') {
+					$values = GETPOST($name, 'array');
+					$filled = (is_array($values) && count(array_filter($values, function ($v) {
+						return (int) $v > 0;
+					})) > 0);
+					continue;
+				}
+				$value = trim((string) GETPOST($name, in_array($key, array('desc', 'note_private')) ? 'restricthtml' : 'alphanohtml'));
+				if (in_array($key, array('desc', 'note_private'))) {
+					$value = trim(dol_string_nohtmltag($value));
+				}
+				if ($value !== '' && !in_array($value, $field['empty'], true)) {
+					$filled = true;
+				}
+			}
+			if (!$filled) {
+				$missing[] = $langs->transnoentitiesnoconv($field['label']);	// Raw text: the message is encoded once by trans()
+			}
+		}
+
+		return $missing;
 	}
 
 	/**
@@ -371,11 +432,60 @@ class ActionsProductQuickCreate
 			}
 			$out .= '<script>
 			jQuery(document).ready(function() {
-				jQuery("#supplierblocktoggle").on("click", function() { jQuery(".trsupplierblock").toggleClass("hideobject"); jQuery("#supplierblockchevron").toggleClass("fa-chevron-down fa-chevron-up"); });
+				jQuery("#supplierblocktoggle").on("click", function() { jQuery(".trsupplierblock").not(".pqchiddenrow").not(".pqcrequiredrow").toggleClass("hideobject"); jQuery("#supplierblockchevron").toggleClass("fa-chevron-down fa-chevron-up"); });
 				'.(GETPOSTINT('fourn_socid') > 0 ? 'jQuery(".trsupplierblock").removeClass("hideobject"); jQuery("#supplierblockchevron").toggleClass("fa-chevron-down fa-chevron-up");' : '').'
 			});
 			</script>';
 		}
+
+		// Mandatory and hidden fields chosen in the module setup. Runs before the collapsible sections script,
+		// which leaves these rows out of the folded sections: a mandatory field always stays visible.
+		dol_include_once('/productquickcreate/lib/productquickcreate.lib.php');
+		$catalog = productquickcreateFieldCatalog();
+		$selectors = array();
+		foreach ($catalog as $key => $field) {
+			if (!empty($field['enabled'])) {
+				$selectors[$key] = $field['sel'];
+			}
+		}
+		$out .= '<tr class="hideobject"><td colspan="2"><input type="hidden" name="pqc_present_fields" value=""></td></tr>';
+		$out .= '<script>
+		jQuery(document).ready(function() {
+			var pqcSelectors = '.json_encode($selectors).';
+			var pqcRequired = '.json_encode(array_values(productquickcreateConfiguredFields('required'))).';
+			var pqcHidden = '.json_encode(array_values(productquickcreateConfiguredFields('hidden'))).';
+			// Without a barcode numbering module, Dolibarr shows the barcode label in red although an empty code is accepted
+			var pqcIgnoreCoreMark = '.json_encode(array_key_exists('barcode', productquickcreateCoreRequiredFields()) ? array() : array('barcode')).';
+			var pqcPresent = [];
+			jQuery.each(pqcSelectors, function(key, sels) {
+				var rows = jQuery();
+				jQuery.each(sels, function(i, sel) {
+					jQuery(sel).each(function() { var tr = jQuery(this).closest("tr"); if (tr.length) { rows = rows.add(tr); } });
+				});
+				if (!rows.length) { return; }
+				pqcPresent.push(key);
+				if (pqcHidden.indexOf(key) >= 0) {
+					rows.each(function() {
+						// Never hide a field that Dolibarr itself requires (its label has the class fieldrequired)
+						if (jQuery(this).children("td.fieldrequired").length && pqcIgnoreCoreMark.indexOf(key) < 0) { return; }
+						jQuery(this).addClass("hideobject pqchiddenrow");	// Still in the form: its default value is posted
+					});
+				}
+				if (pqcRequired.indexOf(key) >= 0) {
+					rows.addClass("pqcrequiredrow");
+					// Mark the label cell just before the field to fill (first selector), else the first cell of the row
+					var labelcell = jQuery(sels[0]).first().closest("td").prev("td");
+					if (!labelcell.length) { labelcell = rows.first().children("td").first(); }
+					labelcell.addClass("fieldrequired");
+					if (rows.hasClass("trsupplierblock") && jQuery(".trsupplierblock.hideobject").not(".pqchiddenrow").length) {
+						jQuery(".trsupplierblock").not(".pqchiddenrow").removeClass("hideobject");
+						jQuery("#supplierblockchevron").removeClass("fa-chevron-down").addClass("fa-chevron-up");
+					}
+				}
+			});
+			jQuery("input[name=pqc_present_fields]").val(pqcPresent.join(","));
+		});
+		</script>';
 
 		// Collapsible sections to keep the creation form short (mobile friendly)
 		if (getDolGlobalString('PRODUCT_CREATE_COLLAPSE_SECTIONS')) {
@@ -392,7 +502,7 @@ class ActionsProductQuickCreate
 					g.sel.forEach(function(sel) {
 						jQuery(sel).each(function() {
 							var tr = jQuery(this).closest("tr");
-							if (tr.length && !tr.hasClass("trsupplierblock") && !tr.hasClass("trsupplierblocktitle")) { rows = rows.add(tr); }
+							if (tr.length && !tr.hasClass("trsupplierblock") && !tr.hasClass("trsupplierblocktitle") && !tr.hasClass("pqchiddenrow") && !tr.hasClass("pqcrequiredrow")) { rows = rows.add(tr); }
 						});
 					});
 					if (!rows.length) { return; }
