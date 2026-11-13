@@ -9,6 +9,10 @@ code-barres, prix de vente niveau 1, photos, caractéristiques (module `productc
 - **Fiche produit** : bouton Enrichir, seuls les champs vides sont proposés.
 - **Liste des produits** : action de masse « Enrichir (champs vides) », file d'attente traitée par lots
   (page « File d'enrichissement » du menu Produits, ou tâche planifiée).
+- **Données d'enrichissement** (menu Produits) : tous les EAN connus (scanner et module), contrôle de
+  cohérence, détail par EAN avec relance d'une source, mise à l'écart du résultat eBay, suppression. Les
+  données du scanner ne sont jamais modifiées : la correction est gardée par le module et prime.
+- **Onglet Enrichissement** de la fiche produit : données de ses EAN et historique de ce qui a été appliqué.
 
 Les clés eBay, le modèle d'IA et les quotas du jour sont partagés avec le module ScanCapture.
 Aucune modification du cœur (hooks + trigger). Dolibarr 24.

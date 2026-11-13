@@ -240,7 +240,7 @@ class ActionsProductEnrichment
 		print '<div class="opacitymedium small">'.$langs->trans('PeCardOnlyEmpty').'</div>';
 		print '<div id="pe_panel" style="display:none"></div>';
 		print '</div>';
-		print $this->panelAssets('card', array('fkProduct' => (int) $object->id));
+		print $this->panelAssets('card', array('fkProduct' => (int) $object->id, 'autoOpen' => (GETPOSTINT('peopen') ? 1 : 0)));
 
 		return 0;
 	}

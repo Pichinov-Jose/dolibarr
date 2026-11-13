@@ -421,6 +421,8 @@
 				} else {
 					$('#pe_ean').on('keydown', function (e) { if (e.keyCode === 13) { e.preventDefault(); PE.run(false); } });
 					$('#pe_open').on('click', function (e) { e.preventDefault(); PE.openCardDialog(); });
+					// Link "Enrich" of the Enrichment tab: open the dialog and look up at once
+					if (cfg.autoOpen) { PE.openCardDialog(); }
 				}
 			});
 		}

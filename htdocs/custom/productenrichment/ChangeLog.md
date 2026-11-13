@@ -1,5 +1,21 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.2.0 (2026-11-13)
+- Écran « Données d'enrichissement » (menu Produits) : tous les EAN connus, du cache du scanner comme de celui du
+  module (titre, marque, photo, sources UPCitemdb / eBay / IA, produits liés par code-barres, EAN fournisseur ou
+  scan, date), recherche et filtres (résultat, source, cohérence, lié ou non, origine, corrigé)
+- Contrôle de cohérence global en tête de liste : trouvés / rien trouvé, sources, liés / non liés, « sans rapport
+  avec le produit », « eBay sans rapport », eBay écartés ; chaque nombre ouvre la liste correspondante
+- Détail d'un EAN : toutes les données (descriptions, caractéristiques — celles d'eBay marquées —, prix, photos,
+  déclinaisons, annonces eBay, sources, JSON brut) et trois actions : relancer une source (UPCitemdb, eBay, IA
+  avec confirmation du coût), écarter le résultat eBay, supprimer l'entrée
+- Les données du scanner ne sont jamais modifiées : une correction est enregistrée dans le cache du module
+  (marque « Corrigé ») et prime ensuite sur le scanner, y compris pour les recherches suivantes
+- Onglet « Enrichissement » sur la fiche produit : données enregistrées pour ses EAN (code-barres et EAN
+  fournisseurs), cohérence avec son libellé, historique de ce qui a été appliqué (date, origine, champs, auteur) ;
+  bouton Enrichir qui ouvre directement le dialogue de la fiche
+- eBay : les caractéristiques apportées par eBay sont désormais repérées (`specs_ebay`) pour pouvoir les retirer
+
 ## 1.1.2 (2026-11-13)
 - Garde-fou « même EAN, autre article » (vu en réel : l'EAN d'une tête plombée AstuFish renvoyait sur eBay une
   lotion pour le corps, dont les photos et les caractéristiques avaient été posées) :

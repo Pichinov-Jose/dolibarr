@@ -32,7 +32,7 @@
  */
 class ProductEnrichment
 {
-	const VERSION = '1.1.2';
+	const VERSION = '1.2.0';
 	const MAX_IMAGES = 3;
 	const UPC_DAILY_MAX = 95;	// UPCitemdb free tier: 100 requests a day
 
@@ -142,6 +142,23 @@ class ProductEnrichment
 				return true;
 			}
 		}
+		// Shop labels are often written glued or shortened (TWINPOWER for Twin Power): a word of 5 letters or more
+		// of one side found inside the other side written without spaces also matches
+		$glue = function ($x) {
+			return preg_replace('/[^a-z0-9]+/', '', strtolower(dol_string_unaccent((string) $x)));
+		};
+		$gluedlabel = $glue($label);
+		$gluedtitles = $glue(implode(' ', $titles));
+		foreach (self::titleWords($label) as $w) {
+			if (strlen($w) >= 5 && strpos($gluedtitles, $w) !== false) {
+				return true;
+			}
+		}
+		foreach (self::titleWords(implode(' ', $titles)) as $w) {
+			if (strlen($w) >= 5 && strpos($gluedlabel, $w) !== false) {
+				return true;
+			}
+		}
 		return false;
 	}
 
@@ -176,6 +193,13 @@ class ProductEnrichment
 		$resql = $this->db->query("SELECT info FROM ".MAIN_DB_PREFIX."productenrichment_cache WHERE ean = '".$this->db->escape($ean)."' AND entity = ".((int) $conf->entity));
 		if ($resql && ($obj = $this->db->fetch_object($resql))) {
 			$best = json_decode((string) $obj->info, true);
+			// A result corrected or deleted on the data screen wins over the cache of the scanner
+			if (is_array($best) && !empty($best['pe_deleted'])) {
+				return null;
+			}
+			if (is_array($best) && !empty($best['pe_override'])) {
+				return $best;
+			}
 		}
 		if ($this->hasScanTable()) {
 			// Separate query, no join: the tables do not share the same collation
@@ -205,6 +229,16 @@ class ProductEnrichment
 
 		if ($ean === '' || !is_array($info)) {
 			return;
+		}
+		if (empty($info['pe_override']) && empty($info['pe_deleted'])) {
+			// A result corrected or deleted on the data screen: what is found next keeps winning over the scanner
+			$resql = $this->db->query("SELECT info FROM ".MAIN_DB_PREFIX."productenrichment_cache WHERE ean = '".$this->db->escape($ean)."' AND entity = ".((int) $conf->entity));
+			if ($resql && ($obj = $this->db->fetch_object($resql))) {
+				$old = json_decode((string) $obj->info, true);
+				if (!empty($old['pe_override']) || !empty($old['pe_deleted'])) {
+					$info['pe_override'] = 1;
+				}
+			}
 		}
 		$sources = implode(',', array_keys(array_filter(array('upc' => !empty($info['upc']) || (string) ($info['title'] ?? '') !== '', 'ebay' => !empty($info['ebay']), 'ai' => !empty($info['ai'])))));
 		$json = $this->db->escape(json_encode($info));
@@ -519,6 +553,7 @@ class ProductEnrichment
 			'prix_marche' => $prices ? min($prices).' à '.max($prices).' '.((string) ($items[0]['price']['currency'] ?? 'EUR')).' ('.count($prices).' annonces'.($mkt == 'EBAY_US' ? ', eBay US' : '').')' : ($prev['prix_marche'] ?? ''),
 			'sources' => !empty($urls) ? array_slice($urls, 0, 3) : ($prev['sources'] ?? array()),
 			'specs' => (!empty($prev['specs']) ? array_merge($specs, (array) $prev['specs']) : $specs),
+			'specs_ebay' => array_values(array_diff(array_keys($specs), array_keys((array) ($prev['specs'] ?? array())))),
 			'mpn' => ($prev['mpn'] ?? '') !== '' ? $prev['mpn'] : $mpn,
 		));
 		if (($merged['brand'] ?? '') === '' && !empty($specs['Marque'])) {
@@ -718,6 +753,9 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 	 */
 	public function enrich($ean, $withai = false, $context = array())
 	{
+		if ((string) $ean === '') {
+			return array('info' => array(), 'steps' => array(), 'stop' => false);
+		}
 		$info = $this->getCached($ean);
 		$info = (is_array($info) ? $info : array());
 		$steps = array();
@@ -1352,6 +1390,278 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		}
 
 		return array('applied' => $applied, 'errors' => $errors);
+	}
+
+	/*
+	 * Data screen: every stored result, corrections
+	 */
+
+	/**
+	 * Every stored result, from the cache of the module and from the cache of the scanner (the richest by EAN,
+	 * a result corrected on the data screen wins)
+	 *
+	 * @return array<string,array{info:array<string,mixed>,origin:string,date:int,scans:int,scanproducts:int[],kezia:string[]}> By EAN
+	 */
+	public function allEntries()
+	{
+		global $conf;
+		$out = array();
+		if ($this->hasScanTable()) {
+			$resql = $this->db->query("SELECT ean, ean_info, datec, fk_product, code_kezia FROM ".MAIN_DB_PREFIX."scan_capture WHERE ean IS NOT NULL AND ean <> '' AND ean_info IS NOT NULL AND ean_info <> ''");
+			if ($resql) {
+				while ($obj = $this->db->fetch_object($resql)) {
+					$info = json_decode((string) $obj->ean_info, true);
+					$ean = (string) $obj->ean;
+					if (!is_array($info) || ((string) ($info['title'] ?? '') === '' && empty($info['ebay']) && empty($info['ai']))) {
+						continue;
+					}
+					if (!isset($out[$ean])) {
+						$out[$ean] = array('info' => $info, 'origin' => 'scanner', 'date' => (int) $this->db->jdate($obj->datec), 'scans' => 0, 'scanproducts' => array(), 'kezia' => array());
+					} elseif (self::score($info) > self::score($out[$ean]['info'])) {
+						$out[$ean]['info'] = $info;
+						$out[$ean]['date'] = (int) $this->db->jdate($obj->datec);
+					}
+					$out[$ean]['scans']++;
+					if ((int) $obj->fk_product > 0) {
+						$out[$ean]['scanproducts'][(int) $obj->fk_product] = (int) $obj->fk_product;
+					}
+					if ((string) $obj->code_kezia !== '') {
+						$out[$ean]['kezia'][(string) $obj->code_kezia] = (string) $obj->code_kezia;
+					}
+				}
+			}
+		}
+		$resql = $this->db->query("SELECT ean, info, tms FROM ".MAIN_DB_PREFIX."productenrichment_cache WHERE entity = ".((int) $conf->entity));
+		if ($resql) {
+			while ($obj = $this->db->fetch_object($resql)) {
+				$info = json_decode((string) $obj->info, true);
+				$ean = (string) $obj->ean;
+				if (!is_array($info)) {
+					continue;
+				}
+				if (!empty($info['pe_deleted'])) {
+					unset($out[$ean]);
+					continue;
+				}
+				if (!isset($out[$ean])) {
+					$out[$ean] = array('info' => $info, 'origin' => 'module', 'date' => (int) $this->db->jdate($obj->tms), 'scans' => 0, 'scanproducts' => array(), 'kezia' => array());
+				} else {
+					$out[$ean]['origin'] = 'both';
+					if (!empty($info['pe_override']) || self::score($info) >= self::score($out[$ean]['info'])) {
+						$out[$ean]['info'] = $info;
+						$out[$ean]['date'] = (int) $this->db->jdate($obj->tms);
+					}
+				}
+			}
+		}
+		ksort($out, SORT_STRING);
+		return $out;
+	}
+
+	/**
+	 * Products carrying some EANs: barcode of the product, barcode of a supplier price, product chosen when scanning
+	 *
+	 * @param string[]             $eans         EANs
+	 * @param array<string,int[]>  $scanproducts Products chosen when scanning, by EAN
+	 * @return array<string,array<int,array{id:int,ref:string,label:string,via:string}>> By EAN
+	 */
+	public function productsByEan($eans, $scanproducts = array())
+	{
+		$out = array();
+		$eans = array_values(array_filter(array_map('strval', (array) $eans)));
+		$add = function ($ean, $obj, $via) use (&$out) {
+			$id = (int) $obj->rowid;
+			if (!isset($out[$ean][$id])) {
+				$out[$ean][$id] = array('id' => $id, 'ref' => (string) $obj->ref, 'label' => (string) $obj->label, 'via' => $via);
+			}
+		};
+		foreach (array_chunk($eans, 500) as $chunk) {
+			$in = "'".implode("','", array_map(array($this->db, 'escape'), $chunk))."'";
+			$resql = $this->db->query("SELECT p.rowid, p.ref, p.label, p.barcode as ean FROM ".MAIN_DB_PREFIX."product as p WHERE p.barcode IN (".$in.") AND p.entity IN (".getEntity('product').")");
+			while ($resql && ($obj = $this->db->fetch_object($resql))) {
+				$add((string) $obj->ean, $obj, 'barcode');
+			}
+			$resql = $this->db->query("SELECT DISTINCT p.rowid, p.ref, p.label, pfp.barcode as ean FROM ".MAIN_DB_PREFIX."product_fournisseur_price as pfp INNER JOIN ".MAIN_DB_PREFIX."product as p ON p.rowid = pfp.fk_product WHERE pfp.barcode IN (".$in.") AND p.entity IN (".getEntity('product').")");
+			while ($resql && ($obj = $this->db->fetch_object($resql))) {
+				$add((string) $obj->ean, $obj, 'supplier');
+			}
+		}
+		$ids = array();
+		foreach ($scanproducts as $list) {
+			foreach ((array) $list as $id) {
+				$ids[(int) $id] = (int) $id;
+			}
+		}
+		$byid = array();
+		foreach (array_chunk(array_values($ids), 500) as $chunk) {
+			$resql = $this->db->query("SELECT p.rowid, p.ref, p.label FROM ".MAIN_DB_PREFIX."product as p WHERE p.rowid IN (".implode(',', array_map('intval', $chunk)).")");
+			while ($resql && ($obj = $this->db->fetch_object($resql))) {
+				$byid[(int) $obj->rowid] = $obj;
+			}
+		}
+		foreach ($scanproducts as $ean => $list) {
+			foreach ((array) $list as $id) {
+				if (isset($byid[(int) $id])) {
+					$add((string) $ean, $byid[(int) $id], 'scan');
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Anomalies of a result: eBay set aside, eBay titles unrelated to the known title, result unrelated to a product
+	 *
+	 * @param array<string,mixed>                              $info     Result
+	 * @param array<int,array{id:int,ref:string,label:string}> $products Products carrying the EAN
+	 * @return string[] Codes: ebay_rejected, ebay_unrelated, label_unrelated
+	 */
+	public static function anomalies($info, $products = array())
+	{
+		$out = array();
+		if (!empty($info['ebay_mismatch'])) {
+			$out[] = 'ebay_rejected';
+		}
+		$title = trim(((string) ($info['title'] ?? '')).' '.((string) ($info['brand'] ?? '')));
+		$titles = (array) ($info['titles'] ?? array());
+		if ($title !== '' && count($titles) && empty($info['ebay_mismatch'])) {
+			$match = false;
+			foreach ($titles as $t) {
+				if (self::titlesMatch($title, (string) $t)) {
+					$match = true;
+					break;
+				}
+			}
+			if (!$match) {
+				$out[] = 'ebay_unrelated';
+			}
+		}
+		foreach ((array) $products as $p) {
+			if (!self::resultMatchesLabel((string) $p['label'], $info)) {
+				$out[] = 'label_unrelated';
+				break;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Save a corrected result: it then wins over the cache of the scanner
+	 *
+	 * @param string              $ean  EAN
+	 * @param array<string,mixed> $info Result
+	 * @return void
+	 */
+	public function saveOverride($ean, $info)
+	{
+		$info['pe_override'] = 1;
+		unset($info['pe_deleted']);
+		$this->saveCache($ean, $info);
+	}
+
+	/**
+	 * A result without its eBay part: titles and links of the listings, photos of eBay, characteristics brought
+	 * by eBay, market price of the listings
+	 *
+	 * @param array<string,mixed> $info Result
+	 * @return array<string,mixed>      Result
+	 */
+	public static function stripEbay($info)
+	{
+		$titles = (array) ($info['titles'] ?? array());
+		if (($info['images_from'] ?? (count($titles) ? 'ebay' : '')) === 'ebay') {
+			$info['images'] = array();
+			$info['images_from'] = '';
+		}
+		if (isset($info['specs_ebay'])) {
+			foreach ((array) $info['specs_ebay'] as $k) {
+				unset($info['specs'][$k]);
+			}
+		} elseif (empty($info['ai'])) {
+			// Result older than 1.2.0 without AI: its characteristics can only come from eBay
+			$info['specs'] = array();
+		}
+		if (preg_match('/annonces/', (string) ($info['prix_marche'] ?? ''))) {
+			$info['prix_marche'] = '';
+		}
+		$info['sources'] = array_values(array_filter((array) ($info['sources'] ?? array()), function ($u) {
+			return !preg_match('/ebay\./i', (string) $u);
+		}));
+		if (empty($info['ai']) && empty($info['upc']) && empty($info['category']) && (string) ($info['desc_courte'] ?? '') === '') {
+			// Only eBay had found something: the title came from eBay too
+			$info['title'] = '';
+			$info['mpn'] = '';
+			$info['brand'] = '';
+		}
+		$info['titles'] = array();
+		$info['specs_ebay'] = array();
+		unset($info['ebay'], $info['ebay_v'], $info['ebay_mismatch'], $info['ebay_rejected']);
+		return $info;
+	}
+
+	/**
+	 * Set aside the eBay part of a result (another article sold under the same EAN). eBay is not called again for
+	 * this EAN.
+	 *
+	 * @param string $ean EAN
+	 * @return bool       False when the EAN is unknown
+	 */
+	public function rejectEbay($ean)
+	{
+		$info = $this->getCached($ean);
+		if (!$info) {
+			return false;
+		}
+		$rejected = array_slice((array) ($info['titles'] ?? array()), 0, 3);
+		$info = self::stripEbay($info);
+		$info['ebay'] = getDolGlobalString('SCANCAPTURE_EBAY_ENV', 'production');
+		$info['ebay_v'] = 2;
+		$info['ebay_mismatch'] = 1;
+		$info['ebay_rejected'] = $rejected;
+		$this->saveOverride($ean, $info);
+		return true;
+	}
+
+	/**
+	 * Forget a result: the next enrichment of this EAN looks it up again (the cache of the scanner is not changed,
+	 * it is only ignored)
+	 *
+	 * @param string $ean EAN
+	 * @return void
+	 */
+	public function deleteEntry($ean)
+	{
+		$this->saveCache($ean, array('pe_deleted' => 1));
+	}
+
+	/**
+	 * Look up one source again for an EAN and keep the result as the corrected one
+	 *
+	 * @param string              $ean     EAN
+	 * @param string              $source  upc, ebay or ai
+	 * @param array<string,mixed> $context See buildAiPrompt()
+	 * @return array{status:string,info:array<string,mixed>}
+	 */
+	public function refreshSource($ean, $source, $context = array())
+	{
+		$info = $this->getCached($ean);
+		$info = (is_array($info) ? $info : array());
+		if ($source == 'upc') {
+			$r = $this->lookupUpc($ean, array());
+			// UPCitemdb fills only what is still empty
+			$r['info'] = array_merge($r['info'], array_filter($info, function ($v) {
+				return $v !== '' && $v !== null && $v !== array();
+			}));
+		} elseif ($source == 'ebay') {
+			$r = $this->lookupEbay($ean, self::stripEbay($info));
+		} else {
+			unset($info['ai']);
+			$r = $this->lookupAi($ean, $info, $context);
+		}
+		if (in_array($r['status'], array('ok', 'notfound', 'mismatch'))) {
+			$this->saveOverride($ean, $r['info']);
+		}
+		return $r;
 	}
 
 	/*

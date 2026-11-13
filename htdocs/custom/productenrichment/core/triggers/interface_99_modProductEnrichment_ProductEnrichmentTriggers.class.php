@@ -33,7 +33,7 @@ class InterfaceProductEnrichmentTriggers extends DolibarrTriggers
 		$this->name = preg_replace('/^Interface/i', '', get_class($this));
 		$this->family = 'products';
 		$this->description = 'Photos and characteristics chosen in the enrichment panel of the product creation form';
-		$this->version = '1.1.2';
+		$this->version = '1.2.0';
 		$this->picto = 'product';
 	}
 

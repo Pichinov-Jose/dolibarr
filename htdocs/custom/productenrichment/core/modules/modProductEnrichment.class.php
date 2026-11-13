@@ -41,7 +41,7 @@ class modProductEnrichment extends DolibarrModules
 		$this->descriptionlong = 'Bouton Enrichir sur le formulaire de création de produit (popup des réceptions comprise) et sur la fiche produit, action de masse sur la liste des produits avec file d\'attente.';
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.1.2';
+		$this->version = '1.2.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'product';
 		$this->langfiles = array('productenrichment@productenrichment');
@@ -56,6 +56,11 @@ class modProductEnrichment extends DolibarrModules
 			0 => array('PRODUCTENRICHMENT_SPECS_IN_DESC', 'chaine', '1', 'Characteristics without attribute go in the description', 0, 'current', 0),
 		);
 		$this->rights = array();
+
+		// Enrichment tab of the product card: stored data of its EAN and journal of what was applied
+		$this->tabs = array(
+			array('data' => 'product:+peenrichment:PeTab:productenrichment@productenrichment:isModEnabled("productenrichment") && $user->hasRight("produit", "lire"):/productenrichment/tab.php?id=__ID__'),
+		);
 
 		// Queue of the mass enrichment (also processed from the queue page when the scheduler does not run)
 		$this->cronjobs = array(
@@ -82,6 +87,14 @@ class modProductEnrichment extends DolibarrModules
 			'type' => 'left', 'titre' => 'PeQueueMenu', 'mainmenu' => 'products', 'leftmenu' => 'productenrichment',
 			'url' => '/productenrichment/queue.php', 'langs' => 'productenrichment@productenrichment', 'position' => 1100,
 			'enabled' => 'isModEnabled("productenrichment")', 'perms' => '$user->hasRight("produit", "creer")', 'target' => '', 'user' => 0,
+		);
+		$r++;
+		// Every stored result (scanner and module), with the coherence check
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=products,fk_leftmenu=product',
+			'type' => 'left', 'titre' => 'PeDataMenu', 'mainmenu' => 'products', 'leftmenu' => 'productenrichmentdata',
+			'url' => '/productenrichment/data.php', 'langs' => 'productenrichment@productenrichment', 'position' => 1101,
+			'enabled' => 'isModEnabled("productenrichment")', 'perms' => '$user->hasRight("produit", "lire")', 'target' => '', 'user' => 0,
 		);
 	}
 
