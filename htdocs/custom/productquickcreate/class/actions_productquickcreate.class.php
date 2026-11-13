@@ -19,6 +19,13 @@ class ActionsProductQuickCreate
 	const SUPPLIER_LINE_CONTEXTS = array('receptioncard', 'ordersuppliercard', 'invoicesuppliercard');
 
 	/**
+	 * Hook contexts of the customer documents whose line form has the "New product" button: back on the document
+	 * after the creation, the product is chosen again like by a click, so Dolibarr fills the line (price of the
+	 * customer level, VAT, description)
+	 */
+	const CUSTOMER_LINE_CONTEXTS = array('invoicecard', 'propalcard', 'ordercard');
+
+	/**
 	 * @var DoliDB Database handler
 	 */
 	public $db;
@@ -397,10 +404,37 @@ class ActionsProductQuickCreate
 	}
 
 	/**
-	 * Back on the supplier document after the "New product" button: validate the product search field of the line
-	 * as if the user had picked the supplier price of the new product in the list. Dolibarr then fills the
-	 * line itself (buying price, supplier ref, VAT, minimum quantity) exactly like after a manual choice.
-	 * The formConfirm hook is used because these cards always print its output.
+	 * Product given back by the "New product" button of a customer document line (URL prod_entry_mode=predef and
+	 * idprod=ID), when the document is a draft, or null
+	 *
+	 * @param CommonObject $object Customer invoice, proposal or order
+	 * @return ?object Row with rowid, ref
+	 */
+	private function fetchReturnedCustomerProduct($object)
+	{
+		if (isset($object->status) && (int) $object->status != 0) {
+			return null;	// Lines can be added on a draft only
+		}
+		if (GETPOST('prod_entry_mode', 'aZ09') != 'predef' || GETPOSTINT('idprod') <= 0) {
+			return null;
+		}
+		$sql = "SELECT rowid, ref FROM ".$this->db->prefix()."product";
+		$sql .= " WHERE rowid = ".((int) GETPOSTINT('idprod'));
+		$sql .= " AND entity IN (".getEntity('product').")";
+		$resql = $this->db->query($sql);
+		if ($resql && ($obj = $this->db->fetch_object($resql))) {
+			return $obj;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Back on the document after the "New product" button of a line: choose the new product again in the line
+	 * form as if the user had picked it, so Dolibarr fills the line itself exactly like after a manual choice.
+	 * Supplier documents: the supplier price of the new product (buying price, supplier ref, VAT, minimum quantity).
+	 * Customer documents: the product (price of the customer level, VAT, description), the URL only preselects it
+	 * without filling the price. The formConfirm hook is used because these cards always print its output.
 	 *
 	 * @param array<string,mixed> $parameters Hook parameters
 	 * @param CommonObject $object Current object
@@ -411,41 +445,76 @@ class ActionsProductQuickCreate
 	public function formConfirm($parameters, &$object, &$action, $hookmanager)
 	{
 		$contexts = explode(':', (string) $parameters['currentcontext']);
-		if (!count(array_intersect($contexts, self::SUPPLIER_LINE_CONTEXTS)) || !empty($action) || empty($object->id)) {
+		$issupplier = (count(array_intersect($contexts, self::SUPPLIER_LINE_CONTEXTS)) > 0);
+		$iscustomer = (!$issupplier && count(array_intersect($contexts, self::CUSTOMER_LINE_CONTEXTS)) > 0);
+		if ((!$issupplier && !$iscustomer) || !empty($action) || empty($object->id)) {
 			return 0;
 		}
-		$obj = $this->fetchSupplierPriceOfReturnedProduct($object);
-		if (!$obj) {
-			return 0;
+		if ($issupplier) {
+			$obj = $this->fetchSupplierPriceOfReturnedProduct($object);
+			if (!$obj) {
+				return 0;
+			}
+			$field = 'idprodfournprice';
+			$itemid = (int) $obj->pfpid;
+			$searchkey = (string) $obj->productref;
+		} else {
+			$obj = $this->fetchReturnedCustomerProduct($object);
+			if (!$obj) {
+				return 0;
+			}
+			$field = 'idprod';
+			$itemid = (int) $obj->rowid;
+			$searchkey = (string) $obj->ref;
 		}
 
 		$this->resprints = '<script>
 		jQuery(function() {
-			var pqcPfpId = "'.((int) $obj->pfpid).'";
-			var pqcSearchKey = "'.dol_escape_js((string) $obj->productref).'";
+			var pqcField = "'.$field.'";
+			var pqcItemId = "'.$itemid.'";
+			var pqcSearchKey = "'.dol_escape_js($searchkey).'";
+			var pqcIsCustomer = '.($iscustomer ? 'true' : 'false').';
 			var pqcTries = 0;
+			function pqcStillReturned() {
+				// The URL preselects the new product: the product id for a customer document, "idprod_ID" for a supplier
+				// one (a combo list without this choice, the product having a supplier price, shows its empty choice)
+				var current = String(jQuery("#" + pqcField).val() || "");
+				if (pqcIsCustomer) {
+					return current === pqcItemId;
+				}
+				return current === "" || current === "-1" || current === "0" || current.indexOf("idprod_") === 0;
+			}
 			function pqcValidateProductSearch() {
-				var input = jQuery("#search_idprodfournprice");
+				var field = jQuery("#" + pqcField);
+				if (!field.length || !pqcStillReturned()) {
+					return;	// No line form, or another product was chosen meanwhile
+				}
+				var input = jQuery("#search_" + pqcField);
+				if (!input.length) {
+					// Product combo list (no search field): pick the option like a user would
+					if (field.is("select") && field.find("option[value=\'" + pqcItemId + "\']").length) {
+						console.log("productquickcreate: choose " + pqcField + " = " + pqcItemId + " in the product list of the line");
+						field.val(pqcItemId).trigger("change");
+					}
+					return;
+				}
 				var inst = null;
-				try { inst = (input.length ? input.autocomplete("instance") : null); } catch (e) { inst = null; }
+				try { inst = input.autocomplete("instance"); } catch (e) { inst = null; }
 				if (!inst) {
 					if (++pqcTries < 50) { setTimeout(pqcValidateProductSearch, 100); }
 					return;
 				}
-				if (String(jQuery("#idprodfournprice").val()).indexOf("idprod_") !== 0) {
-					return;	// Another product was chosen meanwhile
-				}
 				input.one("autocompleteresponse", function(event, ui) {
 					var found = null;
 					jQuery.each(ui.content || [], function(i, item) {
-						if (String(item.id) === pqcPfpId) { found = item; return false; }
+						if (String(item.id) === pqcItemId) { found = item; return false; }
 					});
 					if (found) {
-						console.log("productquickcreate: validate the product search field with the supplier price " + pqcPfpId);
+						console.log("productquickcreate: validate the product search field with " + pqcField + " = " + pqcItemId);
 						inst._trigger("select", event, { item: found });
 						input.val(found.value);
 					} else {
-						console.log("productquickcreate: supplier price " + pqcPfpId + " not found in the search results of " + pqcSearchKey);
+						console.log("productquickcreate: " + pqcField + " = " + pqcItemId + " not found in the search results of " + pqcSearchKey);
 					}
 					setTimeout(function() { inst.close(); }, 0);
 				});

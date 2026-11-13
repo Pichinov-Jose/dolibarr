@@ -8,6 +8,8 @@ Module Dolibarr maison Pichinov. Enrichit le formulaire de création de produit 
   déjà utilisés par un autre produit refusent la création avec un message (hook `doActions`).
   Depuis le « + Nouveau produit » d'une réception, d'une commande ou d'une facture fournisseur, le
   fournisseur de la pièce est présélectionné et, au retour, la ligne est préremplie (prix d'achat, réf.).
+- **Pièces clients** (factures, devis, commandes) : au retour du « + Nouveau produit », la ligne est remplie
+  par Dolibarr (prix du niveau du client, TVA, description).
 - **Prix de vente niveau 1** à la création quand le multiprix est actif (TTC par défaut), et
   **entrepôt par défaut présélectionné**.
 - **Champs obligatoires ou masqués** au choix dans les réglages du module (les champs exigés par

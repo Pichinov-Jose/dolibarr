@@ -1,5 +1,14 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.5.0 (2026-11-13)
+- Factures, devis et commandes CLIENTS : au retour du « + Nouveau produit » de la ligne, sur la pièce
+  brouillon, le produit créé est choisi comme par un clic ; Dolibarr remplit la ligne (prix du niveau du
+  client, TVA, description). Avant, le produit était présélectionné mais le prix restait vide
+  (hook formConfirm, contextes invoicecard, propalcard et ordercard)
+- Pièces fournisseurs (réception, commande, facture) : la ligne est aussi remplie quand le produit se
+  choisit dans une liste déroulante (sans champ de recherche, PRODUIT_USE_SEARCH_TO_SELECT vide), en
+  sélectionnant le prix fournisseur du nouveau produit
+
 ## 1.4.0 (2026-11-13)
 - Commandes et factures fournisseurs, comme les réceptions : le « + Nouveau produit » de la ligne ouvre le
   formulaire de création avec le fournisseur de la pièce présélectionné dans le bloc Fournisseur / Prix
