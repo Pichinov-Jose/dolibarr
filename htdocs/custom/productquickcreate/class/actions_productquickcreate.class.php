@@ -13,6 +13,12 @@
 class ActionsProductQuickCreate
 {
 	/**
+	 * Hook contexts of the supplier documents whose line form has the "New product" button: back on the document
+	 * after the creation, the line is prefilled from the supplier price of the new product
+	 */
+	const SUPPLIER_LINE_CONTEXTS = array('receptioncard', 'ordersuppliercard', 'invoicesuppliercard');
+
+	/**
 	 * @var DoliDB Database handler
 	 */
 	public $db;
@@ -66,12 +72,13 @@ class ActionsProductQuickCreate
 		global $langs;
 
 		$contexts = explode(':', (string) $parameters['currentcontext']);
-		if (in_array('receptioncard', $contexts)) {
-			return $this->prefillReceptionLineAfterQuickCreate($object, $action);
+		if (count(array_intersect($contexts, self::SUPPLIER_LINE_CONTEXTS))) {
+			return $this->prefillSupplierLineAfterQuickCreate($object, $action);
 		}
 		if (in_array('productcard', $contexts) && $action == 'create') {
 			$this->preselectDefaultWarehouse();
 			$this->preselectDefaultCategories();
+			$this->preselectSupplierFromBacktopage();
 			return 0;
 		}
 		if (!in_array('productcard', $contexts) || $action != 'add') {
@@ -279,16 +286,60 @@ class ActionsProductQuickCreate
 	}
 
 	/**
-	 * Back on the reception after a product was created from the "New product" popup, the line form
-	 * preselects the product as "idprod_ID" (the return URL is built before the product exists, so it
-	 * cannot point to its supplier price): the supplier ref and buying price of the line stay empty.
-	 * Prefill them from the supplier price of the product at the supplier of the reception.
+	 * On a fresh creation form opened by the "New product" button of a supplier order or supplier invoice line,
+	 * preselect the supplier of that document in the supplier block. The button of the reception gives the
+	 * supplier in the URL (fourn_socid), the others do not: the document is found from the return URL.
+	 * The form reads the field with GETPOSTINT('fourn_socid') and opens the block when it is set.
 	 *
-	 * @param CommonObject $object Reception
+	 * @return int 0
+	 */
+	private function preselectSupplierFromBacktopage()
+	{
+		global $user;
+
+		if (!getDolGlobalString('PRODUCTQUICKCREATE_SUPPLIER_BLOCK') || GETPOSTISSET('fourn_socid') || (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] != 'GET')) {
+			return 0;
+		}
+		$reg = array();
+		if (!preg_match('#/fourn/(commande|facture)/card\.php\?(.*)$#', (string) GETPOST('backtopage', 'alpha'), $reg)) {
+			return 0;
+		}
+		$query = array();
+		parse_str(html_entity_decode($reg[2], ENT_QUOTES), $query);
+		$docid = (isset($query['id']) && is_numeric($query['id']) ? (int) $query['id'] : 0);
+		if ($docid <= 0) {
+			return 0;
+		}
+		if ($reg[1] == 'commande') {
+			$canread = ($user->hasRight('fournisseur', 'commande', 'lire') || $user->hasRight('supplier_order', 'lire'));
+			$sql = "SELECT fk_soc FROM ".$this->db->prefix()."commande_fournisseur WHERE rowid = ".((int) $docid)." AND entity IN (".getEntity('supplier_order').")";
+		} else {
+			$canread = ($user->hasRight('fournisseur', 'facture', 'lire') || $user->hasRight('supplier_invoice', 'lire'));
+			$sql = "SELECT fk_soc FROM ".$this->db->prefix()."facture_fourn WHERE rowid = ".((int) $docid)." AND entity IN (".getEntity('supplier_invoice').")";
+		}
+		if (!$canread) {
+			return 0;
+		}
+		$resql = $this->db->query($sql);
+		if ($resql && ($obj = $this->db->fetch_object($resql)) && (int) $obj->fk_soc > 0) {
+			$_GET['fourn_socid'] = (int) $obj->fk_soc;
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Back on the supplier document (reception, supplier order, supplier invoice) after a product was created
+	 * from the "New product" button of the line, the line form preselects the product as "idprod_ID" (the
+	 * return URL is built before the product exists, so it cannot point to its supplier price): the supplier
+	 * ref and buying price of the line stay empty. Prefill them from the supplier price of the product at the
+	 * supplier of the document.
+	 *
+	 * @param CommonObject $object Reception, supplier order or supplier invoice
 	 * @param string $action Current action
 	 * @return int 0
 	 */
-	private function prefillReceptionLineAfterQuickCreate($object, $action)
+	private function prefillSupplierLineAfterQuickCreate($object, $action)
 	{
 		if (!empty($action) || GETPOSTISSET('price_ht') || GETPOSTISSET('fourn_ref')) {
 			return 0;
@@ -309,10 +360,10 @@ class ActionsProductQuickCreate
 	}
 
 	/**
-	 * Supplier price (at the supplier of the reception) of the product given back by the "New product" popup
+	 * Supplier price (at the supplier of the document) of the product given back by the "New product" button
 	 * in the URL (idprodfournprice=idprod_ID), or null
 	 *
-	 * @param CommonObject $object Reception
+	 * @param CommonObject $object Reception, supplier order or supplier invoice
 	 * @return ?object Row with pfpid, ref_fourn, unitprice, productref
 	 */
 	private function fetchSupplierPriceOfReturnedProduct($object)
@@ -346,10 +397,10 @@ class ActionsProductQuickCreate
 	}
 
 	/**
-	 * Back on the reception after the "New product" popup: validate the product search field of the line
+	 * Back on the supplier document after the "New product" button: validate the product search field of the line
 	 * as if the user had picked the supplier price of the new product in the list. Dolibarr then fills the
 	 * line itself (buying price, supplier ref, VAT, minimum quantity) exactly like after a manual choice.
-	 * The formConfirm hook is used because the reception card always prints its output.
+	 * The formConfirm hook is used because these cards always print its output.
 	 *
 	 * @param array<string,mixed> $parameters Hook parameters
 	 * @param CommonObject $object Current object
@@ -360,7 +411,7 @@ class ActionsProductQuickCreate
 	public function formConfirm($parameters, &$object, &$action, $hookmanager)
 	{
 		$contexts = explode(':', (string) $parameters['currentcontext']);
-		if (!in_array('receptioncard', $contexts) || !empty($action) || empty($object->id)) {
+		if (!count(array_intersect($contexts, self::SUPPLIER_LINE_CONTEXTS)) || !empty($action) || empty($object->id)) {
 			return 0;
 		}
 		$obj = $this->fetchSupplierPriceOfReturnedProduct($object);

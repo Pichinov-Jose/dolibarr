@@ -1,5 +1,14 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.4.0 (2026-11-13)
+- Commandes et factures fournisseurs, comme les réceptions : le « + Nouveau produit » de la ligne ouvre le
+  formulaire de création avec le fournisseur de la pièce présélectionné dans le bloc Fournisseur / Prix
+  d'achat (déduit de l'adresse de retour, si l'utilisateur peut lire la pièce)
+- Au retour sur la commande ou la facture fournisseur (brouillon), la ligne est préremplie depuis le prix
+  fournisseur du nouveau produit : le champ de recherche est validé, Dolibarr remplit prix d'achat, réf.
+  fournisseur, TVA et quantité minimum (hooks doActions et formConfirm, contextes ordersuppliercard et
+  invoicesuppliercard)
+
 ## 1.3.3 (2026-11-13)
 - Code-barres en tête du formulaire de création (popup des réceptions comprise) : les lignes « Type de
   code-barres » et « Valeur code-barres » sont placées juste après le libellé, hors des sections repliées,

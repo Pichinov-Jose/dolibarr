@@ -6,7 +6,8 @@ Module Dolibarr maison Pichinov. Enrichit le formulaire de création de produit 
   prix d'achat unitaire HT, quantité min, EAN fournisseur — le prix fournisseur est créé en même temps que le
   produit (trigger `PRODUCT_CREATE`), compatible module Multidevise. Une réf. fournisseur ou un EAN
   déjà utilisés par un autre produit refusent la création avec un message (hook `doActions`).
-  Au retour sur une réception, la réf. fournisseur et le prix d'achat de la ligne sont préremplis.
+  Depuis le « + Nouveau produit » d'une réception, d'une commande ou d'une facture fournisseur, le
+  fournisseur de la pièce est présélectionné et, au retour, la ligne est préremplie (prix d'achat, réf.).
 - **Prix de vente niveau 1** à la création quand le multiprix est actif (TTC par défaut), et
   **entrepôt par défaut présélectionné**.
 - **Champs obligatoires ou masqués** au choix dans les réglages du module (les champs exigés par
