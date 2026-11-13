@@ -62,6 +62,27 @@ if ($action == 'savefields') {	// Test on permission already done (admin only pa
 	exit;
 }
 
+// Default categories of the creation form
+if ($action == 'savecategories') {	// Test on permission already done (admin only page)
+	require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
+	$ids = GETPOST('default_categories', 'array:int');
+	$ok = array();
+	if (is_array($ids) && count($ids)) {
+		$sql = "SELECT rowid FROM ".$db->prefix()."categorie WHERE type = ".((int) Categorie::TYPE_PRODUCT);
+		$sql .= " AND rowid IN (".$db->sanitize(implode(',', array_map('intval', $ids))).") AND entity IN (".getEntity('category').")";
+		$resql = $db->query($sql);
+		if ($resql) {
+			while ($obj = $db->fetch_object($resql)) {
+				$ok[] = (int) $obj->rowid;
+			}
+		}
+	}
+	dolibarr_set_const($db, 'PRODUCTQUICKCREATE_DEFAULT_CATEGORIES', implode(',', $ok), 'chaine', 0, '', $conf->entity);
+	setEventMessages($langs->trans('PqcDefaultCategoriesSaved'), null, 'mesgs');
+	header('Location: '.$_SERVER['PHP_SELF']);
+	exit;
+}
+
 /*
  * View
  */
@@ -88,6 +109,25 @@ print '<tr class="oddeven"><td>'.$langs->trans('PqcCollapseSections').'<br><span
 print '<td class="center">'.ajax_constantonoff('PRODUCT_CREATE_COLLAPSE_SECTIONS').'</td></tr>';
 
 print '</table>';
+
+// Default categories of the creation form
+if (isModEnabled('category')) {
+	require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
+	require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+	$formcat = new Form($db);
+	print '<br>';
+	print load_fiche_titre($langs->trans('PqcDefaultCategories'), '', '');
+	print '<span class="opacitymedium">'.$langs->trans('PqcDefaultCategoriesDesc').'</span><br><br>';
+	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="savecategories">';
+	$cate_arbo = $formcat->select_all_categories(Categorie::TYPE_PRODUCT, '', '', 64, 0, 3);
+	$selectedcats = array_filter(array_map('intval', explode(',', getDolGlobalString('PRODUCTQUICKCREATE_DEFAULT_CATEGORIES'))));
+	print img_picto('', 'category', 'class="pictofixedwidth"');
+	print $formcat->multiselectarray('default_categories', $cate_arbo, $selectedcats, 0, 0, 'minwidth300 widthcentpercentminusx', 0, 0);
+	print ' <input type="submit" class="button button-save smallpaddingimp" value="'.dol_escape_htmltag($langs->trans('Save')).'">';
+	print '</form>';
+}
 
 // Mandatory and hidden fields of the creation form
 print '<br>';

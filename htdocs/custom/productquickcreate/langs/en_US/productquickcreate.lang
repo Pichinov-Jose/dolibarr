@@ -66,3 +66,6 @@ PqcFieldSupplierQty=Min. purchase qty
 PqcExtrafields=Extra fields
 PqcFieldSeparator=Separator: it can only be hidden
 PqcFieldCheckboxNoRequire=Checkbox: an unticked box posts nothing, it cannot be mandatory
+PqcDefaultCategories=Default categories
+PqcDefaultCategoriesDesc=Categories preselected on the product creation form (including the "New product" popup of receptions). They can still be changed before saving the product.
+PqcDefaultCategoriesSaved=Default categories saved

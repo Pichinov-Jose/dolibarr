@@ -70,7 +70,9 @@ class ActionsProductQuickCreate
 			return $this->prefillReceptionLineAfterQuickCreate($object, $action);
 		}
 		if (in_array('productcard', $contexts) && $action == 'create') {
-			return $this->preselectDefaultWarehouse();
+			$this->preselectDefaultWarehouse();
+			$this->preselectDefaultCategories();
+			return 0;
 		}
 		if (!in_array('productcard', $contexts) || $action != 'add') {
 			return 0;
@@ -209,6 +211,39 @@ class ActionsProductQuickCreate
 		}
 
 		return $missing;
+	}
+
+	/**
+	 * On a fresh creation form, preselect the default categories chosen in the module setup. The form reads
+	 * them with GETPOSTISARRAY('categories') (GET first). Not done when the form comes back after a refused
+	 * creation (POST): the categories the user removed must not come back.
+	 *
+	 * @return int 0
+	 */
+	private function preselectDefaultCategories()
+	{
+		if (!isModEnabled('category') || GETPOSTISSET('categories') || (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] != 'GET')) {
+			return 0;
+		}
+		$ids = array_filter(array_map('intval', explode(',', getDolGlobalString('PRODUCTQUICKCREATE_DEFAULT_CATEGORIES'))));
+		if (!count($ids)) {
+			return 0;
+		}
+		// Keep only existing product categories (a category may have been deleted since the setup)
+		$sql = "SELECT rowid FROM ".$this->db->prefix()."categorie";
+		$sql .= " WHERE type = 0 AND rowid IN (".$this->db->sanitize(implode(',', $ids)).")";
+		$sql .= " AND entity IN (".getEntity('category').")";
+		$resql = $this->db->query($sql);
+		$ok = array();
+		if ($resql) {
+			while ($obj = $this->db->fetch_object($resql)) {
+				$ok[] = (string) $obj->rowid;
+			}
+		}
+		if (count($ok)) {
+			$_GET['categories'] = $ok;
+		}
+		return 0;
 	}
 
 	/**

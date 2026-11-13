@@ -66,3 +66,6 @@ PqcFieldSupplierQty=Qté achat minimum
 PqcExtrafields=Champs complémentaires
 PqcFieldSeparator=Séparateur : il peut seulement être masqué
 PqcFieldCheckboxNoRequire=Case à cocher : une case décochée n'envoie rien, elle ne peut pas être obligatoire
+PqcDefaultCategories=Catégories par défaut
+PqcDefaultCategoriesDesc=Catégories présélectionnées sur le formulaire de création de produit (popup « Nouveau produit » des réceptions comprise). Elles restent modifiables avant d'enregistrer le produit.
+PqcDefaultCategoriesSaved=Catégories par défaut enregistrées

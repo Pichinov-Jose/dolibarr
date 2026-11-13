@@ -1,5 +1,10 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.3.2 (2026-11-13)
+- Réglages : « Catégories par défaut » (sélection multiple, comme sur la fiche produit) présélectionnées
+  sur le formulaire de création, popup des réceptions comprise ; modifiables avant d'enregistrer ; non
+  réappliquées quand le formulaire revient après un refus (les catégories retirées ne reviennent pas)
+
 ## 1.3.1 (2026-11-13)
 - Champs complémentaires produit dans le tableau « Champs du formulaire de création » : obligatoires ou
   masqués pour la création seulement, sans modifier leur configuration Dolibarr ; un champ complémentaire
