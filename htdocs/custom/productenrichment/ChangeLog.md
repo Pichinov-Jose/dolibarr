@@ -1,5 +1,15 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.1.0 (2026-11-13)
+- L'EAN d'abord : sur le formulaire de création, les boutons Enrichir et Recherche IA sont à droite du champ
+  code-barres du produit (plus de champ EAN séparé, sauf si le module Codes-barres est inactif) et le panneau
+  s'ouvre juste en dessous ; la touche Entrée de la douchette lance la recherche au lieu d'enregistrer
+- Un EAN reçu dans l'adresse (produit créé depuis une réception) est recherché dès l'ouverture, l'EAN
+  fournisseur vide reprend le même code
+- Réception : quand l'EAN scanné dans la recherche produit de la ligne n'est trouvé nulle part, un bouton
+  « Créer le produit avec l'EAN … » ouvre la création avec le code-barres et l'EAN fournisseur remplis et le
+  fournisseur de la réception ; au retour, la ligne est remplie (productquickcreate)
+
 ## 1.0.0 (2026-11-13)
 - Recherche par EAN en cascade UPCitemdb → eBay (Browse API) → IA sur demande (recherche web), logique
   reprise du module ScanCapture, mêmes clés, même modèle d'IA et mêmes quotas du jour

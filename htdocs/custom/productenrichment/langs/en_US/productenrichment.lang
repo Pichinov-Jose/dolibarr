@@ -131,3 +131,6 @@ PeJs_Applying=Applying…
 PeJs_Applied={n} field(s) filled, reloading the card…
 PeJs_DialogTitle=Enrich the product
 PeJs_NothingApplied=No field filled: they were filled meanwhile.
+PeEnrichTooltip=Look up the data of the product from its EAN (UPCitemdb, eBay)
+PeJs_CreateWithEan=Create the product with the EAN {e}
+PeJs_NewProductFromEan=New product

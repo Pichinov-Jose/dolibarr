@@ -42,9 +42,19 @@
 
 		/* ---------- lookup ---------- */
 
+		eanInput: function () {
+			if (PE.cfg.mode === 'form' && $('input[name=barcode]').length) { return $('input[name=barcode]').first(); }
+			return $('#pe_ean');
+		},
+
 		run: function (withai) {
-			var ean = $.trim($('#pe_ean').val() || '');
-			if (!ean) { PE.status(PE.t('NeedEan'), 'error'); return; }
+			var ean = $.trim(PE.eanInput().val() || '');
+			if (!ean) { PE.status(PE.t('NeedEan'), 'error'); $('#pe_row').show(); return; }
+			if (PE.cfg.mode === 'form') {
+				$('#pe_row').show();
+				// The supplier EAN of the creation form is the same code
+				if ($('input[name=fourn_barcode]').length && !$.trim($('input[name=fourn_barcode]').val())) { $('input[name=fourn_barcode]').val(ean); }
+			}
 			var params = {ean: ean, ai: withai ? 1 : 0};
 			if (PE.cfg.mode === 'card') {
 				params.fk_product = PE.cfg.fkProduct;
@@ -405,19 +415,67 @@
 			$(function () {
 				$('#pe_go').on('click', function (e) { e.preventDefault(); PE.run(false); });
 				$('#pe_ai').on('click', function (e) { e.preventDefault(); PE.run(true); });
-				$('#pe_ean').on('keydown', function (e) { if (e.keyCode === 13) { e.preventDefault(); PE.run(false); } });
 				if (cfg.mode === 'form') {
-					// The row goes just under the label; the EAN follows the barcode fields while it is empty
-					var labelrow = $('input[name=label]').closest('tr');
-					if (labelrow.length) { $('#pe_row').insertAfter(labelrow); }
-					$('input[name=barcode], input[name=fourn_barcode]').on('change keyup', function () {
-						if (!$.trim($('#pe_ean').val()) && $.trim($(this).val())) { $('#pe_ean').val($.trim($(this).val())); }
-					});
+					// After the scripts of the other modules (sections folded by productquickcreate)
+					setTimeout(PE.initForm, 0);
 				} else {
+					$('#pe_ean').on('keydown', function (e) { if (e.keyCode === 13) { e.preventDefault(); PE.run(false); } });
 					$('#pe_open').on('click', function (e) { e.preventDefault(); PE.openCardDialog(); });
 				}
 			});
 		}
+	};
+
+	/* Creation form: the EAN comes first. Buttons on the right of the barcode field, panel just under it */
+	PE.initForm = function () {
+		var bc = $('input[name=barcode]').first();
+		if (bc.length) {
+			$('#pe_buttons').insertAfter(bc);
+			$('#pe_row').insertAfter(bc.closest('tr')).hide();
+			$('#pe_eanbox').hide();
+			// A scanner ends with Enter: look up instead of submitting the form
+			bc.on('keydown', function (e) { if (e.keyCode === 13) { e.preventDefault(); PE.run(false); } });
+		} else {
+			var labelrow = $('input[name=label]').closest('tr');
+			if (labelrow.length) { $('#pe_row').insertAfter(labelrow); }
+			$('#pe_eanbox').show();
+			$('#pe_ean').on('keydown', function (e) { if (e.keyCode === 13) { e.preventDefault(); PE.run(false); } });
+		}
+		if (PE.cfg.autoRun && $.trim(PE.eanInput().val())) {
+			// EAN given by the reception: show its field (it may be in a folded section) and look it up
+			PE.eanInput().closest('tr').removeClass('hideobject');
+			PE.run(false);
+		}
+	};
+
+	/* Reception card: an EAN scanned in the product search of the line and found nowhere can create the product */
+	PE.initReception = function (cfg) {
+		$(function () {
+			var box = null;
+			$(document).on('autocompleteresponse', '#search_idprodfournprice', function (e, ui) {
+				var input = $(this), term = $.trim(input.val() || '');
+				if (!box) { box = $('<span id="pe_create_ean" class="nowraponall"></span>').hide(); input.after(box); }
+				box.empty().hide();
+				if ((!ui || !ui.content || !ui.content.length) && /^\d{8,14}$/.test(term)) {
+					box.append(' ').append($('<a href="#" class="button smallpaddingimp">').text(cfg.texts.create.replace('{e}', term)).on('click', function (ev) {
+						ev.preventDefault();
+						PE.openCreateDialog(cfg, term);
+					})).show();
+				}
+			});
+			$(document).on('input', '#search_idprodfournprice', function () { if (box) { box.hide(); } });
+		});
+	};
+
+	/* Same dialog as the "New product" button of the line, with the barcode and the supplier EAN filled */
+	PE.openCreateDialog = function (cfg, ean) {
+		var d = $('#pe_dialog_create');
+		if (!d.length) { d = $('<div id="pe_dialog_create" class="hidden"></div>').appendTo('body'); }
+		var frame = $('<iframe class="iframedialog" style="border: 0px;" width="100%" height="98%"></iframe>');
+		frame.attr('src', cfg.url + '&barcode=' + encodeURIComponent(ean) + '&fourn_barcode=' + encodeURIComponent(ean));
+		d.empty().append(frame);
+		d.dialog({autoOpen: false, modal: true, height: Math.max(400, window.innerHeight - 150), width: '80%', title: cfg.texts.title});
+		d.dialog('open');
 	};
 
 	window.ProductEnrichment = PE;

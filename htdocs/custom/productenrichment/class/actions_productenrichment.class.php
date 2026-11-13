@@ -124,7 +124,10 @@ class ActionsProductEnrichment
 	}
 
 	/**
-	 * Panel of the creation form, just under the label
+	 * Panel of the creation form. The EAN comes first: the buttons go on the right of the barcode field of the
+	 * product and the panel just under it; without a barcode field (module Barcode disabled) a row with its own
+	 * EAN field goes under the label. An EAN given in the url (product created from a reception) is looked up
+	 * as soon as the form opens.
 	 *
 	 * @param array<string,mixed> $parameters Hook parameters
 	 * @param CommonObject        $object     Product
@@ -144,18 +147,61 @@ class ActionsProductEnrichment
 		$sources = ProductEnrichment::sourcesConfigured();
 
 		$ean = trim((string) (GETPOST('barcode', 'alphanohtml') ?: GETPOST('fourn_barcode', 'alphanohtml')));
-		$out = '<tr id="pe_row" class="pe-row"><td class="titlefieldcreate">'.img_picto('', 'fa-magic', 'class="pictofixedwidth"').$langs->trans('PeEnrichment').'</td><td>';
-		$out .= '<input type="text" id="pe_ean" class="minwidth150" placeholder="'.dol_escape_htmltag($langs->trans('PeEanPlaceholder')).'" value="'.dol_escape_htmltag($ean).'" autocomplete="off"> ';
-		$out .= '<a href="#" id="pe_go" class="button smallpaddingimp">'.img_picto('', 'fa-search', 'class="pictofixedwidth"').$langs->trans('PeEnrich').'</a> ';
+		$buttons = '<span id="pe_buttons" class="nowraponall">';
+		$buttons .= ' <a href="#" id="pe_go" class="button smallpaddingimp" title="'.dol_escape_htmltag($langs->trans('PeEnrichTooltip')).'">'.img_picto('', 'fa-magic', 'class="pictofixedwidth"').$langs->trans('PeEnrich').'</a>';
 		if (!empty($sources['ai'])) {
-			$out .= '<a href="#" id="pe_ai" class="button smallpaddingimp" style="display:none" title="'.dol_escape_htmltag($langs->trans('PeAiTooltip')).'">'.img_picto('', 'fa-robot', 'class="pictofixedwidth"').$langs->trans('PeSearchAi').'</a> ';
+			$buttons .= ' <a href="#" id="pe_ai" class="button smallpaddingimp" style="display:none" title="'.dol_escape_htmltag($langs->trans('PeAiTooltip')).'">'.img_picto('', 'fa-robot', 'class="pictofixedwidth"').$langs->trans('PeSearchAi').'</a>';
 		}
-		$out .= '<span id="pe_status" class="small"></span>';
+		$buttons .= '</span>';
+
+		$out = '<tr id="pe_row" class="pe-row"><td colspan="2">';
+		// Used only when the form has no barcode field
+		$out .= '<div id="pe_eanbox" style="display:none">'.img_picto('', 'fa-magic', 'class="pictofixedwidth"').$langs->trans('PeEnrichment').' : ';
+		$out .= '<input type="text" id="pe_ean" class="minwidth150" placeholder="'.dol_escape_htmltag($langs->trans('PeEanPlaceholder')).'" value="'.dol_escape_htmltag($ean).'" autocomplete="off"></div>';
+		$out .= $buttons.' <span id="pe_status" class="small"></span>';
 		$out .= '<div id="pe_panel" style="display:none"></div><span id="pe_hidden"></span>';
-		$out .= $this->panelAssets('form');
+		// Look up at once an EAN given in the url (product created from a reception), not when the form comes back after an error
+		$autorun = ($ean !== '' && (empty($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] == 'GET'));
+		$out .= $this->panelAssets('form', array('autoRun' => $autorun));
 		$out .= '</td></tr>';
 
 		$this->resprints = $out;
+		return 0;
+	}
+
+	/**
+	 * Reception card: when the EAN scanned in the product search of the line is unknown, offer to create the
+	 * product with this EAN (creation popup with the barcode and the supplier EAN filled, the lookup starts
+	 * by itself). The formConfirm hook is used because the reception card always prints its output.
+	 *
+	 * @param array<string,mixed> $parameters Hook parameters
+	 * @param CommonObject        $object     Reception
+	 * @param string              $action     Action
+	 * @param HookManager         $hookmanager Hook manager
+	 * @return int                            0
+	 */
+	public function formConfirm($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs, $user;
+
+		$contexts = explode(':', (string) $parameters['currentcontext']);
+		if (!in_array('receptioncard', $contexts) || !empty($action) || empty($object->id) || (int) $object->status != 0 || !$this->canUse()) {
+			return 0;
+		}
+		$langs->load('productenrichment@productenrichment');
+		// Same url as the "New product" button of the line (the creation then comes back on the reception with the product)
+		$url = DOL_URL_ROOT.'/product/card.php?action=create&type=0&fourn_socid='.((int) $object->socid);
+		$url .= '&backtopage='.urlencode($_SERVER['PHP_SELF'].'?id='.((int) $object->id).'&idprodfournprice=idprod___ID__');
+		$url .= '&dol_hide_topmenu=1&dol_hide_leftmenu=1&dol_openinpopup=addproduct';
+		$cfg = array(
+			'url' => $url,
+			'texts' => array(
+				'create' => $langs->transnoentitiesnoconv('PeJs_CreateWithEan'),
+				'title' => $langs->transnoentitiesnoconv('PeJs_NewProductFromEan'),
+			),
+		);
+		$this->resprints = '<script src="'.dol_buildpath('/productenrichment/js/productenrichment.js', 1).'?v='.urlencode(ProductEnrichment::VERSION).'"></script>';
+		$this->resprints .= '<script>ProductEnrichment.initReception('.json_encode($cfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).');</script>';
 		return 0;
 	}
 

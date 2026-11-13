@@ -32,7 +32,7 @@
  */
 class ProductEnrichment
 {
-	const VERSION = '1.0.0';
+	const VERSION = '1.1.0';
 	const MAX_IMAGES = 3;
 	const UPC_DAILY_MAX = 95;	// UPCitemdb free tier: 100 requests a day
 

@@ -41,13 +41,13 @@ class modProductEnrichment extends DolibarrModules
 		$this->descriptionlong = 'Bouton Enrichir sur le formulaire de création de produit (popup des réceptions comprise) et sur la fiche produit, action de masse sur la liste des produits avec file d\'attente.';
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.0.0';
+		$this->version = '1.1.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'product';
 		$this->langfiles = array('productenrichment@productenrichment');
 		$this->config_page_url = array('setup.php@productenrichment');
 		$this->module_parts = array(
-			'hooks' => array('productcard', 'productservicelist'),
+			'hooks' => array('productcard', 'productservicelist', 'receptioncard'),
 			'triggers' => 1,
 		);
 
