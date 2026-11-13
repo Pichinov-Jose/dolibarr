@@ -11,8 +11,9 @@ Module Dolibarr maison Pichinov. Enrichit le formulaire de création de produit 
   **entrepôt par défaut présélectionné**.
 - **Champs obligatoires ou masqués** au choix dans les réglages du module (les champs exigés par
   Dolibarr restent verrouillés) ; un champ obligatoire reste visible même dans une section repliée.
-- **Sections repliables** (mobile ready) : Codes-barres & lots, Poids & dimensions,
-  Description & notes, Comptabilité — état mémorisé par navigateur.
+- **Code-barres en tête** : type et valeur du code-barres juste après le libellé, pour scanner l'EAN en premier.
+- **Sections repliables** (mobile ready) : Lots / numéros de série, Poids & dimensions,
+  Description & notes, Comptabilité, Champs complémentaires — état mémorisé par navigateur.
 
 Aucune modification du core (hooks `formObjectOptions`/`doActions` + trigger). Compatible Dolibarr 22–24.
 

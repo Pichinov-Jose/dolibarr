@@ -1,5 +1,13 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.3.3 (2026-11-13)
+- Code-barres en tête du formulaire de création (popup des réceptions comprise) : les lignes « Type de
+  code-barres » et « Valeur code-barres » sont placées juste après le libellé, hors des sections repliées,
+  pour saisir ou scanner l'EAN en premier ; les boutons d'Enrichissement produit suivent le champ
+- La section repliable « Codes-barres & lots » devient « Lots / numéros de série » (elle n'apparaît plus
+  quand les lots sont masqués ou que le module Lots est désactivé)
+- Inchangé : un code-barres rendu obligatoire ou masqué dans les réglages le reste à sa nouvelle place
+
 ## 1.3.2 (2026-11-13)
 - Réglages : « Catégories par défaut » (sélection multiple, comme sur la fiche produit) présélectionnées
   sur le formulaire de création, popup des réceptions comprise ; modifiables avant d'enregistrer ; non

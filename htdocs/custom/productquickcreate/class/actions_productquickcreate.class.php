@@ -474,6 +474,22 @@ class ActionsProductQuickCreate
 			</script>';
 		}
 
+		// Barcode first: the barcode rows of Dolibarr (type, then value) go just under the label, out of the
+		// collapsible sections, so that the EAN is typed or scanned first. The mandatory / hidden fields script
+		// below finds its rows by field name, so the new position changes nothing for it.
+		if (isModEnabled('barcode')) {
+			$out .= '<script>
+			jQuery(document).ready(function() {
+				var anchor = jQuery("input[name=label]").first().closest("tr");
+				if (!anchor.length) { return; }
+				jQuery.each(["select[name=fk_barcode_type]", "input[name=barcode]"], function(i, sel) {
+					var tr = jQuery(sel).first().closest("tr");
+					if (tr.length && !tr.is(anchor)) { tr.insertAfter(anchor); anchor = tr; }
+				});
+			});
+			</script>';
+		}
+
 		// Mandatory and hidden fields chosen in the module setup. Runs before the collapsible sections script,
 		// which leaves these rows out of the folded sections: a mandatory field always stays visible.
 		dol_include_once('/productquickcreate/lib/productquickcreate.lib.php');
@@ -528,7 +544,7 @@ class ActionsProductQuickCreate
 			$out .= '<script>
 			jQuery(document).ready(function() {
 				var groups = [
-					{id: "grp_codes", label: "'.dol_escape_js($langs->trans("PqcBarcodeAndBatch")).'", sel: ["select[name=fk_barcode_type]", "input[name=barcode]", "select[name=status_batch]", "select[name=sell_or_eat_by_mandatory]", "input[name=batch_mask]", "#field_mask"]},
+					{id: "grp_codes", label: "'.dol_escape_js($langs->trans("PqcBatchSection")).'", sel: ["select[name=status_batch]","select[name=sell_or_eat_by_mandatory]", "input[name=batch_mask]", "#field_mask"]},
 					{id: "grp_dims", label: "'.dol_escape_js($langs->trans("PqcWeightAndDimensions")).'", sel: ["input[name=weight]", "input[name=size]", "input[name=surface]", "input[name=volume]", "input[name=sizewidth]", "input[name=sizeheight]", "select[name=units]", "input[name=customcode]", "select[name=country_id]", "select[name=state_id]", "#state_id"]},
 					{id: "grp_desc", label: "'.dol_escape_js($langs->trans("PqcDescriptionAndNotes")).'", sel: ["#desc", "textarea[name=desc]", "input[name=url]", "textarea[name=note_private]", "textarea[name=note]"]},
 					{id: "grp_compta", label: "'.dol_escape_js($langs->trans("Accountancy")).'", sel: ["[name=accountancy_code_sell]", "[name=accountancy_code_sell_intra]", "[name=accountancy_code_sell_export]", "[name=accountancy_code_buy]", "[name=accountancy_code_buy_intra]", "[name=accountancy_code_buy_export]"]},
