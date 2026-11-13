@@ -121,7 +121,7 @@ foreach ($catalog as $key => $field) {
 	if (!empty($field['canrequire'])) {
 		print '<input type="checkbox" class="pqcrequired" data-key="'.$key.'" name="required_'.$key.'" value="1"'.(in_array($key, $requiredset) ? ' checked' : '').'>';
 	} else {
-		print '<span class="opacitymedium" title="'.dol_escape_htmltag($langs->trans('PqcFieldAlwaysFilled')).'">-</span>';
+		print '<span class="opacitymedium" title="'.dol_escape_htmltag($langs->trans(!empty($field['extrafield']) ? $field['whynot'] : 'PqcFieldAlwaysFilled')).'">-</span>';
 	}
 	print '</td><td class="center">';
 	if (!empty($field['canhide'])) {

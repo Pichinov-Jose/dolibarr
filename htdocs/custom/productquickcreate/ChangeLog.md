@@ -1,5 +1,12 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.3.1 (2026-11-13)
+- Champs complémentaires produit dans le tableau « Champs du formulaire de création » : obligatoires ou
+  masqués pour la création seulement, sans modifier leur configuration Dolibarr ; un champ complémentaire
+  obligatoire dans sa configuration est affiché verrouillé ; une case à cocher ne peut pas être
+  obligatoire (décochée, elle n'envoie rien) ; un séparateur peut seulement être masqué
+- Les champs complémentaires restants sont regroupés dans une section repliable « Champs complémentaires »
+
 ## 1.3.0 (2026-11-12)
 - Réglages : tableau « Champs du formulaire de création » pour rendre des champs OBLIGATOIRES ou les
   MASQUER (code-barres, lots, description, URL, note privée, entrepôt par défaut, seuils de stock, nature,

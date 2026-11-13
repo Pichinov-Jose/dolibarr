@@ -83,7 +83,72 @@ function productquickcreateFieldCatalog()
 	$f['fourn_qty'] = array('label' => 'PqcFieldSupplierQty', 'group' => 'PqcModuleFields', 'sel' => array('input[name=fourn_qty]'), 'post' => array(), 'empty' => array(), 'canrequire' => false, 'canhide' => true, 'productonly' => false, 'enabled' => $supplierblock);
 	$f['fourn_barcode'] = array('label' => 'PqcSupplierBarcode', 'group' => 'PqcModuleFields', 'sel' => array('input[name=fourn_barcode]', 'select[name=fourn_fk_barcode_type]'), 'post' => array('fourn_barcode'), 'empty' => array(''), 'canrequire' => true, 'canhide' => true, 'productonly' => false, 'enabled' => $supplierblock && isModEnabled('barcode'));
 
-	return $f;
+	return array_merge($f, productquickcreateExtrafieldCatalog());
+}
+
+/**
+ * Extrafields of products shown by Dolibarr on the creation form (enabled, visibility 1 or 3), as entries
+ * of the field catalog with the key ef_<name>. The setup made here applies to the creation form only:
+ * the extrafield setup of Dolibarr (required, visibility) is not changed.
+ *
+ * @return array<string,array<string,mixed>> Catalog entries
+ */
+function productquickcreateExtrafieldCatalog()
+{
+	global $db;
+	static $cache = null;
+
+	if ($cache !== null) {
+		return $cache;
+	}
+	$cache = array();
+	if (empty($db)) {
+		return $cache;
+	}
+	require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+	$extrafields = new ExtraFields($db);
+	$extrafields->fetch_name_optionals_label('product');
+	$attrs = (isset($extrafields->attributes['product']) ? $extrafields->attributes['product'] : array());
+	if (empty($attrs['label']) || !is_array($attrs['label'])) {
+		return $cache;
+	}
+	foreach ($attrs['label'] as $name => $label) {
+		// Same tests as CommonObject::showOptionals() in create mode
+		$enabled = 1;
+		if (isset($attrs['enabled'][$name])) {
+			$enabled = (int) dol_eval((string) $attrs['enabled'][$name], 1, 1, '2');
+		}
+		$visibility = 1;
+		if (isset($attrs['list'][$name])) {
+			$visibility = (int) dol_eval((string) $attrs['list'][$name], 1, 1, '2');
+		}
+		if (empty($enabled) || !in_array(abs($visibility), array(1, 3))) {
+			continue;
+		}
+		$type = (string) (isset($attrs['type'][$name]) ? $attrs['type'][$name] : '');
+		$isseparator = ($type == 'separate');
+		$post = array('options_'.$name);
+		if (in_array($type, array('date', 'datetime'))) {
+			$post[] = 'options_'.$name.'year';
+		}
+		// A checkbox that is not ticked posts nothing: it cannot be told apart from a forgotten field
+		$checkbox = in_array($type, array('boolean', 'checkbox', 'chkbxlst'));
+		$cache['ef_'.$name] = array(
+			'label' => (string) $label,
+			'group' => 'PqcExtrafields',
+			'sel' => array($isseparator ? 'tr.trextrafieldseparator'.$name : 'tr.field_options_'.$name),
+			'post' => ($isseparator ? array() : $post),
+			'empty' => (in_array($type, array('link', 'select', 'sellist')) ? array('', '0', '-1') : array('')),
+			'canrequire' => (!$isseparator && !$checkbox),
+			'whynot' => ($isseparator ? 'PqcFieldSeparator' : 'PqcFieldCheckboxNoRequire'),
+			'canhide' => true,
+			'productonly' => false,
+			'enabled' => true,
+			'extrafield' => 1,
+			'requirednative' => !empty($attrs['required'][$name]),
+		);
+	}
+	return $cache;
 }
 
 /**
@@ -97,6 +162,12 @@ function productquickcreateCoreRequiredFields()
 	$core = array('ref' => 'PqcFieldRef', 'label' => 'PqcFieldLabel', 'statut' => 'PqcFieldStatusSell', 'statut_buy' => 'PqcFieldStatusBuy');
 	if (isModEnabled('barcode') && getDolGlobalString('BARCODE_PRODUCT_ADDON_NUM')) {
 		$core['barcode'] = 'PqcFieldBarcodeNumbering';
+	}
+	// Extrafields set as required in their own setup
+	foreach (productquickcreateExtrafieldCatalog() as $key => $field) {
+		if (!empty($field['requirednative'])) {
+			$core[$key] = $field['label'];
+		}
 	}
 	return $core;
 }
@@ -112,7 +183,13 @@ function productquickcreateConfiguredFields($use)
 {
 	$catalog = productquickcreateFieldCatalog();
 	$core = productquickcreateCoreRequiredFields();
-	$required = array_filter(array_map('trim', explode(',', getDolGlobalString('PRODUCTQUICKCREATE_REQUIRED_FIELDS'))));
+	$required = array();
+	foreach (array_filter(array_map('trim', explode(',', getDolGlobalString('PRODUCTQUICKCREATE_REQUIRED_FIELDS')))) as $key) {
+		// Only the fields that can really be mandatory: another key listed by hand must not block hiding
+		if (!empty($catalog[$key]['enabled']) && !empty($catalog[$key]['canrequire'])) {
+			$required[] = $key;
+		}
+	}
 	$keys = ($use == 'required' ? $required : array_filter(array_map('trim', explode(',', getDolGlobalString('PRODUCTQUICKCREATE_HIDDEN_FIELDS')))));
 	$out = array();
 	foreach ($keys as $key) {

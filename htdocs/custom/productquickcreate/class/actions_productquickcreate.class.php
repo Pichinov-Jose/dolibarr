@@ -194,8 +194,9 @@ class ActionsProductQuickCreate
 					})) > 0);
 					continue;
 				}
-				$value = trim((string) GETPOST($name, in_array($key, array('desc', 'note_private')) ? 'restricthtml' : 'alphanohtml'));
-				if (in_array($key, array('desc', 'note_private'))) {
+				$ishtml = (in_array($key, array('desc', 'note_private')) || !empty($field['extrafield']));
+				$value = trim((string) GETPOST($name, $ishtml ? 'restricthtml' : 'alphanohtml'));
+				if ($ishtml) {
 					$value = trim(dol_string_nohtmltag($value));
 				}
 				if ($value !== '' && !in_array($value, $field['empty'], true)) {
@@ -495,7 +496,8 @@ class ActionsProductQuickCreate
 					{id: "grp_codes", label: "'.dol_escape_js($langs->trans("PqcBarcodeAndBatch")).'", sel: ["select[name=fk_barcode_type]", "input[name=barcode]", "select[name=status_batch]", "select[name=sell_or_eat_by_mandatory]", "input[name=batch_mask]", "#field_mask"]},
 					{id: "grp_dims", label: "'.dol_escape_js($langs->trans("PqcWeightAndDimensions")).'", sel: ["input[name=weight]", "input[name=size]", "input[name=surface]", "input[name=volume]", "input[name=sizewidth]", "input[name=sizeheight]", "select[name=units]", "input[name=customcode]", "select[name=country_id]", "select[name=state_id]", "#state_id"]},
 					{id: "grp_desc", label: "'.dol_escape_js($langs->trans("PqcDescriptionAndNotes")).'", sel: ["#desc", "textarea[name=desc]", "input[name=url]", "textarea[name=note_private]", "textarea[name=note]"]},
-					{id: "grp_compta", label: "'.dol_escape_js($langs->trans("Accountancy")).'", sel: ["[name=accountancy_code_sell]", "[name=accountancy_code_sell_intra]", "[name=accountancy_code_sell_export]", "[name=accountancy_code_buy]", "[name=accountancy_code_buy_intra]", "[name=accountancy_code_buy_export]"]}
+					{id: "grp_compta", label: "'.dol_escape_js($langs->trans("Accountancy")).'", sel: ["[name=accountancy_code_sell]", "[name=accountancy_code_sell_intra]", "[name=accountancy_code_sell_export]", "[name=accountancy_code_buy]", "[name=accountancy_code_buy_intra]", "[name=accountancy_code_buy_export]"]},
+					{id: "grp_extrafields", label: "'.dol_escape_js($langs->trans("PqcExtrafields")).'", sel: ["tr.trextrafields", "tr.trextrafieldseparator"]}
 				];
 				groups.forEach(function(g) {
 					var rows = jQuery();
