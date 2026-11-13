@@ -487,3 +487,4 @@ WarningEvaluationEmptyValidate=Can't validate evaluation, levels on skills not d
 ErrorBadParametersForDirectDebitFileCreate=Can't create bank transfer file: expected format parameter is not provided.
 ErrorBadParametersForDirectDebitFileCreateDids=Can't create bank transfer file: IDs of existing payment requests are not provided.
 ErrorExpeditionQtyTooHigh=Shipped quantity (%s) exceeds the remaining quantity to deliver (%s).
+ErrorAIServiceTimeout=The AI service (%s) did not answer in time. The document may be too large or the service may be overloaded. Please try again later (an administrator can also increase the timeout with the constant MAIN_USE_RESPONSE_TIMEOUT).

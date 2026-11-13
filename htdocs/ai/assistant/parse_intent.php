@@ -88,6 +88,7 @@ $rawRequestLog = "";
 $rawResponseLog = "";
 $providerUsed = "offline";
 $errorDetails = "";
+$adapter = null;	// LLM adapter, set only when an AI API is called
 
 $assistantEnabled = getDolGlobalInt('AI_ASSISTANT_ENABLED', 0);
 $serviceKey = getDolGlobalString('AI_API_SERVICE');
@@ -883,7 +884,8 @@ try {
 					}
 				}
 
-				$histBudget = 6000;
+				$histBudget = getDolGlobalInt('AI_CHAT_CONTEXT_MAX_SIZE', 200000);	// in characters
+				$histTurnMaxSize = $histBudget;	// cap of one turn, same as the whole budget
 				foreach ($histTurns as $turn) {
 					if (is_array($turn) && !empty($turn['id'])) {
 						$turn = $histRows[(int) $turn['id']] ?? null;
@@ -901,8 +903,8 @@ try {
 						$hdata = json_decode((string) preg_replace('/^\[[^\]]*\]\s*/', '', $htext), true);
 						$htext = $guard->maskNames($htext, array_merge($aiNamesToMask, aiThirdpartyNamesToMask($db, $user, $htext, $dynamicStopWords, $hdata)));
 					}
-					if (dol_strlen($htext) > 1500) {
-						$htext = dol_substr($htext, 0, 1500).' ...';
+					if (dol_strlen($htext) > $histTurnMaxSize) {
+						$htext = dol_substr($htext, 0, $histTurnMaxSize).' ...';
 					}
 					if ($guard) {
 						$htext = $guard->mask($htext);
@@ -1244,7 +1246,10 @@ try {
 				$hasPdf = $hasPdf || ($att['mime'] === 'application/pdf');
 			}
 			$attachmentWords = '/\b(?:file|files|pdf|document|image_url|image|attachment|content.?type|mime|multimodal|vision)\b/i';
-			if (!empty($attachments) && preg_match($attachmentWords, $reason)) {
+			if ($adapter !== null && $adapter->lastTruncated) {
+				// The answer was cut by the max tokens limit: retrying the same request gives the same cut answer
+				$message = $langs->transnoentitiesnoconv('AIAnswerTruncated', $reason);
+			} elseif (!empty($attachments) && preg_match($attachmentWords, $reason)) {
 				$message = $langs->transnoentitiesnoconv($hasPdf ? 'AIProviderRejectedPdf' : 'AIProviderRejectedAttachment', getAiAssistantProviderLabel(), $reason);
 			} elseif (UniversalLLMAdapter::isModelUnavailableError($reason)) {
 				// The chosen model is unknown or retired at the provider: rephrasing
@@ -1779,7 +1784,7 @@ function classifyIntentUniversal(string $query, Translate $langs)
 	$isLatin = !isComplexScript($query);
 	$searchQuery = $isLatin ? strtolower(dol_string_unaccent($query)) : $query;
 
-	$langs->loadLangs(array("main", "bills", "orders", "propal", "companies", "products", "projects", "dict", "sendings", "receptions", "ticket", "members", "agenda", "interventions"));
+	$langs->loadLangs(array("main", "bills", "orders", "propal", "companies", "products", "projects", "dict", "sendings", "receptions", "ticket", "members", "agenda", "interventions", "trips"));
 
 	// Vocabulary rule: every object family whose tools exist must light up the
 	// categories those tools carry (see ApiBridge::ENDPOINT_CATEGORIES), or the
@@ -1792,8 +1797,11 @@ function classifyIntentUniversal(string $query, Translate $langs)
 		'billing' => [
 			// Member/Subscription: members and subscriptions tools are
 			// categorized ['thirdparty', 'billing'].
-			'keys'     => ['Bill', 'Invoice', 'Payment', 'Cheque', 'VAT', 'BillStatusUnpaid', 'BillStatusPaid', 'BillStatusDraft', 'Member', 'Subscription'],
-			'synonyms' => ['paid', 'unpaid', 'pay', 'money', 'cost', 'amount', 'overdue', 'member', 'membership', 'subscription', 'cotisation', 'adhesion']
+			// Expense report ('Trips' is its UI key): the expense reports tools
+			// are categorized ['billing'], and "add this lunch with a customer to
+			// my expense report" must not be left to the 'thirdparty' tools alone.
+			'keys'     => ['Bill', 'Invoice', 'Payment', 'Cheque', 'VAT', 'BillStatusUnpaid', 'BillStatusPaid', 'BillStatusDraft', 'Member', 'Subscription', 'Trips'],
+			'synonyms' => ['paid', 'unpaid', 'pay', 'money', 'cost', 'amount', 'overdue', 'member', 'membership', 'subscription', 'cotisation', 'adhesion', 'expense', 'frais']
 		],
 		'commercial' => [
 			// 'Reception' and 'Shipment' matter: create_other_document (the tool
@@ -1834,7 +1842,7 @@ function classifyIntentUniversal(string $query, Translate $langs)
 		global $conf;
 		$langsEnUs = new Translate('', $conf);
 		$langsEnUs->setDefaultLang('en_US');
-		$langsEnUs->loadLangs(array('main', 'bills', 'companies', 'products', 'projects', 'orders', 'propal', 'stocks', 'other', 'ticket', 'members', 'agenda', 'interventions'));
+		$langsEnUs->loadLangs(array('main', 'bills', 'companies', 'products', 'projects', 'orders', 'propal', 'stocks', 'other', 'ticket', 'members', 'agenda', 'interventions', 'trips'));
 	}
 
 	$detectedCategories = [];
@@ -1898,14 +1906,14 @@ function classifyIntentUniversal(string $query, Translate $langs)
  *
  * This function narrows down the available tools by matching their assigned
  * categories against the detected intent categories. Tools tagged as "global"
- * are always considered, but may be excluded when more specific categories
- * are active to avoid overly generic matches.
+ * (the default of McpTool::getCategories()) are always kept, as they apply to
+ * any object (navigation, tools of external modules without categories, ...).
  *
  * Behavior:
  * - If no categories are provided, or only "global" is present, all tools are returned.
  * - Tools are included if they share at least one category with the target categories.
- * - Tools with only the "global" category are excluded when specific categories are active.
- * - If filtering results in fewer than 3 tools, the full tool list is returned as a fallback.
+ * - Tools with the "global" category are always included.
+ * - If fewer than 3 tools match a detected category, the full tool list is returned as a fallback.
  *
  *
  * @param array<int,array<string,mixed>> $allTools          List of all available tools.
@@ -1921,115 +1929,24 @@ function filterToolsProfessional(array $allTools, array $activeCategories)
 
 	$targetCategories = array_merge(['global'], $activeCategories);
 	$filtered = [];
+	$nbMatchingCategory = 0;	// Tools kept for a detected category, not only because they are global
 
 	foreach ($allTools as $tool) {
 		$toolCats = $tool['categories'] ?? ['global'];
 		if (count(array_intersect($toolCats, $targetCategories)) > 0) {
-			if (count($activeCategories) > 0 && $toolCats === ['global']) {
-				continue;
-			}
 			$filtered[] = $tool;
+			if (count(array_intersect($toolCats, $activeCategories)) > 0) {
+				$nbMatchingCategory++;
+			}
 		}
 	}
 
-	if (count($filtered) < 3) {
-		dol_syslog("AI Filter: Too few tools (" . count($filtered) . "). Reverting to full schema.", LOG_WARNING);
+	if ($nbMatchingCategory < 3) {
+		dol_syslog("AI Filter: Too few tools (" . $nbMatchingCategory . ") for the detected categories. Reverting to full schema.", LOG_WARNING);
 		return $allTools;
 	}
 
 	return $filtered;
-}
-
-/**
- * Compresses tool schema by removing optional parameters with defaults
- * and stripping descriptions, relying on LLM inference of variable names.
- *
- * @param array<int, array<string, mixed>> $tools Array of tool definitions.
- * @param bool $isLargeSchema True if compression is needed.
- * @return array<int, array<string, mixed>>
- */
-function cleanToolSchemaForLLM(array $tools, bool $isLargeSchema = false)
-{
-	$cleaned = [];
-
-	foreach ($tools as $tool) {
-		// Tool descriptions are how the LLM selects the right tool -- never truncate
-		// them, even when the schema is large. Truncating to 3 words ("Create documents
-		// other", "Add a single") breaks tool selection. If the schema really is too
-		// big for the chosen model, the right answer is to filter the toolset before
-		// it reaches the LLM (which is what filterToolsProfessional() already does
-		// upstream of this function), not to mutilate each tool's description.
-		// Parameter-level compression (stripping defaults, descriptions of optional
-		// fields, etc.) remains gated on $isLargeSchema below.
-		$desc = $tool['description'];
-
-		// Get parameters
-		$toolParams = $tool['parameters'] ?? $tool['inputSchema'] ?? [];
-		// requestState is set by the chat after the user confirmed a write, never by the model.
-		unset($toolParams['properties']['requestState']);
-
-		if ($isLargeSchema && isset($toolParams['properties']) && is_array($toolParams['properties'])) {
-			$requiredList = $toolParams['required'] ?? [];
-			$newProperties = [];
-
-			foreach ($toolParams['properties'] as $propKey => $propData) {
-				$isRequired = in_array($propKey, $requiredList);
-
-				// -----------------------------------------------------------
-				// Remove Optional Parameters with Defaults
-				// -----------------------------------------------------------
-				// If a parameter is optional and has a default value defined in
-				// the schema, we assume the backend will handle it. We remove it
-				// from the prompt entirely. This saves massive amounts of tokens
-				// on list/search functions (limit, sortorder, sqlfilters, etc).
-				// -----------------------------------------------------------
-				if (!$isRequired && isset($propData['default'])) {
-					continue;
-				}
-
-				// Remove 'type' for string (LLM default), Keep others (int/bool/arr)
-				if (isset($propData['type']) && $propData['type'] === 'string') {
-					unset($propData['type']);
-				}
-
-				// Handle Descriptions
-				// Remove descriptions entirely. Rely on the key name (e.g. 'email', 'qty').
-				// Exception: Keep 1 word if it's a required parameter with a confusing name.
-				if (isset($propData['description'])) {
-					unset($propData['description']);
-					// If we want to keep a tiny hint for required params, uncomment below:
-					// if ($isRequired) {
-					//     $propData['description'] = explode(' ', trim($propData['description']))[0];
-					// }
-				}
-
-				// Collapse Complex Objects
-				// If a parameter is a deep object (like a complex filter), replace the
-				// recursive properties definition with a generic string to save tokens.
-				if (isset($propData['type']) && $propData['type'] === 'object' && isset($propData['properties'])) {
-					unset($propData['properties']);
-					unset($propData['required']);
-					$propData['description'] = "JSON object"; // Minimal hint
-				}
-
-				$newProperties[$propKey] = $propData;
-			}
-
-			$toolParams['properties'] = $newProperties;
-
-			// Clean up root metadata
-			unset($toolParams['type']);
-			unset($toolParams['additionalProperties']);
-		}
-
-		$cleaned[] = [
-			'name' => $tool['name'],
-			'description' => $desc,
-			'parameters' => $toolParams
-		];
-	}
-
-	return $cleaned;
 }
 
 /**
