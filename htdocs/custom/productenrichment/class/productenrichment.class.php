@@ -32,7 +32,7 @@
  */
 class ProductEnrichment
 {
-	const VERSION = '1.2.1';
+	const VERSION = '1.2.2';
 	const MAX_IMAGES = 3;
 	const UPC_DAILY_MAX = 95;	// UPCitemdb free tier: 100 requests a day
 	/** eBay marketplaces of the full-text search of the code, in order, when the search by GTIN finds nothing */
@@ -92,6 +92,29 @@ class ProductEnrichment
 			return -1;
 		}
 		return (!empty($info['ai']) ? 4 : 0) + (!empty($info['ebay']) ? 2 : 0) + ((string) ($info['title'] ?? '') !== '' ? 1 : 0);
+	}
+
+	/**
+	 * Did UPCitemdb find the article? Flag `upc` only says it was asked. Results older than 1.2.2 have no
+	 * `upc_found`: UPCitemdb is the only source of `category` and `image`, and of a title that is neither in the
+	 * eBay listings nor written by the AI.
+	 *
+	 * @param mixed $info Result
+	 * @return bool
+	 */
+	public static function upcFound($info)
+	{
+		if (!is_array($info)) {
+			return false;
+		}
+		if (isset($info['upc_found'])) {
+			return !empty($info['upc_found']);
+		}
+		if (!empty($info['category']) || !empty($info['image']) || ($info['images_from'] ?? '') === 'upc') {
+			return true;
+		}
+		$title = (string) ($info['title'] ?? '');
+		return ($title !== '' && empty($info['ai']) && !in_array($title, (array) ($info['titles'] ?? array()), true) && !in_array($title, (array) ($info['ebay_rejected'] ?? array()), true));
 	}
 
 	/**
@@ -242,7 +265,7 @@ class ProductEnrichment
 				}
 			}
 		}
-		$sources = implode(',', array_keys(array_filter(array('upc' => !empty($info['upc']) || (string) ($info['title'] ?? '') !== '', 'ebay' => !empty($info['ebay']), 'ai' => !empty($info['ai'])))));
+		$sources = implode(',', array_keys(array_filter(array('upc' => self::upcFound($info), 'ebay' => !empty($info['ebay']), 'ai' => !empty($info['ai'])))));
 		$json = $this->db->escape(json_encode($info));
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."productenrichment_cache (entity, ean, info, sources, datec)";
 		$sql .= " VALUES (".((int) $conf->entity).", '".$this->db->escape($ean)."', '".$json."', '".$this->db->escape($sources)."', '".$this->db->idate(dol_now())."')";
@@ -421,6 +444,7 @@ class ProductEnrichment
 		$merged = array_merge($info, array_filter((array) $prev, function ($v) {
 			return $v !== '' && $v !== null && $v !== array();
 		}));
+		$merged['upc_found'] = ((string) $info['title'] !== '' || self::upcFound($prev) ? 1 : 0);
 		return array('status' => ((string) $info['title'] !== '' ? 'ok' : 'notfound'), 'info' => $merged);
 	}
 
@@ -1669,6 +1693,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 	 */
 	public static function stripEbay($info)
 	{
+		$upcfound = self::upcFound($info);
 		$titles = (array) ($info['titles'] ?? array());
 		if (($info['images_from'] ?? (count($titles) ? 'ebay' : '')) === 'ebay') {
 			$info['images'] = array();
@@ -1688,7 +1713,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		$info['sources'] = array_values(array_filter((array) ($info['sources'] ?? array()), function ($u) {
 			return !preg_match('/ebay\./i', (string) $u);
 		}));
-		if (empty($info['ai']) && empty($info['upc']) && empty($info['category']) && (string) ($info['desc_courte'] ?? '') === '') {
+		if (empty($info['ai']) && !$upcfound && (string) ($info['desc_courte'] ?? '') === '') {
 			// Only eBay had found something: the title came from eBay too
 			$info['title'] = '';
 			$info['mpn'] = '';
@@ -1696,6 +1721,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		}
 		$info['titles'] = array();
 		$info['specs_ebay'] = array();
+		$info['upc_found'] = ($upcfound ? 1 : 0);
 		unset($info['ebay'], $info['ebay_v'], $info['ebay_market'], $info['ebay_keyword'], $info['ebay_mismatch'], $info['ebay_rejected']);
 		return $info;
 	}
@@ -1749,10 +1775,12 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		$info = (is_array($info) ? $info : array());
 		if ($source == 'upc') {
 			$r = $this->lookupUpc($ean, array());
+			$upcfound = (!empty($r['info']['upc_found']) || self::upcFound($info));
 			// UPCitemdb fills only what is still empty
 			$r['info'] = array_merge($r['info'], array_filter($info, function ($v) {
 				return $v !== '' && $v !== null && $v !== array();
 			}));
+			$r['info']['upc_found'] = ($upcfound ? 1 : 0);
 		} elseif ($source == 'ebay') {
 			$r = $this->lookupEbay($ean, self::stripEbay($info));
 		} else {

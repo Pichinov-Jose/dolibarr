@@ -1,5 +1,12 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.2.2 (2026-11-13)
+- Badge et filtre « UPCitemdb » seulement quand UPCitemdb a trouvé l'article (avant : dès qu'il avait été
+  interrogé, même sans résultat). Nouveau repère `upc_found` ; les résultats plus anciens sont déduits de leurs
+  données (catégorie, image ou titre venus d'UPCitemdb)
+- « Écarter le résultat eBay » efface aussi le titre venu d'eBay quand UPCitemdb avait été interrogé sans rien
+  trouver (il était gardé à tort)
+
 ## 1.2.1 (2026-11-13)
 - eBay : quand la recherche par code produit (eBay France puis US) ne trouve rien, l'EAN est cherché dans le
   texte des annonces sur eBay France, Italie, Espagne, Allemagne, Royaume-Uni puis US (première annonce trouvée),

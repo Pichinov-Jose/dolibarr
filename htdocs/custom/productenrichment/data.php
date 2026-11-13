@@ -199,7 +199,7 @@ foreach ($all as $e => $entry) {
 	$found = peViewHasData($info);
 	$anom = ProductEnrichment::anomalies($info, $products);
 	$src = array(
-		'upc' => (!empty($info['upc']) || !empty($info['category']) || !empty($info['image']) || ((string) ($info['title'] ?? '') !== '' && empty($info['ebay']) && empty($info['ai']))),
+		'upc' => ProductEnrichment::upcFound($info),
 		'ebay' => (!empty($info['ebay']) && count((array) ($info['titles'] ?? array()))),
 		'ai' => !empty($info['ai']),
 	);

@@ -70,7 +70,7 @@ function peViewSourceBadges($info)
 	global $langs;
 
 	$out = '';
-	if (!empty($info['upc']) || !empty($info['category']) || !empty($info['image']) || ((string) ($info['title'] ?? '') !== '' && empty($info['ebay']) && empty($info['ai']))) {
+	if (ProductEnrichment::upcFound($info)) {
 		$out .= '<span class="pe-badge pe-b-upc">UPCitemdb</span>';
 	}
 	if (!empty($info['ebay'])) {
