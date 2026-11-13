@@ -68,7 +68,7 @@
 				$('#pe_go, #pe_ai').removeClass('butActionRefused').prop('disabled', false);
 				if (!r || !r.ok) { PE.status((r && r.message) ? r.message : PE.t('Error'), 'error'); return; }
 				PE.data = r;
-				PE.status(PE.stepsText(r), r.found ? 'ok' : 'warning');
+				PE.status(PE.stepsText(r), r.found ? 'ok' : ($.isEmptyObject(r.errors || {}) ? 'warning' : 'error'));
 				if (PE.cfg.aiEnabled) { $('#pe_ai').show(); }
 				PE.render();
 			});
@@ -79,6 +79,7 @@
 			var parts = [];
 			$.each(r.steps || {}, function (k, v) {
 				var more = (k === 'ebay' && r.info && r.info.ebay_keyword && (v === 'ok' || v === 'cached')) ? ' (' + PE.t('EbayKeyword').replace('{m}', r.info.ebay_keyword) + ')' : '';
+				if (v === 'error' && r.errors && r.errors[k]) { more = ' — ' + r.errors[k]; }
 				parts.push(names[k] + ' : ' + PE.t('Step_' + v) + more);
 			});
 			return (r.found ? PE.t('Found') : PE.t('NotFound')) + ' (' + parts.join(', ') + ')';

@@ -32,7 +32,7 @@
  */
 class ProductEnrichment
 {
-	const VERSION = '1.2.2';
+	const VERSION = '1.2.3';
 	const MAX_IMAGES = 3;
 	const UPC_DAILY_MAX = 95;	// UPCitemdb free tier: 100 requests a day
 	/** eBay marketplaces of the full-text search of the code, in order, when the search by GTIN finds nothing */
@@ -335,6 +335,44 @@ class ProductEnrichment
 	}
 
 	/**
+	 * Give back the request of the daily quota of a source: the service refused the call, nothing was used
+	 *
+	 * @param string $source upc, ebay or ai
+	 * @return void
+	 */
+	private function refundQuota($source)
+	{
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+		list($key) = self::quotaKey($source);
+		$count = (int) getDolGlobalString($key);
+		if ($count > 0) {
+			dolibarr_set_const($this->db, $key, (string) ($count - 1), 'chaine', 0, '', 1);
+		}
+	}
+
+	/**
+	 * Readable reason of an error of a source
+	 *
+	 * @param string $key Reason: timeout, ai_credit, ai_auth, ai_model, ai_rate, ai_overloaded, ai_http, ai_empty,
+	 *                    ai_parse, ebay_auth, ebay_http, upc_rate, upc_http
+	 * @param string $raw Technical detail (HTTP code, message of the service), added after the reason
+	 * @return string
+	 */
+	public static function errorText($key, $raw = '')
+	{
+		global $langs;
+		$text = $key;
+		if (is_object($langs)) {
+			$langs->load('productenrichment@productenrichment');
+			$t = $langs->transnoentitiesnoconv('PeErr_'.$key);
+			if ($t !== 'PeErr_'.$key) {
+				$text = $t;
+			}
+		}
+		return $text.($raw !== '' ? ' ('.dol_trunc($raw, 160).')' : '');
+	}
+
+	/**
 	 * Use of the quotas today
 	 *
 	 * @return array<string,array{used:int,max:int}>
@@ -438,7 +476,8 @@ class ProductEnrichment
 				$info['prix_marche'] = $lo.($hi > $lo ? ' à '.$hi : '').' '.($it['currency'] ?? 'USD').' (constaté)';
 			}
 		} elseif ($code != 200 && $code != 404) {
-			return array('status' => 'error', 'info' => $prev, 'detail' => 'upc '.$code);
+			$this->refundQuota('upc');
+			return array('status' => 'error', 'info' => $prev, 'detail' => ($code == 0 ? self::errorText('timeout') : ($code == 429 ? self::errorText('upc_rate') : self::errorText('upc_http', 'HTTP '.$code))));
 		}
 		$info['upc'] = 1;
 		$merged = array_merge($info, array_filter((array) $prev, function ($v) {
@@ -549,7 +588,8 @@ class ProductEnrichment
 			list($code, $out) = $this->http('https://'.$apihost.'/identity/v1/oauth2/token', array('Content-Type: application/x-www-form-urlencoded', 'Authorization: Basic '.base64_encode($appid.':'.$certid)), 'grant_type=client_credentials&scope='.urlencode('https://api.ebay.com/oauth/api_scope'));
 			$j = ($out !== '' ? json_decode($out, true) : null);
 			if ($code != 200 || empty($j['access_token'])) {
-				return array('status' => 'error', 'info' => $prev, 'detail' => 'oauth '.$code);
+				$this->refundQuota('ebay');
+				return array('status' => 'error', 'info' => $prev, 'detail' => ($code == 0 ? self::errorText('timeout') : self::errorText('ebay_auth', 'HTTP '.$code)));
 			}
 			$token = $j['access_token'];
 			dolibarr_set_const($this->db, $tokkey, json_encode(array('t' => $token, 'exp' => dol_now() + (int) ($j['expires_in'] ?? 7200) - 120)), 'chaine', 0, '', 1);
@@ -557,7 +597,8 @@ class ProductEnrichment
 
 		list($code, $items) = $this->ebaySearch($apihost, $token, 'EBAY_FR', 'gtin='.urlencode($ean));
 		if ($code != 200) {
-			return array('status' => 'error', 'info' => $prev, 'detail' => 'ebay '.$code);
+			$this->refundQuota('ebay');
+			return array('status' => 'error', 'info' => $prev, 'detail' => ($code == 0 ? self::errorText('timeout') : self::errorText('ebay_http', 'HTTP '.$code)));
 		}
 		$mkt = 'EBAY_FR';
 		$keyword = false;
@@ -841,8 +882,30 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 			));
 			list($code, $out) = $this->http('https://api.anthropic.com/v1/messages', array('Content-Type: application/json', 'x-api-key: '.$apikey, 'anthropic-version: 2023-06-01'), $payload, 90);
 			$j = ($out !== '' ? json_decode($out, true) : null);
-			if ($code != 200 || empty($j['content'])) {
-				return array('status' => 'error', 'info' => $prev, 'detail' => 'ai '.$code);
+			if ($code != 200) {
+				// Refused by the API: nothing used, the request goes back to the quota of the day
+				$this->refundQuota('ai');
+				$etype = (string) ($j['error']['type'] ?? '');
+				$emsg = (string) ($j['error']['message'] ?? '');
+				if ($code == 0) {
+					$reason = self::errorText('timeout');
+				} elseif (stripos($emsg, 'credit balance') !== false) {
+					$reason = self::errorText('ai_credit');
+				} elseif ($code == 401 || $code == 403) {
+					$reason = self::errorText('ai_auth');
+				} elseif ($code == 404 || $etype == 'not_found_error') {
+					$reason = self::errorText('ai_model', $model);
+				} elseif ($code == 429) {
+					$reason = self::errorText('ai_rate');
+				} elseif ($code == 529 || $etype == 'overloaded_error') {
+					$reason = self::errorText('ai_overloaded');
+				} else {
+					$reason = self::errorText('ai_http', 'HTTP '.$code.($emsg !== '' ? ' : '.$emsg : ''));
+				}
+				return array('status' => 'error', 'info' => $prev, 'detail' => $reason);
+			}
+			if (empty($j['content'])) {
+				return array('status' => 'error', 'info' => $prev, 'detail' => self::errorText('ai_empty'));
 			}
 			foreach ($j['content'] as $block) {
 				if (($block['type'] ?? '') === 'text') {
@@ -854,13 +917,14 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 			$ai = new Ai($this->db);
 			$result = $ai->generateContent($prompt, 'auto', 'textgeneration');
 			if (is_array($result) && !empty($result['error'])) {
-				return array('status' => 'error', 'info' => $prev, 'detail' => 'ai: '.($result['message'] ?? 'unknown'));
+				$this->refundQuota('ai');
+				return array('status' => 'error', 'info' => $prev, 'detail' => self::errorText('ai_http', (string) ($result['message'] ?? '')));
 			}
 			$text = is_array($result) ? (string) ($result['content'] ?? '') : (string) $result;
 		}
 		$info = self::parseAiText($text);
 		if (!$info) {
-			return array('status' => 'error', 'info' => $prev, 'detail' => 'parse');
+			return array('status' => 'error', 'info' => $prev, 'detail' => self::errorText('ai_parse'));
 		}
 		$merged = self::mergeAi($prev, $info);
 		return array('status' => ((string) ($info['libelle'] ?? '') !== '' ? 'ok' : 'notfound'), 'info' => $merged);
@@ -872,16 +936,17 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 	 * @param string              $ean     Normalized EAN
 	 * @param bool                $withai  Also run the AI web search
 	 * @param array<string,mixed> $context See buildAiPrompt()
-	 * @return array{info:array<string,mixed>,steps:array<string,string>,stop:bool} stop = a quota is reached
+	 * @return array{info:array<string,mixed>,steps:array<string,string>,stop:bool,errors:array<string,string>} stop = a quota is reached, errors = reason of each source in error
 	 */
 	public function enrich($ean, $withai = false, $context = array())
 	{
 		if ((string) $ean === '') {
-			return array('info' => array(), 'steps' => array(), 'stop' => false);
+			return array('info' => array(), 'steps' => array(), 'stop' => false, 'errors' => array());
 		}
 		$info = $this->getCached($ean);
 		$info = (is_array($info) ? $info : array());
 		$steps = array();
+		$errors = array();
 		$stop = false;
 		$env = getDolGlobalString('SCANCAPTURE_EBAY_ENV', 'production');
 
@@ -889,6 +954,9 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		if (empty($info)) {
 			$r = $this->lookupUpc($ean, $info);
 			$steps['upc'] = $r['status'];
+			if ($r['status'] == 'error') {
+				$errors['upc'] = (string) ($r['detail'] ?? '');
+			}
 			$info = $r['info'];
 			$stop = $stop || ($r['status'] == 'quota');
 			if ($r['status'] != 'quota' && $r['status'] != 'error') {
@@ -905,6 +973,9 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		} else {
 			$r = $this->lookupEbay($ean, $info);
 			$steps['ebay'] = $r['status'];
+			if ($r['status'] == 'error') {
+				$errors['ebay'] = (string) ($r['detail'] ?? '');
+			}
 			$info = $r['info'];
 			$stop = $stop || ($r['status'] == 'quota');
 			if ($r['status'] == 'ok' || $r['status'] == 'notfound' || $r['status'] == 'mismatch') {
@@ -918,6 +989,9 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 			} else {
 				$r = $this->lookupAi($ean, $info, $context);
 				$steps['ai'] = $r['status'];
+				if ($r['status'] == 'error') {
+					$errors['ai'] = (string) ($r['detail'] ?? '');
+				}
 				$info = $r['info'];
 				$stop = $stop || ($r['status'] == 'quota');
 				if ($r['status'] == 'ok' || $r['status'] == 'notfound') {
@@ -925,7 +999,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 				}
 			}
 		}
-		return array('info' => $info, 'steps' => $steps, 'stop' => $stop);
+		return array('info' => $info, 'steps' => $steps, 'stop' => $stop, 'errors' => $errors);
 	}
 
 	/*
@@ -1904,7 +1978,15 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 					// A daily quota stops the queue: the product stays waiting
 					return array('status' => 'quota', 'fk_product' => (int) $product->id, 'message' => json_encode($r['steps']), 'remaining' => $this->countPending());
 				}
-				if (self::score($r['info']) <= 0 || (string) ($r['info']['title'] ?? '') === '') {
+				if ((self::score($r['info']) <= 0 || (string) ($r['info']['title'] ?? '') === '') && !empty($r['errors'])) {
+					// A source in error (AI credit used up, eBay down…): not a real « not found », can be run again
+					$status = 'error';
+					$parts = array();
+					foreach ($r['errors'] as $src => $txt) {
+						$parts[] = ($src == 'ai' ? 'IA' : ($src == 'ebay' ? 'eBay' : 'UPCitemdb')).' : '.$txt;
+					}
+					$message = implode(' ; ', $parts);
+				} elseif (self::score($r['info']) <= 0 || (string) ($r['info']['title'] ?? '') === '') {
 					$status = 'notfound';
 					$message = json_encode($r['steps']);
 				} elseif (!self::resultMatchesLabel((string) $product->label, $r['info'])) {

@@ -61,6 +61,7 @@ $data = array(
 	'ean' => $ean,
 	'found' => ((string) ($info['title'] ?? '') !== ''),
 	'steps' => $r['steps'],
+	'errors' => (object) ($r['errors'] ?? array()),
 	'info' => $out,
 	'specs' => $pe->mapSpecs($info, $attributes),
 	'attributes' => $attributes,

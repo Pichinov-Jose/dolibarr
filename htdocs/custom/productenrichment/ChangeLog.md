@@ -1,5 +1,14 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.2.3 (2026-11-13)
+- Une recherche en erreur dit pourquoi : panneau (« IA : erreur — crédit de l'API Anthropic épuisé… »), écran
+  Données d'enrichissement (relance d'une source) et file d'enrichissement. Raisons reconnues : crédit IA épuisé,
+  clé refusée, modèle inconnu, trop de demandes, service surchargé, délai dépassé, clés eBay refusées, limite
+  UPCitemdb ; sinon le code HTTP et le message du service
+- Quand le service refuse l'appel (UPCitemdb, eBay ou IA), la demande n'est plus décomptée du quota du jour
+- File d'enrichissement : un produit dont une source était en erreur passe en « Erreur » avec la raison (et non
+  plus « Non trouvé ») ; le bouton de relance des erreurs le remet en file
+
 ## 1.2.2 (2026-11-13)
 - Badge et filtre « UPCitemdb » seulement quand UPCitemdb a trouvé l'article (avant : dès qu'il avait été
   interrogé, même sans résultat). Nouveau repère `upc_found` ; les résultats plus anciens sont déduits de leurs
