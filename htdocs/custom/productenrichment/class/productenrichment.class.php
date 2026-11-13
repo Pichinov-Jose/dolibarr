@@ -32,7 +32,7 @@
  */
 class ProductEnrichment
 {
-	const VERSION = '1.1.0';
+	const VERSION = '1.1.1';
 	const MAX_IMAGES = 3;
 	const UPC_DAILY_MAX = 95;	// UPCitemdb free tier: 100 requests a day
 
@@ -709,20 +709,50 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 	}
 
 	/**
-	 * Normalize a name of attribute or of characteristic to compare them
+	 * Words of a name of attribute or of characteristic, to compare them: lower case without accents, French
+	 * and English synonyms of the enrichment sources, without empty words nor units, plural removed.
+	 * "Profondeur de nage en mètre" and "maximum diving depth" both give profondeur, nage.
 	 *
 	 * @param string $s Name
-	 * @return string   Normalized name
+	 * @return string[] Words
 	 */
-	public static function normKey($s)
+	public static function nameWords($s)
 	{
-		$s = strtolower(preg_replace('/[^a-z0-9]/i', '', dol_string_unaccent((string) $s)));
-		$synonyms = array('couleur' => 'coloris', 'color' => 'coloris', 'colour' => 'coloris', 'size' => 'taille', 'weight' => 'poids', 'length' => 'longueur', 'brand' => 'marque', 'material' => 'matiere', 'matieres' => 'matiere', 'modele' => 'modele', 'model' => 'modele');
-		return $synonyms[$s] ?? $s;
+		$s = strtolower(dol_string_unaccent((string) $s));
+		$s = trim(preg_replace('/\s+/', ' ', preg_replace('/[^a-z0-9]+/', ' ', $s)));
+		// Whole names first (eBay names are English, AI names are French)
+		$phrases = array(
+			'maximum diving depth' => 'profondeur nage', 'diving depth' => 'profondeur nage', 'running depth' => 'profondeur nage', 'profondeur' => 'profondeur nage',
+			'breaking strain' => 'resistance', 'breaking strength' => 'resistance', 'line strength' => 'resistance', 'resistance' => 'resistance',
+			'line thickness' => 'diametre', 'line diameter' => 'diametre', 'diameter' => 'diametre',
+			'casting weight' => 'plage lance', 'lure weight' => 'plage lance', 'puissance lancer' => 'plage lance', 'poids de lancer' => 'plage lance', 'poids lancer' => 'plage lance', 'plage de lancer' => 'plage lance',
+			'gear ratio' => 'ratio', 'line retrieve' => 'recuperation', 'retrieve' => 'recuperation', 'max drag' => 'frein', 'drag' => 'frein', 'frein max' => 'frein',
+			'ball bearings' => 'roulements', 'bearings' => 'roulements', 'sections' => 'brins', 'number of sections' => 'brins', 'pieces' => 'brins',
+			'puissance lbs' => 'puissance livres', 'line rating' => 'puissance livres', 'transport length' => 'encombrement',
+			'material' => 'matiere', 'materiau' => 'matiere', 'materiaux' => 'matiere', 'buoyancy' => 'densite', 'flottabilite' => 'densite', 'flottaison' => 'densite',
+			'sound' => 'sonorite', 'bruit' => 'sonorite', 'finish' => 'finition', 'brand' => 'marque',
+			'couleur' => 'coloris', 'color' => 'coloris', 'colour' => 'coloris', 'size' => 'taille', 'weight' => 'poids', 'item weight' => 'poids', 'length' => 'longueur', 'item length' => 'longueur', 'model' => 'modele',
+		);
+		if (isset($phrases[$s])) {
+			$s = $phrases[$s];
+		}
+		$empty = array('de', 'du', 'des', 'd', 'en', 'la', 'le', 'les', 'l', 'a', 'au', 'aux', 'et', 'max', 'maximum', 'mm', 'cm', 'm', 'metre', 'metres', 'mtr', 'g', 'gr', 'grs', 'gramme', 'grammes', 'kg', 'lb');
+		$words = array();
+		foreach (explode(' ', $s) as $w) {
+			if ($w === '' || in_array($w, $empty)) {
+				continue;
+			}
+			if (strlen($w) > 3 && substr($w, -1) == 's') {
+				$w = substr($w, 0, -1);
+			}
+			$words[] = $w;
+		}
+		return array_values(array_unique($words));
 	}
 
 	/**
-	 * Characteristics found (and brand) matched with the attributes usable as characteristics
+	 * Characteristics found (and brand) matched with the attributes usable as characteristics: same words, else
+	 * all the words of one in the other ("brins" finds "Nombre de brins")
 	 *
 	 * @param array<string,mixed> $info       Result
 	 * @param ?array<int,string>  $attributes Attributes, null to load them
@@ -733,9 +763,9 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		if ($attributes === null) {
 			$attributes = $this->featureAttributes();
 		}
-		$normattr = array();
+		$attrwords = array();
 		foreach ($attributes as $id => $label) {
-			$normattr[$id] = self::normKey($label);
+			$attrwords[$id] = self::nameWords($label);
 		}
 		$specs = (array) ($info['specs'] ?? array());
 		if (!empty($info['brand']) && !isset($specs['Marque'])) {
@@ -746,20 +776,24 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 			if (!is_scalar($value) || trim((string) $value) === '' || trim((string) $key) === '') {
 				continue;
 			}
-			$nk = self::normKey($key);
+			$kw = self::nameWords(str_replace('_', ' ', (string) $key));
 			$found = 0;
-			foreach ($normattr as $id => $na) {
-				if ($na === $nk) {
-					$found = $id;
-					break;
+			$best = 0;
+			foreach ($attrwords as $id => $aw) {
+				if (!count($kw) || !count($aw)) {
+					continue;
 				}
-			}
-			if (!$found && strlen($nk) >= 4) {
-				foreach ($normattr as $id => $na) {
-					if (strlen($na) >= 4 && (strpos($na, $nk) === 0 || strpos($nk, $na) === 0)) {
-						$found = $id;
-						break;
-					}
+				$score = 0;
+				if (!array_diff($kw, $aw) && !array_diff($aw, $kw)) {
+					$score = 100;
+				} elseif (!array_diff($kw, $aw)) {
+					$score = 50 + count($kw);
+				} elseif (!array_diff($aw, $kw)) {
+					$score = 40 + count($aw);
+				}
+				if ($score > $best) {
+					$best = $score;
+					$found = $id;
 				}
 			}
 			// Keys of the AI are technical (puissance_lancer): shown as "Puissance lancer"

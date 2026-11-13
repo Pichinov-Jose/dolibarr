@@ -1,5 +1,12 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.1.1 (2026-11-13)
+- Rapprochement des caractéristiques avec les attributs mot à mot : mots vides et unités ignorés, pluriel
+  retiré, équivalences anglais / français des sources (material → Matière, buoyancy → Densité, sound →
+  Sonorité, breaking strain → Résistance, maximum diving depth → Profondeur de nage, puissance lancer →
+  Plage de lancé…) ; « brins » trouve « Nombre de brins »
+- Page Support : lien vers le dépôt privé Pichinov/productenrichment
+
 ## 1.1.0 (2026-11-13)
 - L'EAN d'abord : sur le formulaire de création, les boutons Enrichir et Recherche IA sont à droite du champ
   code-barres du produit (plus de champ EAN séparé, sauf si le module Codes-barres est inactif) et le panneau

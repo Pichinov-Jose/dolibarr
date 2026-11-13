@@ -39,6 +39,7 @@ print '<table class="noborder centpercent">';
 print '<tr class="liste_titre"><td colspan="2">'.$langs->trans('Support').'</td></tr>';
 print '<tr class="oddeven"><td class="titlefield">'.$langs->trans('Editor').'</td><td>Pichinov</td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('Contact').'</td><td><a href="mailto:jose.martinez@pichinov.com">jose.martinez@pichinov.com</a></td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('PeRepository').'</td><td><a href="https://github.com/Pichinov/productenrichment" target="_blank" rel="noopener">github.com/Pichinov/productenrichment</a> <span class="opacitymedium">('.$langs->trans('PePrivate').')</span></td></tr>';
 print '</table>';
 
 print dol_get_fiche_end();

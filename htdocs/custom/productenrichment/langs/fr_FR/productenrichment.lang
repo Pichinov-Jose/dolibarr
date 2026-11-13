@@ -138,3 +138,5 @@ PeJs_NothingApplied=Aucun champ rempli : ils étaient déjà remplis entre-temps
 PeEnrichTooltip=Rechercher les données du produit à partir de son EAN (UPCitemdb, eBay)
 PeJs_CreateWithEan=Créer le produit avec l'EAN {e}
 PeJs_NewProductFromEan=Nouveau produit
+PeRepository=Dépôt
+PePrivate=privé
