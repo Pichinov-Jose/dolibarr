@@ -426,7 +426,7 @@ class ReceptionLineBatch extends CommonObjectLine
 		// on this object before calling insert(). This INSERT is the path used by
 		// standalone receptions; keep these columns in sync with create(), which
 		// carries them too (they were lost once already in a rewrite of this method).
-		$sql .= ", ".(!isset($this->cost_price) ? '0' : (float) $this->cost_price);
+		$sql .= ", ".(!isset($this->cost_price) ? 'null' : (float) $this->cost_price);
 		$sql .= ", ".(empty($this->ref_fourn) ? 'NULL' : "'".$this->db->escape($this->ref_fourn)."'");
 		$sql .= ")";
 
@@ -492,15 +492,14 @@ class ReceptionLineBatch extends CommonObjectLine
 		$sql .= " t.comment,";
 		$sql .= " t.status,";
 		$sql .= " t.tms,";
-		$sql .= " t.batch,";
-		$sql .= " t.cost_price,";
-		$sql .= " t.ref_fourn,";
+		$sql .= " t.batch, t.cost_price, t.ref_fourn,";
 		$sql .= " t.eatby,";
 		$sql .= " t.sellby,";
 		$sql .= " t.fk_unit,";
 		$sql .= " t.description,";
 		$sql .= " t.rang,";
-		$sql .= " t.fk_reception";
+		$sql .= " t.fk_reception,";
+		$sql .= " t.extraparams";
 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element." as t";
 		if ($ref) {
 			$sql .= " WHERE t.ref = '".$this->db->escape($ref)."'";
@@ -539,6 +538,7 @@ class ReceptionLineBatch extends CommonObjectLine
 				$this->fk_unit = $obj->fk_unit;
 				$this->rang = $obj->rang;
 				$this->fk_reception = $obj->fk_reception;
+				$this->extraparams = !empty($obj->extraparams) ? (array) json_decode($obj->extraparams, true) : array();
 
 				$this->fetch_optionals();
 			}

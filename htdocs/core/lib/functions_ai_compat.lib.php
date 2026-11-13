@@ -52,3 +52,54 @@ if (!function_exists('dolGetRequestHeaders')) {
 		return $headers;
 	}
 }
+
+// Since develop (#39876): the sales representative filter shared by the REST classes; the reception REST
+// class backported from develop 594f06400cb calls it. Defined in company.lib.php from version 25, a file that
+// is loaded on demand and does not guard its functions: hence the version test, so that this copy steps
+// aside by itself on a 25 core instead of colliding with the real one.
+if (!function_exists('getSalesRepresentativeSqlFilter') && (int) DOL_VERSION < 25) {
+	/**
+	 * Build the "EXISTS(...)" sub-query on llx_societe_commerciaux used to restrict a
+	 * thirdparty-related list to the thirdparties handled by one or more sales representatives.
+	 *
+	 * The returned fragment has no leading " AND " / " OR " so the caller composes it, e.g.:
+	 *   $sql .= " AND ".getSalesRepresentativeSqlFilter('s.rowid', $db->sanitize($search_sale));
+	 *   $sql .= " AND ".getSalesRepresentativeSqlFilter('c.fk_soc', 0, 1);  // thirdparty assigned to nobody
+	 *
+	 * @param	string				$socidfield	SQL expression of the thirdparty rowid to test (e.g. 's.rowid', 'c.fk_soc'); passed through $db->sanitize()
+	 * @param	int|string|int[]	$userids	Sales representative user id, an array of ids, or a comma-separated list of
+	 *                                          ids. 0 / '' / empty array => only test that the thirdparty is assigned to
+	 *                                          at least one sales representative.
+	 * @param	int<0,1>			$not		1 to return "NOT EXISTS(...)" instead of "EXISTS(...)"
+	 * @param	int<0,1>			$allownull	1 to also accept a null $socidfield (i.e. the record is not linked to any thirdparty)
+	 * @return	string							SQL "EXISTS(...)" / "NOT EXISTS(...)" fragment
+	 */
+	function getSalesRepresentativeSqlFilter($socidfield, $userids = 0, $not = 0, $allownull = 0)
+	{
+		global $db;
+
+		if (!is_array($userids)) {
+			$userids = ($userids === '' || $userids === null) ? array() : explode(',', (string) $userids);
+		}
+		$userids = array_values(array_filter(array_map('intval', $userids), static function (int $v): bool {
+			return $v > 0;
+		}));
+
+		$sql = "";
+		if ($allownull) {
+			$sql .= "(".$db->sanitize($socidfield)." IS NULL OR ";
+		}
+		$sql .= ($not ? 'NOT EXISTS' : 'EXISTS');
+		// $socidfield is a column expression of the outer query (e.g. 's.rowid'); it is compared to sc.fk_soc
+		$sql .= ' (SELECT sc.fk_soc FROM '.$db->prefix().'societe_commerciaux as sc WHERE '.$db->sanitize($socidfield).' = sc.fk_soc';
+		if (!empty($userids)) {
+			$sql .= ' AND sc.fk_user IN ('.$db->sanitize(implode(',', $userids)).')';
+		}
+		$sql .= ')';
+		if ($allownull) {
+			$sql .= ')';
+		}
+
+		return $sql;
+	}
+}

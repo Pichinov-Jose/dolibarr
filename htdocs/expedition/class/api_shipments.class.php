@@ -577,6 +577,54 @@ class Shipments extends DolibarrApi
 	}
 
 	/**
+	 * Set a shipment back to draft status
+	 *
+	 * This reverts a validated shipment to draft. If stock movements were recorded
+	 * at validation, they are cancelled back accordingly by the native method.
+	 *
+	 * @param   int $id             Shipment ID
+	 *
+	 * @url POST    {id}/settodraft
+	 *
+	 * @return  object
+	 *
+	 * @throws RestException 304
+	 * @throws RestException 403
+	 * @throws RestException 404
+	 * @throws RestException 500
+	 */
+	public function setToDraft($id)
+	{
+		if (!DolibarrApiAccess::$user->hasRight('expedition', 'creer')) {
+			throw new RestException(403);
+		}
+
+		$result = $this->shipment->fetch($id);
+		if (!$result) {
+			throw new RestException(404, 'Shipment not found');
+		}
+
+		if (!DolibarrApi::_checkAccessToResource('expedition', $this->shipment->id)) {
+			throw new RestException(403, 'Access not allowed for login '.DolibarrApiAccess::$user->login);
+		}
+
+		$result = $this->shipment->setDraft(DolibarrApiAccess::$user);
+		if ($result == 0) {
+			throw new RestException(304, 'Error nothing done. May be object is already draft');
+		}
+		if ($result < 0) {
+			throw new RestException(500, 'Error when setting shipment back to draft: '.$this->shipment->errorsToString());
+		}
+
+		// Reload shipment
+		$result = $this->shipment->fetch($id);
+
+		$this->shipment->fetchObjectLinked();
+
+		return $this->_cleanObjectDatas($this->shipment);
+	}
+
+	/**
 	 * Validate a shipment
 	 *
 	 * This may record stock movements if module stock is enabled and option to
