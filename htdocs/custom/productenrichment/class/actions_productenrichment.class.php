@@ -76,7 +76,7 @@ class ActionsProductEnrichment
 			'BuyPrice', 'Estimate', 'MarketPrice', 'ManufacturerPage', 'FillEmpty', 'FieldsFilled', 'ConfirmReplace', 'Field',
 			'Current', 'Proposed', 'Why_filled', 'Why_none', 'Why_usedby', 'Why_notean', 'Why_nomodule', 'Why_mismatch', 'Photos', 'MaxPhotos',
 			'Characteristics', 'NoCharacteristicsModule', 'NoFeatureAttribute', 'NoAttribute', 'Variants', 'VariantsInfo',
-			'Sources', 'NothingSelected', 'Applying', 'Applied', 'NothingApplied', 'DialogTitle');
+			'Sources', 'NothingSelected', 'Applying', 'Applied', 'NothingApplied', 'DialogTitle', 'EbayKeyword');
 		$out = array();
 		foreach ($keys as $k) {
 			$out[$k] = $langs->transnoentitiesnoconv('PeJs_'.$k);

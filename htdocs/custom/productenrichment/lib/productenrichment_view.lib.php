@@ -76,6 +76,8 @@ function peViewSourceBadges($info)
 	if (!empty($info['ebay'])) {
 		if (!empty($info['ebay_mismatch'])) {
 			$out .= '<span class="pe-badge pe-b-warn" title="'.dol_escape_htmltag(implode(' | ', (array) ($info['ebay_rejected'] ?? array()))).'">eBay '.$langs->trans('PeEbayRejectedShort').'</span>';
+		} elseif (count((array) ($info['titles'] ?? array())) && !empty($info['ebay_keyword'])) {
+			$out .= '<span class="pe-badge pe-b-ebay" title="'.dol_escape_htmltag($langs->trans('PeEbayKeywordTooltip', ProductEnrichment::ebayMarketLabel((string) ($info['ebay_market'] ?? '')))).'">eBay · '.$langs->trans('PeEbayKeywordShort').'</span>';
 		} elseif (count((array) ($info['titles'] ?? array()))) {
 			$out .= '<span class="pe-badge pe-b-ebay">eBay</span>';
 		} else {
@@ -223,7 +225,11 @@ function peViewInfo($info)
 	// eBay listings
 	$titles = (array) ($info['titles'] ?? array());
 	if (count($titles)) {
-		$rows[] = array($langs->trans('PeEbayTitles'), '<span class="pe-pre">'.dol_escape_htmltag(implode("\n", $titles)).'</span>');
+		$where = '';
+		if (!empty($info['ebay_market'])) {
+			$where = ' <span class="opacitymedium">('.(!empty($info['ebay_keyword']) ? $langs->trans('PeEbayKeywordShort').', ' : '').dol_escape_htmltag(ProductEnrichment::ebayMarketLabel((string) $info['ebay_market'])).')</span>';
+		}
+		$rows[] = array($langs->trans('PeEbayTitles').$where, '<span class="pe-pre">'.dol_escape_htmltag(implode("\n", $titles)).'</span>');
 	}
 	$rejected = (array) ($info['ebay_rejected'] ?? array());
 	if (count($rejected)) {

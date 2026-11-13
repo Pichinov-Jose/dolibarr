@@ -1,5 +1,19 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.2.1 (2026-11-13)
+- eBay : quand la recherche par code produit (eBay France puis US) ne trouve rien, l'EAN est cherché dans le
+  texte des annonces sur eBay France, Italie, Espagne, Allemagne, Royaume-Uni puis US (première annonce trouvée),
+  sous ses deux écritures (EAN-13 et UPC à 12 chiffres). Vu en réel : 0194151130454 (Mares Quad 2) n'était
+  trouvé qu'ainsi, sur eBay Italie et Espagne
+- Une annonce trouvée en plein texte n'est retenue que si sa page porte bien l'EAN ; le contrôle de cohérence
+  avec le titre déjà connu s'applique comme avant, et rien n'est appliqué sans action de l'utilisateur
+- Résultat marqué « eBay · plein texte » (place de marché en infobulle) dans « Données d'enrichissement » et
+  l'onglet, et « plein texte, eBay Italie » dans le panneau ; le prix constaté indique la place de marché
+- Cache eBay en version 3 : un EAN déjà interrogé sans résultat (version 2) est interrogé une fois de plus, à son
+  prochain enrichissement ; aucune relance en masse. Jusqu'à 8 appels eBay pour un EAN introuvable (2 avant),
+  le quota du jour compte toujours une recherche par EAN
+- Marque et référence fabricant lues aussi dans les caractéristiques en italien, espagnol, allemand et anglais
+
 ## 1.2.0 (2026-11-13)
 - Écran « Données d'enrichissement » (menu Produits) : tous les EAN connus, du cache du scanner comme de celui du
   module (titre, marque, photo, sources UPCitemdb / eBay / IA, produits liés par code-barres, EAN fournisseur ou

@@ -32,9 +32,11 @@
  */
 class ProductEnrichment
 {
-	const VERSION = '1.2.0';
+	const VERSION = '1.2.1';
 	const MAX_IMAGES = 3;
 	const UPC_DAILY_MAX = 95;	// UPCitemdb free tier: 100 requests a day
+	/** eBay marketplaces of the full-text search of the code, in order, when the search by GTIN finds nothing */
+	const EBAY_KEYWORD_MARKETS = array('EBAY_FR', 'EBAY_IT', 'EBAY_ES', 'EBAY_DE', 'EBAY_GB', 'EBAY_US');
 
 	/** @var DoliDB */
 	public $db;
@@ -423,7 +425,73 @@ class ProductEnrichment
 	}
 
 	/**
+	 * Name of an eBay marketplace
+	 *
+	 * @param string $mkt EBAY_FR, EBAY_IT…
+	 * @return string     eBay France, eBay Italie…
+	 */
+	public static function ebayMarketLabel($mkt)
+	{
+		$labels = array('EBAY_FR' => 'eBay France', 'EBAY_IT' => 'eBay Italie', 'EBAY_ES' => 'eBay Espagne', 'EBAY_DE' => 'eBay Allemagne', 'EBAY_GB' => 'eBay Royaume-Uni', 'EBAY_US' => 'eBay US');
+		return $labels[$mkt] ?? (string) $mkt;
+	}
+
+	/**
+	 * Written forms of a GTIN: an EAN-13 starting with 0 is also written as a 12-digit UPC, and the reverse
+	 *
+	 * @param string $ean EAN
+	 * @return string[]   Forms, the EAN first
+	 */
+	public static function eanForms($ean)
+	{
+		$forms = array((string) $ean);
+		if (preg_match('/^0\d{12}$/', $ean)) {
+			$forms[] = substr($ean, 1);
+		} elseif (preg_match('/^\d{12}$/', $ean)) {
+			$forms[] = '0'.$ean;
+		}
+		return $forms;
+	}
+
+	/**
+	 * eBay Browse: search of listings
+	 *
+	 * @param string $apihost Api host
+	 * @param string $token   OAuth token
+	 * @param string $mkt     Marketplace
+	 * @param string $param   gtin=… or q=…, url encoded
+	 * @return array{0:int,1:array<int,array<string,mixed>>} HTTP code, listings
+	 */
+	private function ebaySearch($apihost, $token, $mkt, $param)
+	{
+		$headers = array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: '.$mkt);
+		if ($mkt == 'EBAY_FR') {
+			$headers[] = 'Accept-Language: fr-FR';
+		}
+		list($code, $out) = $this->http('https://'.$apihost.'/buy/browse/v1/item_summary/search?'.$param.'&limit=5', $headers);
+		$j = ($out !== '' ? json_decode($out, true) : null);
+		return array($code, (is_array($j) && !empty($j['itemSummaries']) && is_array($j['itemSummaries']) ? $j['itemSummaries'] : array()));
+	}
+
+	/**
+	 * eBay Browse: one listing in full (item specifics, GTIN, description)
+	 *
+	 * @param string $apihost Api host
+	 * @param string $token   OAuth token
+	 * @param string $mkt     Marketplace
+	 * @param string $itemid  Id of the listing
+	 * @return string         Raw JSON, '' on error
+	 */
+	private function ebayItem($apihost, $token, $mkt, $itemid)
+	{
+		list($code, $out) = $this->http('https://'.$apihost.'/buy/browse/v1/item/'.urlencode($itemid), array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: '.$mkt, 'Accept-Language: fr-FR'));
+		return ($code == 200 ? (string) $out : '');
+	}
+
+	/**
 	 * eBay Browse API, search by GTIN on EBAY_FR then EBAY_US. Port of scancapture/ajax/enrich_ebay.php.
+	 * When nothing is found, full-text search of the code on several marketplaces (listings whose seller did not
+	 * fill the GTIN field); a listing found this way is kept only if it really carries the code.
 	 *
 	 * @param string              $ean  EAN
 	 * @param array<string,mixed> $prev Known result
@@ -463,20 +531,42 @@ class ProductEnrichment
 			dolibarr_set_const($this->db, $tokkey, json_encode(array('t' => $token, 'exp' => dol_now() + (int) ($j['expires_in'] ?? 7200) - 120)), 'chaine', 0, '', 1);
 		}
 
-		list($code, $out) = $this->http('https://'.$apihost.'/buy/browse/v1/item_summary/search?gtin='.urlencode($ean).'&limit=5', array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: EBAY_FR', 'Accept-Language: fr-FR'));
+		list($code, $items) = $this->ebaySearch($apihost, $token, 'EBAY_FR', 'gtin='.urlencode($ean));
 		if ($code != 200) {
 			return array('status' => 'error', 'info' => $prev, 'detail' => 'ebay '.$code);
 		}
-		$j = json_decode($out, true);
-		$items = $j['itemSummaries'] ?? array();
 		$mkt = 'EBAY_FR';
+		$keyword = false;
+		$detail = null;
 		if (!count($items)) {
 			// Nothing on the FR marketplace: US brands often only list on ebay.com
-			list($code2, $out2) = $this->http('https://'.$apihost.'/buy/browse/v1/item_summary/search?gtin='.urlencode($ean).'&limit=5', array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: EBAY_US'));
-			$j2 = ($out2 !== '' ? json_decode($out2, true) : null);
-			if (!empty($j2['itemSummaries'])) {
-				$items = $j2['itemSummaries'];
+			list($code2, $items2) = $this->ebaySearch($apihost, $token, 'EBAY_US', 'gtin='.urlencode($ean));
+			if (count($items2)) {
+				$items = $items2;
 				$mkt = 'EBAY_US';
+			}
+		}
+		if (!count($items) && preg_match('/^(\d{8}|\d{12,14})$/', $ean)) {
+			// The search by GTIN misses listings whose GTIN is not indexed (seen: a Mares computer found only by a
+			// full-text search, on eBay Italy and Spain). Full-text search of the code under its written forms,
+			// marketplace after marketplace; a listing is kept only if its page really carries the code.
+			$forms = self::eanForms($ean);
+			$q = (count($forms) > 1 ? '('.implode(',', $forms).')' : $ean);
+			foreach (self::EBAY_KEYWORD_MARKETS as $m) {
+				list($codek, $found) = $this->ebaySearch($apihost, $token, $m, 'q='.urlencode($q));
+				if (!count($found) || empty($found[0]['itemId'])) {
+					continue;
+				}
+				$raw = $this->ebayItem($apihost, $token, $m, (string) $found[0]['itemId']);
+				foreach ($forms as $f) {
+					if ($raw !== '' && preg_match('/(?<!\d)'.preg_quote($f, '/').'(?!\d)/', $raw)) {
+						$items = $found;
+						$mkt = $m;
+						$keyword = true;
+						$detail = $raw;
+						break 2;
+					}
+				}
 			}
 		}
 		$title = '';
@@ -518,7 +608,7 @@ class ProductEnrichment
 				}
 			}
 			if (!$match) {
-				return array('status' => 'mismatch', 'info' => array_merge($prev, array('ebay' => $env, 'ebay_v' => 2, 'ebay_mismatch' => 1, 'ebay_rejected' => array_slice($titles, 0, 3))));
+				return array('status' => 'mismatch', 'info' => array_merge($prev, array('ebay' => $env, 'ebay_v' => 3, 'ebay_market' => $mkt, 'ebay_keyword' => ($keyword ? 1 : 0), 'ebay_mismatch' => 1, 'ebay_rejected' => array_slice($titles, 0, 3))));
 			}
 		}
 
@@ -526,7 +616,7 @@ class ProductEnrichment
 		$specs = array();
 		$mpn = '';
 		if (!empty($items[0]['itemId'])) {
-			list($codei, $outi) = $this->http('https://'.$apihost.'/buy/browse/v1/item/'.urlencode($items[0]['itemId']), array('Authorization: Bearer '.$token, 'X-EBAY-C-MARKETPLACE-ID: '.$mkt, 'Accept-Language: fr-FR'));
+			$outi = ($detail !== null ? $detail : $this->ebayItem($apihost, $token, $mkt, (string) $items[0]['itemId']));
 			$ji = ($outi !== '' ? json_decode($outi, true) : null);
 			foreach (($ji['localizedAspects'] ?? array()) as $asp) {
 				$an = trim((string) ($asp['name'] ?? ''));
@@ -534,7 +624,7 @@ class ProductEnrichment
 				if ($an === '' || $av === '' || preg_match('/^(EAN|UPC|ISBN|GTIN)$/i', $an)) {
 					continue;
 				}
-				if (preg_match('/^(MPN|Référence fabricant|Numéro de pièce fabricant)$/iu', $an)) {
+				if (preg_match('/^(MPN|Référence fabricant|Numéro de pièce fabricant|Manufacturer Part Number|Herstellernummer|Numero parte produttore|Número de pieza del fabricante)$/iu', $an)) {
 					$mpn = $av;
 					continue;
 				}
@@ -543,21 +633,30 @@ class ProductEnrichment
 				}
 			}
 		}
+		$nbprices = count($prices);
 		$merged = array_merge($prev, array(
 			'ebay' => $env,
-			'ebay_v' => 2,
+			'ebay_v' => 3,
+			'ebay_market' => (count($items) ? $mkt : ''),
+			'ebay_keyword' => ($keyword ? 1 : 0),
 			'title' => ($prev['title'] ?? '') !== '' ? $prev['title'] : $title,
 			'titles' => array_slice($titles, 0, 5),
 			'images' => !empty($prev['images']) ? $prev['images'] : $images,
 			'images_from' => !empty($prev['images']) ? ($prev['images_from'] ?? '') : (count($images) ? 'ebay' : ''),
-			'prix_marche' => $prices ? min($prices).' à '.max($prices).' '.((string) ($items[0]['price']['currency'] ?? 'EUR')).' ('.count($prices).' annonces'.($mkt == 'EBAY_US' ? ', eBay US' : '').')' : ($prev['prix_marche'] ?? ''),
+			'prix_marche' => $prices ? min($prices).(max($prices) > min($prices) ? ' à '.max($prices) : '').' '.((string) ($items[0]['price']['currency'] ?? 'EUR')).' ('.$nbprices.' annonce'.($nbprices > 1 ? 's' : '').($mkt != 'EBAY_FR' ? ', '.self::ebayMarketLabel($mkt) : '').')' : ($prev['prix_marche'] ?? ''),
 			'sources' => !empty($urls) ? array_slice($urls, 0, 3) : ($prev['sources'] ?? array()),
 			'specs' => (!empty($prev['specs']) ? array_merge($specs, (array) $prev['specs']) : $specs),
 			'specs_ebay' => array_values(array_diff(array_keys($specs), array_keys((array) ($prev['specs'] ?? array())))),
 			'mpn' => ($prev['mpn'] ?? '') !== '' ? $prev['mpn'] : $mpn,
 		));
-		if (($merged['brand'] ?? '') === '' && !empty($specs['Marque'])) {
-			$merged['brand'] = $specs['Marque'];
+		if (($merged['brand'] ?? '') === '') {
+			// Item specifics are in the language of the marketplace
+			foreach (array('Marque', 'Brand', 'Marca', 'Marke') as $k) {
+				if (!empty($specs[$k])) {
+					$merged['brand'] = $specs[$k];
+					break;
+				}
+			}
 		}
 		return array('status' => (count($items) ? 'ok' : 'notfound'), 'info' => $merged);
 	}
@@ -774,8 +873,10 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		} else {
 			$steps['upc'] = 'cached';
 		}
-		// eBay: cache version 2 = with item specifics
-		if (!empty($info['ebay']) && $info['ebay'] === $env && (int) ($info['ebay_v'] ?? 0) >= 2) {
+		// eBay: cache version 2 = with item specifics, version 3 = with the full-text search; a version 2 that found
+		// nothing is looked up once again (full-text search)
+		$ebayv = (int) ($info['ebay_v'] ?? 0);
+		if (!empty($info['ebay']) && $info['ebay'] === $env && ($ebayv >= 3 || ($ebayv == 2 && (count((array) ($info['titles'] ?? array())) || !empty($info['ebay_mismatch']))))) {
 			$steps['ebay'] = 'cached';
 		} else {
 			$r = $this->lookupEbay($ean, $info);
@@ -1581,7 +1682,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 			// Result older than 1.2.0 without AI: its characteristics can only come from eBay
 			$info['specs'] = array();
 		}
-		if (preg_match('/annonces/', (string) ($info['prix_marche'] ?? ''))) {
+		if (preg_match('/annonce/', (string) ($info['prix_marche'] ?? ''))) {
 			$info['prix_marche'] = '';
 		}
 		$info['sources'] = array_values(array_filter((array) ($info['sources'] ?? array()), function ($u) {
@@ -1595,7 +1696,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		}
 		$info['titles'] = array();
 		$info['specs_ebay'] = array();
-		unset($info['ebay'], $info['ebay_v'], $info['ebay_mismatch'], $info['ebay_rejected']);
+		unset($info['ebay'], $info['ebay_v'], $info['ebay_market'], $info['ebay_keyword'], $info['ebay_mismatch'], $info['ebay_rejected']);
 		return $info;
 	}
 
@@ -1615,7 +1716,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 		$rejected = array_slice((array) ($info['titles'] ?? array()), 0, 3);
 		$info = self::stripEbay($info);
 		$info['ebay'] = getDolGlobalString('SCANCAPTURE_EBAY_ENV', 'production');
-		$info['ebay_v'] = 2;
+		$info['ebay_v'] = 3;
 		$info['ebay_mismatch'] = 1;
 		$info['ebay_rejected'] = $rejected;
 		$this->saveOverride($ean, $info);

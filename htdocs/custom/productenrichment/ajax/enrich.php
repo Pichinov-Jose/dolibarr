@@ -52,6 +52,8 @@ $out['sell_price'] = (ProductEnrichment::parsePrice($info['prix_public'] ?? '') 
 $out['buy_price'] = (ProductEnrichment::parsePrice($info['prix_achat'] ?? '') > 0 ? price2num(ProductEnrichment::parsePrice($info['prix_achat']), 'MU') : '');
 $out['ai'] = !empty($info['ai']);
 $out['ebay'] = !empty($info['ebay']);
+// Listing found by the full-text search (its seller did not fill the GTIN field): name of the marketplace
+$out['ebay_keyword'] = (!empty($info['ebay_keyword']) && !empty($info['titles']) ? ProductEnrichment::ebayMarketLabel((string) ($info['ebay_market'] ?? '')) : '');
 
 $attributes = $pe->featureAttributes();
 $data = array(

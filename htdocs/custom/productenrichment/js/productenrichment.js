@@ -77,7 +77,10 @@
 		stepsText: function (r) {
 			var names = {upc: 'UPCitemdb', ebay: 'eBay', ai: PE.t('Ai')};
 			var parts = [];
-			$.each(r.steps || {}, function (k, v) { parts.push(names[k] + ' : ' + PE.t('Step_' + v)); });
+			$.each(r.steps || {}, function (k, v) {
+				var more = (k === 'ebay' && r.info && r.info.ebay_keyword && (v === 'ok' || v === 'cached')) ? ' (' + PE.t('EbayKeyword').replace('{m}', r.info.ebay_keyword) + ')' : '';
+				parts.push(names[k] + ' : ' + PE.t('Step_' + v) + more);
+			});
 			return (r.found ? PE.t('Found') : PE.t('NotFound')) + ' (' + parts.join(', ') + ')';
 		},
 

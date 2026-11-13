@@ -14,6 +14,10 @@ code-barres, prix de vente niveau 1, photos, caractéristiques (module `productc
   données du scanner ne sont jamais modifiées : la correction est gardée par le module et prime.
 - **Onglet Enrichissement** de la fiche produit : données de ses EAN et historique de ce qui a été appliqué.
 
+eBay est interrogé par code produit (eBay France puis US), puis, si rien n'est trouvé, en cherchant l'EAN
+dans le texte des annonces (France, Italie, Espagne, Allemagne, Royaume-Uni, US) ; une annonce trouvée ainsi
+n'est retenue que si sa page porte l'EAN, et elle est marquée « plein texte ».
+
 Les clés eBay, le modèle d'IA et les quotas du jour sont partagés avec le module ScanCapture.
 Aucune modification du cœur (hooks + trigger). Dolibarr 24.
 
