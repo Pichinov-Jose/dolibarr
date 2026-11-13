@@ -1,5 +1,17 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.1.2 (2026-11-13)
+- Garde-fou « même EAN, autre article » (vu en réel : l'EAN d'une tête plombée AstuFish renvoyait sur eBay une
+  lotion pour le corps, dont les photos et les caractéristiques avaient été posées) :
+  - eBay : une annonce dont aucun titre ne partage un mot significatif avec le titre déjà connu (UPCitemdb, IA,
+    marque) est écartée (statut « sans rapport »), rien n'en est fusionné ;
+  - IA lancée après eBay : les photos, caractéristiques et liens d'annonces eBay sans rapport avec l'article
+    trouvé par l'IA sont retirés ;
+  - application (fiche et masse) : rien n'est appliqué si le résultat ne concorde pas avec le libellé du produit
+    (nouveau statut « Sans rapport » dans la file) ; des photos venues d'eBay ne sont posées que si une annonce
+    concorde avec le libellé
+- Les mots génériques (pêche, leurre, hameçon, pack, taille…) et les nombres seuls ne suffisent pas à concorder
+
 ## 1.1.1 (2026-11-13)
 - Rapprochement des caractéristiques avec les attributs mot à mot : mots vides et unités ignorés, pluriel
   retiré, équivalences anglais / français des sources (material → Matière, buoyancy → Densité, sound →

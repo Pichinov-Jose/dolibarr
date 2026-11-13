@@ -71,10 +71,10 @@ class ActionsProductEnrichment
 		global $langs;
 		$langs->load('productenrichment@productenrichment');
 		$keys = array('NeedEan', 'Searching', 'SearchingAi', 'Error', 'Ai', 'Found', 'NotFound', 'NotFoundTryAi',
-			'Step_ok', 'Step_cached', 'Step_notfound', 'Step_quota', 'Step_nokey', 'Step_error', 'Confidence', 'Apply', 'Fill',
+			'Step_ok', 'Step_cached', 'Step_notfound', 'Step_quota', 'Step_nokey', 'Step_error', 'Step_mismatch', 'Confidence', 'Apply', 'Fill',
 			'Label', 'Description', 'ToBrandRef', 'ToSupplierRef', 'Mpn', 'ToBarcode', 'ToSupplierBarcode', 'Ean', 'SellPrice',
 			'BuyPrice', 'Estimate', 'MarketPrice', 'ManufacturerPage', 'FillEmpty', 'FieldsFilled', 'ConfirmReplace', 'Field',
-			'Current', 'Proposed', 'Why_filled', 'Why_none', 'Why_usedby', 'Why_notean', 'Why_nomodule', 'Photos', 'MaxPhotos',
+			'Current', 'Proposed', 'Why_filled', 'Why_none', 'Why_usedby', 'Why_notean', 'Why_nomodule', 'Why_mismatch', 'Photos', 'MaxPhotos',
 			'Characteristics', 'NoCharacteristicsModule', 'NoFeatureAttribute', 'NoAttribute', 'Variants', 'VariantsInfo',
 			'Sources', 'NothingSelected', 'Applying', 'Applied', 'NothingApplied', 'DialogTitle');
 		$out = array();

@@ -44,7 +44,7 @@ $entity = (int) $conf->entity;
  * Actions (the token is checked by main.inc.php)
  */
 if ($action == 'retry') {
-	$db->query("UPDATE ".MAIN_DB_PREFIX."productenrichment_job SET status = 'pending', date_done = NULL, message = NULL WHERE origin = 'mass' AND status IN ('error', 'notfound') AND entity = ".$entity);
+	$db->query("UPDATE ".MAIN_DB_PREFIX."productenrichment_job SET status = 'pending', date_done = NULL, message = NULL WHERE origin = 'mass' AND status IN ('error', 'notfound', 'mismatch') AND entity = ".$entity);
 	setEventMessages($langs->trans('PeRetried', $db->affected_rows(true)), null, 'mesgs');
 	header('Location: '.$_SERVER['PHP_SELF']);
 	exit;
@@ -79,7 +79,7 @@ if ($resql) {
 $pending = (int) ($counts['pending'] ?? 0);
 print '<div class="info">';
 $parts = array();
-foreach (array('pending', 'done', 'nothing', 'notfound', 'noean', 'error') as $st) {
+foreach (array('pending', 'done', 'nothing', 'notfound', 'mismatch', 'noean', 'error') as $st) {
 	$parts[] = '<a href="'.$_SERVER['PHP_SELF'].'?status='.$st.'">'.$langs->trans('PeStatus_'.$st).' : <strong>'.((int) ($counts[$st] ?? 0)).'</strong></a>';
 }
 print implode(' &nbsp;·&nbsp; ', $parts);
@@ -134,7 +134,7 @@ if ($resql) {
 			$txt[] = $langs->trans('PeField_'.$k).(is_numeric($v) && in_array($k, array('images', 'characteristics')) ? ' ('.((int) $v).')' : '');
 		}
 		$options = json_decode((string) $obj->options, true);
-		$badge = array('pending' => 'status0', 'done' => 'status4', 'nothing' => 'status1', 'notfound' => 'status8', 'noean' => 'status8', 'error' => 'status8');
+		$badge = array('pending' => 'status0', 'done' => 'status4', 'nothing' => 'status1', 'notfound' => 'status8', 'mismatch' => 'status1', 'noean' => 'status8', 'error' => 'status8');
 		print '<tr class="oddeven">';
 		print '<td class="nowraponall">'.dol_print_date($db->jdate($obj->date_done ? $obj->date_done : $obj->datec), 'dayhour').'</td>';
 		print '<td>'.$langs->trans('PeOrigin_'.$obj->origin).(!empty($options['ai']) ? ' + '.$langs->trans('PeAi') : '').'</td>';

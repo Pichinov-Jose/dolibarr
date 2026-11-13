@@ -32,7 +32,7 @@
  */
 class ProductEnrichment
 {
-	const VERSION = '1.1.1';
+	const VERSION = '1.1.2';
 	const MAX_IMAGES = 3;
 	const UPC_DAILY_MAX = 95;	// UPCitemdb free tier: 100 requests a day
 
@@ -90,6 +90,59 @@ class ProductEnrichment
 			return -1;
 		}
 		return (!empty($info['ai']) ? 4 : 0) + (!empty($info['ebay']) ? 2 : 0) + ((string) ($info['title'] ?? '') !== '' ? 1 : 0);
+	}
+
+	/**
+	 * Significant words of a title, to check that two titles speak of the same article: lower case without
+	 * accents, 4 characters at least, numbers alone and generic words of the trade removed
+	 *
+	 * @param string $s Title
+	 * @return string[] Words
+	 */
+	public static function titleWords($s)
+	{
+		$generic = array('peche', 'fishing', 'fish', 'lure', 'lures', 'leurre', 'leurres', 'hook', 'hooks', 'hamecon', 'hamecons', 'pack', 'size',
+			'taille', 'with', 'pour', 'avec', 'sans', 'black', 'white', 'noir', 'blanc', 'new', 'neuf', 'lot', 'pieces', 'piece', 'unite');
+		$out = array();
+		foreach (preg_split('/[^a-z0-9]+/', strtolower(dol_string_unaccent((string) $s))) as $w) {
+			if (strlen($w) >= 4 && !ctype_digit($w) && !in_array($w, $generic)) {
+				$out[$w] = 1;
+			}
+		}
+		return array_keys($out);
+	}
+
+	/**
+	 * Do two titles speak of the same article (at least one significant word in common: brand, model…)
+	 *
+	 * @param string $a Title
+	 * @param string $b Title
+	 * @return bool
+	 */
+	public static function titlesMatch($a, $b)
+	{
+		return count(array_intersect(self::titleWords($a), self::titleWords($b))) > 0;
+	}
+
+	/**
+	 * Does a result speak of a product: its title, its brand or one of its eBay titles shares a word with the label
+	 *
+	 * @param string              $label Label of the product
+	 * @param array<string,mixed> $info  Result
+	 * @return bool                      True also when there is nothing to compare
+	 */
+	public static function resultMatchesLabel($label, $info)
+	{
+		$titles = array_filter(array_merge(array((string) ($info['title'] ?? ''), (string) ($info['brand'] ?? ''), (string) ($info['famille'] ?? '')), (array) ($info['titles'] ?? array())));
+		if (trim((string) $label) === '' || !count(self::titleWords($label)) || !count($titles)) {
+			return true;
+		}
+		foreach ($titles as $t) {
+			if (self::titlesMatch($label, $t)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -299,6 +352,7 @@ class ProductEnrichment
 			$info = array('title' => $it['title'] ?? '', 'brand' => $it['brand'] ?? '', 'category' => $it['category'] ?? '', 'image' => (!empty($it['images'][0]) ? $it['images'][0] : ''), 'desc_courte' => (string) ($it['description'] ?? ''), 'mpn' => (string) (!empty($it['mpn']) ? $it['mpn'] : ($it['model'] ?? '')));
 			if (!empty($it['images']) && is_array($it['images'])) {
 				$info['images'] = array_slice(array_values($it['images']), 0, 5);
+				$info['images_from'] = 'upc';
 			}
 			$specs = array();
 			if (!empty($it['color'])) {
@@ -417,6 +471,23 @@ class ProductEnrichment
 		}
 		$images = array_slice(array_values(array_unique($images)), 0, 5);
 
+		// The same GTIN can be used by sellers for another article (seen: a jig head EAN giving a body lotion):
+		// when a title is already known, a listing without any word in common with it is not merged
+		$prev = (array) $prev;
+		$reference = trim(((string) ($prev['title'] ?? '')).' '.((string) ($prev['brand'] ?? '')));
+		if ($reference !== '' && count($titles)) {
+			$match = false;
+			foreach ($titles as $t) {
+				if (self::titlesMatch($reference, $t)) {
+					$match = true;
+					break;
+				}
+			}
+			if (!$match) {
+				return array('status' => 'mismatch', 'info' => array_merge($prev, array('ebay' => $env, 'ebay_v' => 2, 'ebay_mismatch' => 1, 'ebay_rejected' => array_slice($titles, 0, 3))));
+			}
+		}
+
 		// Item specifics (localizedAspects) of the first listing
 		$specs = array();
 		$mpn = '';
@@ -438,13 +509,13 @@ class ProductEnrichment
 				}
 			}
 		}
-		$prev = (array) $prev;
 		$merged = array_merge($prev, array(
 			'ebay' => $env,
 			'ebay_v' => 2,
 			'title' => ($prev['title'] ?? '') !== '' ? $prev['title'] : $title,
 			'titles' => array_slice($titles, 0, 5),
 			'images' => !empty($prev['images']) ? $prev['images'] : $images,
+			'images_from' => !empty($prev['images']) ? ($prev['images_from'] ?? '') : (count($images) ? 'ebay' : ''),
 			'prix_marche' => $prices ? min($prices).' à '.max($prices).' '.((string) ($items[0]['price']['currency'] ?? 'EUR')).' ('.count($prices).' annonces'.($mkt == 'EBAY_US' ? ', eBay US' : '').')' : ($prev['prix_marche'] ?? ''),
 			'sources' => !empty($urls) ? array_slice($urls, 0, 3) : ($prev['sources'] ?? array()),
 			'specs' => (!empty($prev['specs']) ? array_merge($specs, (array) $prev['specs']) : $specs),
@@ -538,6 +609,27 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 	{
 		$prev = (array) $prev;
 		$sources = (array) ($info['sources'] ?? array());
+		// eBay listings that do not speak of the article found by the AI: their photos, specs and links are dropped
+		$aititle = trim(((string) ($info['libelle'] ?? '')).' '.((string) ($info['marque'] ?? '')));
+		if ($aititle !== '' && !empty($prev['titles'])) {
+			$match = false;
+			foreach ((array) $prev['titles'] as $t) {
+				if (self::titlesMatch($aititle, (string) $t)) {
+					$match = true;
+					break;
+				}
+			}
+			if (!$match) {
+				if (($prev['images_from'] ?? 'ebay') === 'ebay') {
+					$prev['images'] = array();
+				}
+				$prev['specs'] = array();
+				$prev['sources'] = array();
+				$prev['ebay_mismatch'] = 1;
+				$prev['ebay_rejected'] = array_slice((array) $prev['titles'], 0, 3);
+				$prev['titles'] = array();
+			}
+		}
 		return array_merge($prev, array(
 			'ai' => 1,
 			'title' => ($info['libelle'] ?? '') !== '' ? $info['libelle'] : ($prev['title'] ?? ''),
@@ -552,6 +644,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 			'declinaisons' => (array) ($info['declinaisons'] ?? ($prev['declinaisons'] ?? array())),
 			'declinaison_scannee' => (string) ($info['declinaison_scannee'] ?? ''),
 			'images' => !empty($info['images']) ? (array) $info['images'] : ($prev['images'] ?? array()),
+			'images_from' => !empty($info['images']) ? 'ai' : ($prev['images_from'] ?? ''),
 			'page_fabricant' => (string) ($info['page_fabricant'] ?? ($prev['page_fabricant'] ?? '')),
 			'confiance' => $info['confiance'] ?? '',
 			'sources' => !empty($sources) ? $sources : ($prev['sources'] ?? array()),
@@ -651,7 +744,7 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 			$steps['ebay'] = $r['status'];
 			$info = $r['info'];
 			$stop = $stop || ($r['status'] == 'quota');
-			if ($r['status'] == 'ok' || $r['status'] == 'notfound') {
+			if ($r['status'] == 'ok' || $r['status'] == 'notfound' || $r['status'] == 'mismatch') {
 				$this->saveCache($ean, $info);
 			}
 		}
@@ -1027,6 +1120,43 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 	public function proposalsForProduct($product, $info, $ean)
 	{
 		$p = array();
+		$p = $this->computeProposals($product, $info, $ean);
+		// A result that does not speak of the product (same EAN used for another article): nothing to apply
+		if (!self::resultMatchesLabel((string) $product->label, $info)) {
+			foreach ($p as $k => $v) {
+				$p[$k]['applicable'] = false;
+				$p[$k]['why'] = 'mismatch';
+			}
+			return $p;
+		}
+		// Photos of eBay only when one of its listings speaks of the product
+		if ($p['images']['applicable'] && ($info['images_from'] ?? (!empty($info['titles']) ? 'ebay' : '')) === 'ebay') {
+			$ok = false;
+			foreach ((array) ($info['titles'] ?? array()) as $t) {
+				if (self::titlesMatch((string) $product->label, (string) $t)) {
+					$ok = true;
+					break;
+				}
+			}
+			if (!$ok) {
+				$p['images']['applicable'] = false;
+				$p['images']['why'] = 'mismatch';
+			}
+		}
+		return $p;
+	}
+
+	/**
+	 * Proposals without the check of consistency (see proposalsForProduct())
+	 *
+	 * @param Product             $product Product (with its extrafields fetched)
+	 * @param array<string,mixed> $info    Result
+	 * @param string              $ean     EAN looked up
+	 * @return array<string,array{proposed:mixed,current:string,applicable:bool,why:string}>
+	 */
+	private function computeProposals($product, $info, $ean)
+	{
+		$p = array();
 		$desc = self::proposedDescription($info);
 		$cur = trim(dol_string_nohtmltag((string) $product->description));
 		$p['description'] = array('proposed' => $desc, 'current' => $cur, 'applicable' => ($desc !== '' && $cur === ''), 'why' => ($cur !== '' ? 'filled' : ($desc === '' ? 'none' : '')));
@@ -1338,6 +1468,10 @@ Si tu n'identifies rien de fiable : {\"libelle\": \"\", \"confiance\": \"basse\"
 				if (self::score($r['info']) <= 0 || (string) ($r['info']['title'] ?? '') === '') {
 					$status = 'notfound';
 					$message = json_encode($r['steps']);
+				} elseif (!self::resultMatchesLabel((string) $product->label, $r['info'])) {
+					// Same EAN used for another article: nothing is applied
+					$status = 'mismatch';
+					$message = dol_trunc((string) $r['info']['title'], 120);
 				} else {
 					$res = $this->applyToProduct($user, $product, $r['info'], $ean, $fields, null, null, 'mass', false);
 					$applied = $res['applied'];

@@ -140,3 +140,6 @@ PeJs_CreateWithEan=Créer le produit avec l'EAN {e}
 PeJs_NewProductFromEan=Nouveau produit
 PeRepository=Dépôt
 PePrivate=privé
+PeStatus_mismatch=Sans rapport
+PeJs_Step_mismatch=sans rapport, écarté
+PeJs_Why_mismatch=sans rapport avec le produit
