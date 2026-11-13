@@ -2996,3 +2996,5 @@ ToolRightsAndDefinition=Permissions required and technical definition of the too
 ToolRightsCheckedDownstream=Checked by the code the tool calls, depending on the data requested
 ToolRightsNone=None (the tool reads no business data)
 ToolRightsUndeclared=None declared: the tool is always refused
+AI_USE_RESPONSE_TIMEOUT=Response timeout of the AI service (seconds)
+AI_USE_RESPONSE_TIMEOUTHelp=Maximum delay to wait for the answer of the AI service. If empty or 0, the global response timeout is used (%s seconds). For document parsing, a minimum of 90 seconds is always used.

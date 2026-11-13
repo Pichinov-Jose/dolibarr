@@ -3058,13 +3058,6 @@ class ToolApiBridge extends McpTool
 		if ($profile === 'supplier') {
 			unset($fields['desc']);	// FactureFournisseur::updateline() keeps the old text
 		}
-		if ($profile === 'logistic') {
-			// A reception or shipment line moves stock: its quantity and its warehouse, nothing priced.
-			$fields = array(
-				'qty' => "New quantity.",
-				'warehouse' => "New warehouse, by name or rowid."
-			);
-		}
 		if ($profile === 'expense') {
 			// A line of an expense report: what was spent, when, how much, tax included.
 			$fields = array(
@@ -3075,6 +3068,13 @@ class ToolApiBridge extends McpTool
 				'vatrate' => "VAT rate shown on the receipt for this amount, in % (0 when there is none). One rate per line, among the rates of the VAT dictionary of the company: another rate is refused with the list.",
 				'comments' => "Free text: supplier, place, reason.",
 				'project' => "Project the expense is for: rowid or ref."
+			);
+		}
+		if ($profile === 'logistic') {
+			// A reception or shipment line moves stock: its quantity and its warehouse, nothing priced.
+			$fields = array(
+				'qty' => "New quantity.",
+				'warehouse' => "New warehouse, by name or rowid."
 			);
 		}
 		$which = array(
