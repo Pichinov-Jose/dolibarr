@@ -75,3 +75,52 @@ TpvSupportSent=Demande envoyée à %s.
 TpvSupportMissing=Sujet et message obligatoires
 TpvSupportSendFailed=Échec de l'envoi de l'e-mail
 Parameter=Paramètre
+
+# Droits
+Permission5001251=Voir les statistiques de ventes par vendeur
+
+# Ventes par vendeur
+TpvStatsMenu=Ventes par vendeur
+TpvStatsTitle=Ventes par vendeur
+TpvPos=Caisse
+TpvAllSales=Toutes les ventes
+TpvAllVendors=Tous les vendeurs
+TpvOutsidePos=Hors caisse
+TpvPosNumber=Poste %s
+TpvNoVendorOnSale=Sans vendeur
+TpvTickets=Tickets
+TpvSalesTTC=Ventes TTC
+TpvCreditNotesNb=Avoirs
+TpvCreditNotesTTC=Avoirs TTC
+TpvNetHT=CA net HT
+TpvNetTTC=CA net TTC
+TpvShare=Part du CA
+TpvAvgBasket=Panier moyen
+TpvMarginHT=Marge HT
+TpvMarkRate=Taux de marque
+TpvMarkRateHelp=Marge / CA HT des lignes dont le coût est connu. Couleur selon les seuils de marge du module.
+TpvCostCoverage=Part du CA HT au coût connu
+TpvExportCsv=Export CSV
+TpvSeeInvoices=Voir les factures de ce vendeur sur la période
+TpvToday=Aujourd'hui
+TpvYesterday=Hier
+TpvThisWeek=Cette semaine
+TpvThisMonth=Ce mois
+TpvLastMonth=Mois dernier
+TpvThisYear=Cette année
+TpvLastYear=Année dernière
+TpvStatsHowVendor=Vendeur = vendeur choisi en caisse (champ « Vendeur » de la facture). Un avoir sans vendeur est compté pour le vendeur de sa facture d'origine.
+TpvStatsHowScope=Factures clients validées, payées ou non (brouillons et abandonnées exclues), comme le rapport « CA par utilisateur ». CA net = ventes + avoirs (montants négatifs).
+TpvStatsHowBasket=Tickets = factures hors avoirs. Panier moyen = ventes TTC / nombre de tickets.
+TpvStatsHowMargin=Marge = CA HT - coût : prix d'achat enregistré sur la ligne, sinon coût actuel du produit selon la cascade du module (%s). Lignes sans coût exclues de la marge ; le taux de marque porte sur les lignes au coût connu.
+TpvStatsHowCredit=Un avoir ou un trop-perçu utilisé pour régler un ticket est un moyen de paiement : il ne diminue pas les ventes du ticket, l'avoir étant déjà déduit à sa création.
+TpvThisQuarter=Ce trimestre
+TpvLastQuarter=Trimestre dernier
+TpvCompareWith=Comparer avec
+TpvCompareNone=Aucune comparaison
+TpvCompare1=La même période l'an dernier (N-1)
+TpvCompare2=Les mêmes périodes N-1 et N-2
+TpvCompare3=Les mêmes périodes N-1, N-2 et N-3
+TpvEvolution=Évol.
+TpvEvolutionHelp=Évolution du CA net TTC par rapport à la même période %s
+TpvStatsHowCompare=Comparaison : même période décalée d'un, deux ou trois ans (ex. 1er au 14 novembre 2026 comparé au 1er au 14 novembre 2025), mêmes filtres de caisse et de vendeur. Évol. = évolution du CA net TTC.

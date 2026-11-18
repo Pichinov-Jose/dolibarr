@@ -50,10 +50,10 @@ class modTakeposvendeur extends DolibarrModules
 		$this->module_position = '91';
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = "Choix du vendeur par vente sur TakePOS (popup, vendeur sur le ticket)";
-		$this->descriptionlong = "Ajoute sur TakePOS la selection du vendeur pour chaque vente (popup a l'ouverture, obligatoire tant qu'aucun vendeur n'est choisi), enregistre le vendeur sur la facture (extrafield fk_vendeur, filtrable en liste) et l'imprime sur le ticket. Les vendeurs sont les utilisateurs actifs coches \"Vendeur (caisse)\".";
+		$this->descriptionlong = "Ajoute sur TakePOS la selection du vendeur pour chaque vente (popup a l'ouverture, obligatoire tant qu'aucun vendeur n'est choisi), enregistre le vendeur sur la facture (extrafield fk_vendeur, filtrable en liste) et l'imprime sur le ticket. Les vendeurs sont les utilisateurs actifs coches \"Vendeur (caisse)\". Ecran Facturation > Ventes par vendeur : tickets, CA, avoirs, panier moyen et marge par vendeur, export CSV.";
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.2.1';
+		$this->version = '1.3.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'user';
 
@@ -74,8 +74,34 @@ class modTakeposvendeur extends DolibarrModules
 		$this->need_dolibarr_version = array(18, 0);
 
 		$this->const = array();
+
+		// Droits
 		$this->rights = array();
+		$r = 0;
+		$this->rights[$r][0] = 5001251;
+		$this->rights[$r][1] = 'Voir les statistiques de ventes par vendeur';
+		$this->rights[$r][2] = 'r';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'stats';
+		$this->rights[$r][5] = 'read';
+		$r++;
+
+		// Menu : Facturation > Factures clients > Ventes par vendeur
 		$this->menu = array();
+		$this->menu[] = array(
+			'fk_menu' => 'fk_mainmenu=billing,fk_leftmenu=customers_bills',
+			'type' => 'left',
+			'titre' => 'TpvStatsMenu',
+			'mainmenu' => 'billing',
+			'leftmenu' => 'takeposvendeur_stats',
+			'url' => '/takeposvendeur/stats.php',
+			'langs' => 'takeposvendeur@takeposvendeur',
+			'position' => 1100,
+			'enabled' => 'isModEnabled("takeposvendeur")',
+			'perms' => '$user->hasRight("takeposvendeur", "stats", "read")',
+			'target' => '',
+			'user' => 0,
+		);
 	}
 
 	/**

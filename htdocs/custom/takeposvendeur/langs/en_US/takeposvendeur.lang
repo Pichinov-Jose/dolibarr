@@ -75,3 +75,52 @@ TpvSupportSent=Request sent to %s.
 TpvSupportMissing=Subject and message are required
 TpvSupportSendFailed=Email sending failed
 Parameter=Parameter
+
+# Rights
+Permission5001251=View sales statistics by seller
+
+# Sales by seller
+TpvStatsMenu=Sales by seller
+TpvStatsTitle=Sales by seller
+TpvPos=Terminal
+TpvAllSales=All sales
+TpvAllVendors=All sellers
+TpvOutsidePos=Outside POS
+TpvPosNumber=Terminal %s
+TpvNoVendorOnSale=No seller
+TpvTickets=Tickets
+TpvSalesTTC=Sales incl. tax
+TpvCreditNotesNb=Credit notes
+TpvCreditNotesTTC=Credit notes incl. tax
+TpvNetHT=Net turnover excl. tax
+TpvNetTTC=Net turnover incl. tax
+TpvShare=Share
+TpvAvgBasket=Average basket
+TpvMarginHT=Margin excl. tax
+TpvMarkRate=Mark rate
+TpvMarkRateHelp=Margin / turnover excl. tax of lines with a known cost. Colour follows the module margin thresholds.
+TpvCostCoverage=Share of turnover with a known cost
+TpvExportCsv=CSV export
+TpvSeeInvoices=See this seller's invoices for the period
+TpvToday=Today
+TpvYesterday=Yesterday
+TpvThisWeek=This week
+TpvThisMonth=This month
+TpvLastMonth=Last month
+TpvThisYear=This year
+TpvLastYear=Last year
+TpvStatsHowVendor=Seller = seller chosen at the POS (invoice field "Seller"). A credit note without a seller counts for the seller of its source invoice.
+TpvStatsHowScope=Validated customer invoices, paid or not (drafts and abandoned excluded), like the "Turnover by user" report. Net turnover = sales + credit notes (negative amounts).
+TpvStatsHowBasket=Tickets = invoices excluding credit notes. Average basket = sales incl. tax / number of tickets.
+TpvStatsHowMargin=Margin = turnover excl. tax - cost: purchase price recorded on the line, otherwise current product cost from the module cascade (%s). Lines without cost are excluded from the margin; the mark rate covers lines with a known cost.
+TpvStatsHowCredit=A credit note or excess payment used to pay a ticket is a means of payment: it does not reduce the ticket sales, the credit note being already deducted when created.
+TpvThisQuarter=This quarter
+TpvLastQuarter=Last quarter
+TpvCompareWith=Compare with
+TpvCompareNone=No comparison
+TpvCompare1=Same period last year (Y-1)
+TpvCompare2=Same periods Y-1 and Y-2
+TpvCompare3=Same periods Y-1, Y-2 and Y-3
+TpvEvolution=Change
+TpvEvolutionHelp=Change of net turnover incl. tax versus the same period %s
+TpvStatsHowCompare=Comparison: same period shifted by one, two or three years (e.g. 1-14 November 2026 versus 1-14 November 2025), same terminal and seller filters. Change = change of net turnover incl. tax.
