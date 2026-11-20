@@ -117,7 +117,8 @@ function scIsValidEan13($ean)
 /**
  * Associate a scanned EAN to an existing product following the agreed write rules:
  * never overwrite a non-empty code; valid+free EAN13 -> product.barcode (type 2);
- * else supplier price barcode if empty; else ean_kezia if empty. Always log in llx_scan_assoc.
+ * the supplier price barcode is filled too when one line is empty and the code is on no other line;
+ * nothing written yet -> ean_kezia if empty. Always log in llx_scan_assoc.
  *
  * @param DoliDB $db DB
  * @param User $user User
@@ -153,11 +154,16 @@ function scAssocEan($db, $user, $fk_product, $ean)
 			$written = 'barcode';
 		}
 	}
-	if ($written == 'assoc_only') {
+	// the manufacturer EAN is also the supplier barcode (supplier product list, synchronisations), even when
+	// it became the product barcode — on one line only: uk_product_barcode makes a code unique across the
+	// whole supplier price table, whatever the product
+	$short = (strlen($ean) == 13 && $ean[0] === '0') ? substr($ean, 1) : $ean;
+	$resql = $db->query("SELECT COUNT(*) AS n FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE barcode IN ('".$e."', '".$db->escape($short)."')");
+	$taken = $resql ? (int) $db->fetch_object($resql)->n : 1;
+	if (!$taken) {
 		$resql = $db->query("SELECT rowid FROM ".MAIN_DB_PREFIX."product_fournisseur_price WHERE fk_product = ".((int) $fk_product)." AND (barcode IS NULL OR barcode = '') ORDER BY rowid LIMIT 1");
 		$obj = $resql ? $db->fetch_object($resql) : null;
-		if ($obj) {
-			$db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET barcode = '".$e."', fk_barcode_type = 2 WHERE rowid = ".((int) $obj->rowid));
+		if ($obj && $db->query("UPDATE ".MAIN_DB_PREFIX."product_fournisseur_price SET barcode = '".$e."', fk_barcode_type = ".(strlen($ean) == 8 ? 1 : 2)." WHERE rowid = ".((int) $obj->rowid)." AND (barcode IS NULL OR barcode = '')") && $written == 'assoc_only') {
 			$written = 'pfp';
 		}
 	}
