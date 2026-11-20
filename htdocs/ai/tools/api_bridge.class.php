@@ -7034,7 +7034,7 @@ class ToolApiBridge extends McpTool
 	{
 		global $langs, $mysoc;
 
-		$langs->load('other');
+		$langs->loadLangs(array('other', 'dict'));
 		$aliases = array('alias' => 'name_alias', 'trade_name' => 'name_alias', 'postcode' => 'zip', 'postal_code' => 'zip', 'zipcode' => 'zip', 'cp' => 'zip', 'city' => 'town', 'ville' => 'town', 'country_code' => 'country', 'country_id' => 'country', 'pays' => 'country', 'website' => 'url', 'vat_number' => 'tva_intra', 'vat' => 'tva_intra', 'tva' => 'tva_intra', 'siren' => 'idprof1', 'siret' => 'idprof2', 'supplier_code' => 'code_fournisseur', 'customer_code' => 'code_client');
 		foreach ($aliases as $from => $to) {
 			if (isset($args[$from]) && !isset($args[$to]) && !is_array($args[$from])) {
@@ -7068,7 +7068,7 @@ class ToolApiBridge extends McpTool
 		} elseif (is_object($mysoc) && (int) $mysoc->country_id > 0) {
 			// As the creation form does: the country of the company unless another is said.
 			$args['country'] = (int) $mysoc->country_id;
-			$args['_label_country'] = (string) $mysoc->country_code;
+			$args['_label_country'] = $langs->transnoentitiesnoconv('Country'.$mysoc->country_code).' ('.$mysoc->country_code.')';
 		} else {
 			unset($args['country']);
 		}
@@ -7878,7 +7878,10 @@ class ToolApiBridge extends McpTool
 		}
 		// A supplier price: who sells it, under which reference, how much and from which quantity.
 		if (!empty($write['supplier_price'])) {
-			return dol_escape_htmltag($langs->transnoentitiesnoconv($write['preview'], $what, (string) ($args['_supplier'] ?? ''), (string) ($args['ref_fourn'] ?? ''), price((float) ($args['buyprice'] ?? 0)), (string) ((float) ($args['qty'] ?? 1)), (string) ((float) ($args['tva_tx'] ?? 0))));
+			// Five values at most in a translated sentence: the quantity and the VAT rate make one.
+			$terms = $langs->transnoentitiesnoconv('AIPreviewSupplierPriceTerms', (string) ((float) ($args['qty'] ?? 1)), (string) ((float) ($args['tva_tx'] ?? 0)));
+
+			return dol_escape_htmltag($langs->transnoentitiesnoconv($write['preview'], $what, (string) ($args['_supplier'] ?? ''), (string) ($args['ref_fourn'] ?? ''), price((float) ($args['buyprice'] ?? 0)), $terms));
 		}
 
 		// Other actions: who the record goes to, or the other way to end it.
