@@ -7100,9 +7100,10 @@ class ToolApiBridge extends McpTool
 		$found = array();
 		$resql = $this->db ? $this->db->query("SELECT rowid, code, code_iso, label FROM ".$this->db->prefix()."c_country WHERE active = 1") : false;
 		while ($resql && ($obj = $this->db->fetch_object($resql))) {
-			$translated = $langs->transnoentitiesnoconv('Country'.$obj->code);
-			if (in_array($want, array((string) $obj->rowid, dol_strtolower((string) $obj->code), dol_strtolower((string) $obj->code_iso), dol_strtolower((string) $obj->label), dol_strtolower($translated)), true)) {
-				$found[(int) $obj->rowid] = (($translated !== 'Country'.$obj->code) ? $translated : (string) $obj->label).' ('.$obj->code.')';
+			$code = (string) $obj->code;
+			$translated = $langs->transnoentitiesnoconv('Country'.$code);
+			if (in_array($want, array((string) $obj->rowid, dol_strtolower($code), dol_strtolower((string) $obj->code_iso), dol_strtolower((string) $obj->label), dol_strtolower($translated)), true)) {
+				$found[(int) $obj->rowid] = (($translated !== 'Country'.$code) ? $translated : (string) $obj->label).' ('.$code.')';
 			}
 		}
 		if (count($found) === 1) {
@@ -7135,8 +7136,9 @@ class ToolApiBridge extends McpTool
 		}
 		foreach (array('price', 'weight', 'tva_tx') as $num) {
 			// A VAT rate given with its code ("20 (XYZ)") is left as it is.
-			if (isset($args[$num]) && is_scalar($args[$num]) && (string) $args[$num] !== '' && strpos((string) $args[$num], '(') === false) {
-				$args[$num] = (float) price2num(is_string($args[$num]) ? trim(str_replace('%', '', $args[$num])) : $args[$num]);
+			$raw = $args[$num] ?? '';
+			if (is_scalar($raw) && (string) $raw !== '' && strpos((string) $raw, '(') === false) {
+				$args[$num] = (float) price2num(trim(str_replace('%', '', (string) $raw)));
 			}
 		}
 		foreach (array('status', 'status_buy') as $flag) {
@@ -7153,12 +7155,12 @@ class ToolApiBridge extends McpTool
 				continue;
 			}
 			$sql = "SELECT rowid, ref, label FROM ".$this->db->prefix()."product";
-			$sql .= " WHERE entity IN (".getEntity('product').") AND ".$field." = '".$this->db->escape($value)."'";
+			$sql .= " WHERE entity IN (".getEntity('product').") AND ".$this->db->sanitize($field)." = '".$this->db->escape($value)."'";
 			$sql .= " LIMIT 1";
 			$resql = $this->db->query($sql);
 			$obj = $resql ? $this->db->fetch_object($resql) : null;
 			if ($obj) {
-				$this->writeProblems[] = $langs->transnoentitiesnoconv($key, $value, $obj->ref.' - '.$obj->label);
+				$this->writeProblems[] = $langs->transnoentitiesnoconv($key, $value, ((string) $obj->ref).' - '.((string) $obj->label));
 			}
 		}
 		if (trim((string) ($args['barcode'] ?? '')) !== '' && empty($args['fk_barcode_type']) && getDolGlobalInt('PRODUIT_DEFAULT_BARCODE_TYPE') > 0) {
@@ -7230,8 +7232,9 @@ class ToolApiBridge extends McpTool
 			$sql .= " AND (nom = '".$this->db->escape($said)."' OR code_fournisseur = '".$this->db->escape($said)."')";
 			$sql .= " LIMIT 2";
 			$resql = $this->db->query($sql);
-			if ($resql && $this->db->num_rows($resql) === 1) {
-				$id = (int) $this->db->fetch_object($resql)->rowid;
+			$obj = ($resql && $this->db->num_rows($resql) === 1) ? $this->db->fetch_object($resql) : null;
+			if ($obj) {
+				$id = (int) $obj->rowid;
 			} else {
 				require_once DOL_DOCUMENT_ROOT.'/ai/lib/ai.lib.php';
 				$found = aiFindThirdpartiesInText($this->db, $user, $said);
@@ -7280,9 +7283,9 @@ class ToolApiBridge extends McpTool
 		$out['_supplier'] = ($soc instanceof Societe) ? (string) $soc->name : '';
 		$out['ref_fourn'] = is_scalar($args['ref_fourn'] ?? '') ? trim((string) ($args['ref_fourn'] ?? '')) : '';
 		$qty = $args['qty'] ?? '';
-		$out['qty'] = (is_scalar($qty) && (string) $qty !== '') ? (float) price2num($qty) : 1.0;
+		$out['qty'] = (is_scalar($qty) && (string) $qty !== '') ? (float) price2num((string) $qty) : 1.0;
 		$price = $args['buyprice'] ?? '';
-		$out['buyprice'] = (is_scalar($price) && (string) $price !== '') ? (float) price2num($price) : -1.0;
+		$out['buyprice'] = (is_scalar($price) && (string) $price !== '') ? (float) price2num((string) $price) : -1.0;
 		$out['price_base_type'] = 'HT';
 		$out['availability'] = 0;
 		if (isModEnabled('multicurrency')) {
@@ -7327,7 +7330,7 @@ class ToolApiBridge extends McpTool
 			$resql = $this->db->query($sql);
 			$obj = $resql ? $this->db->fetch_object($resql) : null;
 			if ($obj) {
-				$this->writeProblems[] = $langs->transnoentitiesnoconv('AIWriteSupplierRefTaken', $out['_supplier'], $out['ref_fourn'], $obj->ref.' - '.$obj->label);
+				$this->writeProblems[] = $langs->transnoentitiesnoconv('AIWriteSupplierRefTaken', $out['_supplier'], $out['ref_fourn'], ((string) $obj->ref).' - '.((string) $obj->label));
 			}
 		}
 
