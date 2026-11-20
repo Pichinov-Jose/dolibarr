@@ -7264,7 +7264,7 @@ class ToolApiBridge extends McpTool
 	 */
 	private function normaliseSupplierPrice(array $args, array $out)
 	{
-		global $langs;
+		global $conf, $langs;
 
 		$langs->load('other');
 		$aliases = array('supplier_ref' => 'ref_fourn', 'ref_supplier' => 'ref_fourn', 'reference' => 'ref_fourn', 'price' => 'buyprice', 'buy_price' => 'buyprice', 'purchase_price' => 'buyprice', 'cost_price' => 'buyprice', 'unit_price' => 'buyprice', 'quantity' => 'qty', 'min_qty' => 'qty', 'vat_rate' => 'tva_tx', 'socid' => 'supplier', 'fourn_id' => 'supplier', 'thirdparty' => 'supplier', 'delivery_days' => 'delivery_time_days', 'description' => 'desc_fourn');
@@ -7285,6 +7285,14 @@ class ToolApiBridge extends McpTool
 		$out['buyprice'] = (is_scalar($price) && (string) $price !== '') ? (float) price2num($price) : -1.0;
 		$out['price_base_type'] = 'HT';
 		$out['availability'] = 0;
+		if (isModEnabled('multicurrency')) {
+			// With several currencies core derives the price from the amount in currency, and stores
+			// zero when none is given: the amount is said in the currency of the company, at rate 1.
+			$out['multicurrency_buyprice'] = max(0.0, $out['buyprice']);
+			$out['multicurrency_price_base_type'] = 'HT';
+			$out['multicurrency_tx'] = 1;
+			$out['multicurrency_code'] = (string) $conf->currency;
+		}
 		$vat = $args['tva_tx'] ?? '';
 		if (is_scalar($vat) && trim((string) $vat) !== '') {
 			$out['tva_tx'] = (float) price2num(trim(str_replace('%', '', (string) $vat)));
