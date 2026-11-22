@@ -182,6 +182,16 @@ $disablehead = 0;
 
 top_htmlhead($head, $title, $disablejs, $disablehead, $arrayofjs, $arrayofcss);
 
+// A validated or paid sale can't be split: only lines of a draft sale can be moved
+$invoiceidtosplit = GETPOSTINT('invoiceid');
+if ($invoiceidtosplit > 0) {
+	$invoicetosplit = new Facture($db);
+	if ($invoicetosplit->fetch($invoiceidtosplit) > 0 && $invoicetosplit->status != Facture::STATUS_DRAFT) {
+		print '<body class="takepossplitphp"><div class="center"><br><h2>'.dol_escape_htmltag($langs->trans("ErrorSplitSaleNotDraft")).'</h2></div></body></html>';
+		exit;
+	}
+}
+
 // Define list of possible payments
 $arrayOfValidPaymentModes = array();
 $arrayOfValidBankAccount = array();
@@ -229,7 +239,11 @@ $( document ).ready(function() {
 
 
 
-	$("#headersplit1").html("<?php echo $langs->trans("Place");?> "+parent.place);
+	<?php if (getDolGlobalString('TAKEPOS_BAR_RESTAURANT')) { ?>
+	$("#headersplit1").html("<?php echo dol_escape_js($langs->trans("Place")); ?> "+parent.place);
+	<?php } else { ?>
+	$("#headersplit1").html("<?php echo dol_escape_js($langs->trans("CurrentSale")); ?>");
+	<?php } ?>
 	$("#headersplit2").html("<?php echo $langs->trans("SplitSale");?>");
 
 });
