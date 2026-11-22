@@ -40,7 +40,7 @@ class modReceptionMobile extends DolibarrModules
 		$this->descriptionlong = 'Sous 600 px de large, sur les pages de réception : une fiche par ligne de réception et par réception de la liste, formulaire d\'ajout de ligne en une colonne, popup de création de produit en plein écran, sélection automatique du produit scanné quand la recherche ne trouve qu\'un résultat. Aucune modification du cœur.';
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.0.0';
+		$this->version = '1.0.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'dolly';
 		$this->langfiles = array('receptionmobile@receptionmobile');

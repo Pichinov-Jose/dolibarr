@@ -41,6 +41,23 @@
 
 	/* ---------- Fiche réception ---------- */
 
+	/* The add line row: Dolibarr gives it the class liste_titre_create only when the reception already has
+	   lines (objectline_create.tpl.php), so mark it ourselves from its Add button, first line included */
+	function markCreateRow() {
+		var table = document.getElementById('tablelines');
+		if (!table) {
+			return;
+		}
+		var row = table.querySelector('tr.liste_titre_create');
+		if (!row) {
+			var button = table.querySelector('#addline, input[name="addline"]');
+			row = button ? button.closest('tr') : null;
+		}
+		if (row) {
+			row.classList.add('rm-createrow');
+		}
+	}
+
 	function labelReceptionLines() {
 		var table = document.getElementById('tablelines');
 		if (!table) {
@@ -66,7 +83,7 @@
 			if (tr.classList.contains('liste_titre')) {
 				return;
 			}
-			var isform = tr.classList.contains('liste_titre_create');
+			var isform = tr.classList.contains('rm-createrow');
 			if (tr.querySelector('input[name="save"], input[name="cancel"]')) {
 				tr.classList.add('rm-editrow');
 				isform = true;
@@ -91,7 +108,7 @@
 	}
 
 	function collapseLineDescription(tries) {
-		var row = document.querySelector('#tablelines tr.liste_titre_create');
+		var row = document.querySelector('#tablelines tr.rm-createrow');
 		if (!row) {
 			return;
 		}
@@ -131,7 +148,7 @@
 		if (!table || document.querySelector('a.rm-golines')) {
 			return;
 		}
-		var target = table.querySelector('tr.liste_titre_create') || table;
+		var target = table.querySelector('tr.rm-createrow') || table;
 		var button = document.createElement('a');
 		button.href = '#';
 		button.className = 'rm-golines';
@@ -183,7 +200,7 @@
 			// Copy it when a supplier price (numeric id) was chosen and the field stayed empty.
 			setTimeout(function () {
 				var up = hidden.attr('data-up-locale') || hidden.attr('data-up');
-				var price = $('#tablelines tr.liste_titre_create input[name="price_ht"]');
+				var price = $('#tablelines tr.rm-createrow input[name="price_ht"]');
 				if (/^[0-9]+$/.test(value) && up && price.length && price.val() === '') {
 					price.val(up);
 				}
@@ -193,7 +210,7 @@
 			}
 			// Dolibarr puts the focus on the description, folded here: go to the quantity
 			setTimeout(function () {
-				var qty = $('#tablelines tr.liste_titre_create input[name="qty"]');
+				var qty = $('#tablelines tr.rm-createrow input[name="qty"]');
 				if (qty.length) {
 					qty.trigger('focus');
 					qty.get(0).select();
@@ -293,6 +310,7 @@
 			return;
 		}
 		if (body.classList.contains('page-card')) {
+			markCreateRow();
 			labelReceptionLines();
 			bindScanHelpers();
 			bindFullscreenDialogs();

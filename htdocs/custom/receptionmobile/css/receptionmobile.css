@@ -90,16 +90,16 @@
 	}
 
 	/* ===== Formulaire d'ajout ou de modification de ligne : une colonne ===== */
-	body.mod-reception.page-card #tablelines tr.liste_titre_create,
+	body.mod-reception.page-card #tablelines tr.rm-createrow,
 	body.mod-reception.page-card #tablelines tr.rm-editrow {
 		background: #f4f6f8;
 		padding: 12px 8px;
 	}
 	/* Champs de saisie (certains n'ont pas d'attribut type, comme la réf. fournisseur) */
-	body.mod-reception.page-card #tablelines tr.liste_titre_create input:not([type]),
-	body.mod-reception.page-card #tablelines tr.liste_titre_create input[type=text],
-	body.mod-reception.page-card #tablelines tr.liste_titre_create input[type=number],
-	body.mod-reception.page-card #tablelines tr.liste_titre_create select,
+	body.mod-reception.page-card #tablelines tr.rm-createrow input:not([type]),
+	body.mod-reception.page-card #tablelines tr.rm-createrow input[type=text],
+	body.mod-reception.page-card #tablelines tr.rm-createrow input[type=number],
+	body.mod-reception.page-card #tablelines tr.rm-createrow select,
 	body.mod-reception.page-card #tablelines tr.rm-editrow input:not([type]),
 	body.mod-reception.page-card #tablelines tr.rm-editrow input[type=text],
 	body.mod-reception.page-card #tablelines tr.rm-editrow input[type=number],
@@ -110,38 +110,38 @@
 		font-size: 16px;
 		min-height: 38px;
 	}
-	body.mod-reception.page-card #tablelines tr.liste_titre_create .select2-container,
+	body.mod-reception.page-card #tablelines tr.rm-createrow .select2-container,
 	body.mod-reception.page-card #tablelines tr.rm-editrow .select2-container {
 		width: 100% !important;
 		max-width: none !important;
 	}
 	/* Choix « Ligne libre » : passe à la ligne au lieu de déborder */
-	body.mod-reception.page-card #tablelines tr.liste_titre_create .prod_entry_mode_free {
+	body.mod-reception.page-card #tablelines tr.rm-createrow .prod_entry_mode_free {
 		white-space: normal !important;
 		display: flex;
 		align-items: center;
 		gap: 6px;
 		width: 100%;
 	}
-	body.mod-reception.page-card #tablelines tr.liste_titre_create .prod_entry_mode_free select {
+	body.mod-reception.page-card #tablelines tr.rm-createrow .prod_entry_mode_free select {
 		flex: 1;
 		min-width: 0 !important;
 		width: auto !important;
 	}
 	/* Recherche produit : laisser la place au bouton « + » de création */
-	body.mod-reception.page-card #tablelines tr.liste_titre_create #search_idprodfournprice {
+	body.mod-reception.page-card #tablelines tr.rm-createrow #search_idprodfournprice {
 		width: calc(100% - 64px) !important;
 		display: inline-block;
 	}
-	body.mod-reception.page-card #tablelines tr.liste_titre_create td.linecoldescription,
-	body.mod-reception.page-card #tablelines tr.liste_titre_create td.linecoledit,
+	body.mod-reception.page-card #tablelines tr.rm-createrow td.linecoldescription,
+	body.mod-reception.page-card #tablelines tr.rm-createrow td.linecoledit,
 	body.mod-reception.page-card #tablelines tr.rm-editrow td.linecoldescription,
 	body.mod-reception.page-card #tablelines tr.rm-editrow td:first-child,
 	body.mod-reception.page-card #tablelines tr.rm-editrow td:last-child {
 		grid-column: 1 / -1;
 	}
-	body.mod-reception.page-card #tablelines tr.liste_titre_create td.linecoledit input[type=submit],
-	body.mod-reception.page-card #tablelines tr.liste_titre_create td.linecoledit button,
+	body.mod-reception.page-card #tablelines tr.rm-createrow td.linecoledit input[type=submit],
+	body.mod-reception.page-card #tablelines tr.rm-createrow td.linecoledit button,
 	body.mod-reception.page-card #tablelines tr.rm-editrow input[type=submit] {
 		width: 100% !important;
 		max-width: none !important;

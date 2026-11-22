@@ -972,7 +972,7 @@ if (empty($reshook)) {
 					$productsupplier = new ProductFournisseur($db);
 					$idprod = $productsupplier->get_buyprice((int) $ipfp, (float) price2num(GETPOST('qty', 'alpha'), 'MS'));
 					if ($idprod > 0) {
-						$cost_price_from_pfp = price2num($productsupplier->fourn_unitprice);
+						$cost_price_from_pfp = price2num($productsupplier->fourn_pu);	// get_buyprice() fills fourn_pu (unit price), never fourn_unitprice
 					}
 				}
 			}
@@ -1165,6 +1165,11 @@ if (empty($reshook)) {
 							$outputlangs->setDefaultLang($newlang);
 						}
 						$object->generateDocument($object->model_pdf, $outputlangs, $hidedetails, $hidedesc, $hideref);
+					}
+					// Empty the add line form, as on supplier orders: otherwise the supplier price id is shown again
+					// as a product id (wrong product in the field) and the batch number stays
+					foreach (array('prod_entry_mode', 'idprod', 'idprodfournprice', 'search_idprodfournprice', 'qty', 'price_ht', 'cost_price', 'fourn_ref', 'batch', 'dp_desc', 'type', 'units') as $tmpkey) {
+						unset($_POST[$tmpkey]);
 					}
 				} else {
 					header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id); // To redisplay the form being edited
