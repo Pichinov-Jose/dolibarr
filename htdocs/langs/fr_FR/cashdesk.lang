@@ -228,3 +228,6 @@ TakeposCreditSplitError=Erreur lors du fractionnement : la somme des deux montan
 DeleteSale=Supprimer la vente
 TakeposTerminalDisabled=Terminal désactivé
 TakeposTerminalDisabledHelp=Si activé, ce terminal n'est plus proposé sur l'écran de sélection des caisses. Ses factures existantes et sa numérotation sont conservées.
+
+ErrorSplitSaleNotDraft=Cette vente est déjà validée ou payée, elle ne peut pas être fractionnée.
+CurrentSale=Vente en cours
