@@ -117,6 +117,31 @@ class ActionsProductEnrichment
 		#pe_panel .pe-actions { margin-top: 8px; }
 		#pe_panel .pe-done { opacity: .6; }
 		#pe_status.pe-ok { color: #2a7a2a; } #pe_status.pe-error { color: #b00; } #pe_status.pe-warning { color: #a66b00; } #pe_status.pe-wait { color: #555; }
+		@media only screen and (max-width: 600px) {
+			#pe_buttons { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; white-space: normal; margin: 4px 0; }
+			#pe_buttons > a.button { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 0 !important; font-size: 16px; box-sizing: border-box; }
+			#pe_panel { max-height: none; overflow: visible; padding: 6px; }
+			#pe_panel table.pe-table, #pe_panel table.pe-table tbody, #pe_panel table.pe-table tr, #pe_panel table.pe-table td { display: block; width: auto !important; height: auto !important; min-width: 0 !important; max-width: none !important; box-sizing: border-box; }
+			#pe_panel table.pe-table tr { padding: 6px 2px; border-bottom: 1px solid #e0e0e0; }
+			#pe_panel table.pe-table tr.liste_titre { display: none; }
+			#pe_panel table.pe-table td { padding: 2px 0 !important; border: none !important; text-align: left !important; white-space: normal !important; }
+			#pe_panel table.pe-table td:empty { display: none; }
+			#pe_panel table.pe-table td:first-child { font-weight: bold; }
+			#pe_panel table.pe-table td[data-label]::before { content: attr(data-label) " : "; font-weight: normal; opacity: .7; }
+			#pe_panel .pe-value { word-break: normal; overflow-wrap: anywhere; }
+			#pe_panel .pe-chip { display: block; max-width: 100%; box-sizing: border-box; margin: 6px 0; padding: 10px 12px; border-radius: 8px; font-size: 15px; white-space: normal; word-break: normal; overflow-wrap: anywhere; text-align: left; }
+			#pe_panel .pe-chip.pe-chosen { border-color: #2a7a2a; background: #e8f5e8; font-weight: bold; }
+			#pe_panel .pe-chip.pe-chosen::after, #pe_panel a.pe-done::after { content: "\2713"; margin-left: 6px; }
+			#pe_panel a.button, #pe_panel a.butAction { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 4px 6px 4px 0 !important; font-size: 16px; white-space: normal; box-sizing: border-box; }
+			#pe_panel .pe-actions a.button, #pe_panel .pe-actions a.butAction { display: flex; width: 100%; margin: 4px 0 !important; }
+			#pe_panel .pe-desc { max-height: 10em; }
+			#pe_panel select.pe-spec-attr { width: 100%; min-height: 44px; font-size: 16px; }
+			#pe_panel table.pe-table tr.pe-spec td:nth-child(3) { display: inline-block; width: calc(100% - 50px) !important; vertical-align: middle; }
+			#pe_panel table.pe-table tr.pe-spec td:nth-child(4) { display: inline-block; width: 44px !important; text-align: center !important; vertical-align: middle; }
+			#pe_panel input[type=checkbox] { width: 22px; height: 22px; vertical-align: middle; }
+			#pe_panel .pe-photos img { height: 80px; max-width: 120px; }
+			#pe_panel .pe-photo { margin: 4px 6px 4px 0; }
+		}
 		</style>';
 		$out .= '<script src="'.dol_buildpath('/productenrichment/js/productenrichment.js', 1).'?v='.urlencode(ProductEnrichment::VERSION).'"></script>';
 		$out .= '<script>ProductEnrichment.init('.json_encode($cfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).');</script>';

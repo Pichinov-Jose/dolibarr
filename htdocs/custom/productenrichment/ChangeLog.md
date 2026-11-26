@@ -1,5 +1,16 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.2.4 (2026-11-26)
+- Téléphone et terminal portable (DT50, 412 px), sous 600 px seulement : sur la fiche de création, les boutons
+  « Enrichir » et « Recherche IA » passent sur leur propre ligne sous le code-barres, qui garde toute la largeur
+  (il ne restait que 61 px au champ depuis la mise en page mobile de productquickcreate 1.6.0)
+- Panneau sous 600 px : une ligne par champ, libellé au-dessus, puis la valeur et les boutons ; propositions de
+  libellé sur toute la largeur (le texte s'écrivait une lettre par ligne), boutons de 44 px, plus de défilement
+  interne au panneau ; onglet Enrichissement : « Actuel » et « Proposé » écrits devant chaque valeur
+- Le libellé choisi est marqué (coche verte) et les boutons « Remplir » cochés, le champ étant souvent hors de
+  l'écran sur un terminal
+- Ordinateur : rien ne change
+
 ## 1.2.3 (2026-11-13)
 - Une recherche en erreur dit pourquoi : panneau (« IA : erreur — crédit de l'API Anthropic épuisé… »), écran
   Données d'enrichissement (relance d'une source) et file d'enrichissement. Raisons reconnues : crédit IA épuisé,

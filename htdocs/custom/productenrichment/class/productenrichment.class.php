@@ -32,7 +32,7 @@
  */
 class ProductEnrichment
 {
-	const VERSION = '1.2.3';
+	const VERSION = '1.2.4';
 	const MAX_IMAGES = 3;
 	const UPC_DAILY_MAX = 95;	// UPCitemdb free tier: 100 requests a day
 	/** eBay marketplaces of the full-text search of the code, in order, when the search by GTIN finds nothing */

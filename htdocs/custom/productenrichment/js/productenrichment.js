@@ -178,7 +178,11 @@
 			if (labels.length && PE.hasField('label')) {
 				var chips = $('<div>');
 				$.each(labels, function (i, l) {
-					chips.append(PE.el('a', 'pe-chip', l).attr('href', '#').on('click', function (e) { e.preventDefault(); PE.setField('label', l, false); }));
+					chips.append(PE.el('a', 'pe-chip', l).attr('href', '#').on('click', function (e) {
+						e.preventDefault();
+						// The chip applied is marked (seen under 600 px, where the label field is often out of the screen)
+						if (PE.setField('label', l, false)) { chips.find('.pe-chip').removeClass('pe-chosen'); $(this).addClass('pe-chosen'); }
+					}));
 				});
 				PE.row(t, PE.t('Label'), chips, '');
 			}
@@ -251,9 +255,10 @@
 				if (!pr || pr.proposed === '' || pr.proposed === null) { return; }
 				var tr = $('<tr class="oddeven">');
 				tr.append(PE.el('td', '', f[1]));
-				tr.append(PE.el('td', 'opacitymedium pe-value', pr.current || ''));
+				// data-label: under 600 px the columns are stacked and lose their header
+				tr.append(PE.el('td', 'opacitymedium pe-value', pr.current || '').attr('data-label', pr.current ? PE.t('Current') : null));
 				var shown = (f[0] === 'sell_price') ? pr.proposed + ' € TTC (' + PE.t('Estimate') + ')' : pr.proposed;
-				tr.append($('<td class="pe-value">').append(PE.el('div', f[0] === 'description' ? 'pe-desc' : '', shown)));
+				tr.append($('<td class="pe-value">').attr('data-label', PE.t('Proposed')).append(PE.el('div', f[0] === 'description' ? 'pe-desc' : '', shown)));
 				var cb = $('<input type="checkbox" class="pe-sel">').val(f[0]);
 				if (pr.applicable) {
 					cb.prop('checked', f[0] !== 'sell_price');
