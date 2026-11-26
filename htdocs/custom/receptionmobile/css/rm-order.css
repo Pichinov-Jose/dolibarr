@@ -3,7 +3,492 @@
  * Pichinov — Mobile : règles propres à l'objet « commande client » (classe body.rm-obj-order), sous 600 px de large.
  * Chargé après css/receptionmobile.css (règles communes). Un seul auteur par fichier : la session de cet objet.
  * Pages : body.rm-obj-order.rm-page-card | .rm-page-list | .rm-page-tab
+ * Classes posées par js/rm-order.js : rm-events (derniers événements), rm-cards (tableaux d'onglet en fiches),
+ * rm-actions / rm-main / rm-wide / rm-empty / rm-submit (cellules), rm-showmore (filtres complémentaires de la liste).
  */
 
 @media (max-width: 600px) {
+
+	/* ===================== Fiche commande ===================== */
+
+	/* Boutons d'action : cibles tactiles de 40 px */
+	body.rm-obj-order.rm-page-card div.tabsAction .butAction,
+	body.rm-obj-order.rm-page-card div.tabsAction .butActionDelete,
+	body.rm-obj-order.rm-page-card div.tabsAction .butActionRefused {
+		min-height: 40px;
+		box-sizing: border-box;
+		padding: 11px 12px;
+		margin: 0 0 8px 6px;
+	}
+
+	/* En-tête : champ modifié sur place (origine, méthode d'expédition...) borné à la place restante à côté du libellé ;
+	   select2 lui donne sinon la largeur de son option la plus longue */
+	body.rm-obj-order.rm-page-card .fichecenter table.tableforfield td form .select2-container,
+	body.rm-obj-order.rm-page-card .fichecenter table.tableforfield td form select,
+	body.rm-obj-order.rm-page-card .fichecenter table.tableforfield td form input[type="text"] {
+		max-width: calc(100vw - 200px) !important;
+	}
+	body.rm-obj-order.rm-page-card .fichecenter table.tableforfield td form input[type="submit"] {
+		min-height: 40px;
+		padding-left: 14px !important;
+		padding-right: 14px !important;
+		margin-top: 4px;
+	}
+
+	/* --- Formulaire d'ajout de ligne --- */
+	/* Boutons radio « Ligne libre » / « Article prédéfini » à leur taille : la règle commune .prod_entry_mode_free
+	   vise aussi l'input radio, qui porte la même classe que son conteneur */
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow input.prod_entry_mode_free,
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow input.prod_entry_mode_predef {
+		display: inline-block;
+		flex: 0 0 auto;
+		width: 22px !important;
+		height: 22px;
+		min-height: 0;
+		margin: 0 6px 0 0;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free > label {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free > label select {
+		width: 100% !important;
+	}
+	/* Article prédéfini : recherche + filtre de recherche + bouton « + » sur une ligne qui tient dans l'écran */
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow td.linecoldescription > span.nowraponall:not(.prod_entry_mode_free) {
+		display: block;
+		white-space: normal !important;
+		margin-top: 8px;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		width: 100%;
+		white-space: normal !important;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef > label {
+		flex: 0 0 auto;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow #search_idprod,
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef .select2-container {
+		flex: 1 1 auto;
+		min-width: 0 !important;
+		width: auto !important;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef .psp-scope,
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef .dropdown {
+		flex: 0 0 auto;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef .psp-scope-btn,
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow #dropdownAddProductAndServiceLink {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		min-height: 40px;
+		box-sizing: border-box;
+	}
+	/* Suggestions de la recherche produit : largeur de l'écran (jQuery UI les cale sur leur contenu, qui déborde) */
+	body.rm-obj-order.rm-page-card ul.ui-autocomplete {
+		left: 8px !important;
+		right: 8px;
+		width: auto !important;
+		max-width: none !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-order.rm-page-card ul.ui-autocomplete .ui-menu-item-wrapper {
+		padding-top: 8px;
+		padding-bottom: 8px;
+	}
+	/* Prix de revient (choix du prix d'achat + montant) : pleine largeur, côte à côte */
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow > td.margininfos,
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-editrow > td.margininfos {
+		grid-column: 1 / -1;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr > td.margininfos[data-rm-label]::before {
+		flex: 0 0 100%;
+		margin-bottom: 0;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow > td.margininfos select,
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-editrow > td.margininfos select {
+		flex: 2 1 0;
+		width: auto !important;
+		min-width: 0 !important;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-createrow > td.margininfos input,
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-editrow > td.margininfos input {
+		flex: 1 1 0;
+		width: auto !important;
+		min-width: 0 !important;
+	}
+	/* Champs du formulaire de modification (sans attribut type pour certains) : 16 px, pas de zoom au toucher */
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-editrow input:not([type="hidden"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]),
+	body.rm-obj-order.rm-page-card #tablelines tr.rm-editrow select {
+		font-size: 16px;
+		min-height: 38px;
+	}
+	/* Dates de service (« Si produit de type service à durée limitée ») : toute la largeur */
+	body.rm-obj-order.rm-page-card #tablelines tr#trlinefordates > td {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-order.rm-page-card #tablelines tr#trlinefordates input.maxwidthdate {
+		font-size: 16px;
+		min-height: 38px;
+		width: 130px !important;
+		max-width: none !important;
+	}
+
+	/* --- Bas de fiche : fichiers joints (une fiche par fichier, nom en entier) --- */
+	body.rm-obj-order.rm-page-card table.formdoc,
+	body.rm-obj-order.rm-page-card table.formdoc > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.liste_titre {
+		display: block;
+		height: auto !important;
+	}
+	/* En-tête : modèle de document, langue et bouton « Générer » sur une ligne qui passe à la ligne */
+	body.rm-obj-order.rm-page-card table.formdoc tr.liste_titre > th,
+	body.rm-obj-order.rm-page-card table.formdoc tr.liste_titre > td {
+		height: auto !important;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		width: auto !important;
+		max-width: none !important;
+		padding: 8px !important;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.liste_titre .select2-container {
+		min-width: 140px;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.liste_titre input[type="submit"],
+	body.rm-obj-order.rm-page-card table.formdoc tr.liste_titre button {
+		min-height: 40px;
+		margin: 0 !important;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.oddeven {
+		display: grid;
+		grid-template-columns: auto auto minmax(0, 1fr) auto;
+		column-gap: 12px;
+		align-items: center;
+		padding: 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.oddeven > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.oddeven > td:first-child {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.oddeven > td:first-child .spanoverflow {
+		max-width: none !important;
+		width: auto !important;
+		white-space: normal !important;
+		overflow: visible !important;
+		word-break: break-all;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.oddeven > td:last-child:not(:first-child) {
+		grid-column: 4;
+		text-align: right;
+	}
+	body.rm-obj-order.rm-page-card table.formdoc tr.oddeven > td:last-child a {
+		display: inline-block;
+		padding: 8px 10px;
+		font-size: 1.2em;
+	}
+
+	/* --- Objets liés : une fiche par objet --- */
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"],
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] tr:not(.liste_titre) {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto auto;
+		column-gap: 12px;
+		row-gap: 2px;
+		align-items: center;
+		padding: 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] tr > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		height: auto !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow: visible !important;
+	}
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] tr > td:only-child {
+		grid-column: 1 / -1;
+	}
+	/* réf. | état | délier ; type | montant ; réf. client et tiers | date */
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] td.linkedcol-name { grid-column: 1; grid-row: 1; font-weight: 600; }
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] td.linkedcol-statut { grid-column: 2; grid-row: 1; text-align: right !important; }
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] td.linkedcol-action { grid-column: 3; grid-row: 1 / span 2; }
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] td.linkedcol-element { grid-column: 1; grid-row: 2; opacity: 0.8; }
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] td.linkedcol-amount { grid-column: 2; grid-row: 2; text-align: right !important; }
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] td.linkedcol-ref { grid-column: 1; grid-row: 3; }
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] td.linkedcol-date { grid-column: 2; grid-row: 3; text-align: right !important; }
+	body.rm-obj-order.rm-page-card table[data-block="showLinkedObject"] td.linkedcol-action a {
+		display: inline-block;
+		padding: 8px 10px;
+		font-size: 1.2em;
+	}
+
+	/* --- Derniers événements : réf., date, auteur et état sur une ligne, titre dessous --- */
+	body.rm-obj-order.rm-page-card table.rm-events,
+	body.rm-obj-order.rm-page-card table.rm-events > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-order.rm-page-card table.rm-events tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-order.rm-page-card table.rm-events tr:not(.liste_titre) {
+		display: grid;
+		grid-template-columns: auto auto minmax(0, 1fr) auto;
+		column-gap: 10px;
+		row-gap: 2px;
+		align-items: center;
+		padding: 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-order.rm-page-card table.rm-events tr > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+	}
+	body.rm-obj-order.rm-page-card table.rm-events tr > td:only-child { grid-column: 1 / -1; }
+	body.rm-obj-order.rm-page-card table.rm-events tr > td:nth-child(1):not(:only-child) { grid-column: 1; grid-row: 1; }
+	body.rm-obj-order.rm-page-card table.rm-events tr > td:nth-child(2) { grid-column: 2; grid-row: 1; }
+	body.rm-obj-order.rm-page-card table.rm-events tr > td:nth-child(3) { grid-column: 3; grid-row: 1; }
+	body.rm-obj-order.rm-page-card table.rm-events tr > td:nth-child(6) { grid-column: 4; grid-row: 1; }
+	body.rm-obj-order.rm-page-card table.rm-events tr > td:nth-child(4) { grid-column: 1; grid-row: 2; text-align: center !important; }
+	body.rm-obj-order.rm-page-card table.rm-events tr > td:nth-child(5) {
+		grid-column: 2 / -1;
+		grid-row: 2;
+		white-space: normal !important;
+	}
+
+	/* ===================== Onglets ===================== */
+
+	/* Contacts : formulaire d'ajout (tableau en div, un formulaire par ligne) sur une colonne */
+	body.rm-obj-order.rm-page-tab .div-table-responsive-no-min {
+		overflow-x: visible;
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact > .tagtr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact > .tagtr {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: 6px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact > .tagtr > .tagtd {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		justify-self: stretch;
+		height: auto !important;
+		margin: 0 !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 0 !important;
+		border: 0 !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact > .tagtr > .tagtd[data-rm-label]::before {
+		content: attr(data-rm-label);
+		flex: 0 0 100%;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact > .tagtr > .tagtd.rm-empty {
+		display: none;
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact select,
+	body.rm-obj-order.rm-page-tab .tableforcontact .select2-container {
+		flex: 1 1 0;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		font-size: 16px;
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact .select2-container .select2-selection {
+		min-height: 38px;
+		max-width: none !important;	/* classes maxwidth200... recopiées du select */
+	}
+	body.rm-obj-order.rm-page-tab .tableforcontact > .tagtr > .tagtd.rm-submit input[type="submit"],
+	body.rm-obj-order.rm-page-tab .tableforcontact > .tagtr > .tagtd.rm-submit button {
+		flex: 1 1 auto;
+		width: 100%;
+		min-height: 42px;
+		margin: 2px 0 !important;
+	}
+
+	/* Contacts, documents : tableaux en fiches (cellule principale, libellés, boutons en bas) */
+	body.rm-obj-order.rm-page-tab .div-table-responsive {
+		overflow-x: visible;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards,
+	body.rm-obj-order.rm-page-tab table.rm-cards > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr:not(.liste_titre) {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 2px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		height: auto !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow: visible !important;
+		word-break: break-word;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td.rm-main,
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td.rm-wide {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td.rm-main {
+		font-weight: 600;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td.rm-main .spanoverflow,
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td.rm-main a {
+		white-space: normal !important;
+		overflow: visible !important;
+		max-width: none !important;
+		word-break: break-all;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td.rm-actions {
+		grid-column: 1 / -1;
+		text-align: right !important;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td.rm-actions a {
+		display: inline-block;
+		padding: 8px 12px;
+		font-size: 1.2em;
+	}
+	body.rm-obj-order.rm-page-tab table.rm-cards tr > td.rm-empty {
+		display: none !important;
+	}
+
+	/* Documents : formulaire d'envoi de fichier, bouton au doigt */
+	body.rm-obj-order.rm-page-tab #formuserfile input[type="submit"],
+	body.rm-obj-order.rm-page-tab #formuserfile button[type="submit"] {
+		min-height: 40px;
+		padding: 8px 16px;
+	}
+
+	/* Notes : libellé au-dessus de la note, zone de saisie pleine largeur en 16 px, boutons au doigt */
+	body.rm-obj-order.page-card_notes .tagtable.tableforfield > .tagtr {
+		display: block;
+		height: auto !important;
+		padding: 6px 0;
+	}
+	body.rm-obj-order.page-card_notes .tagtable.tableforfield > .tagtr > .tagtd {
+		display: block;
+		height: auto !important;
+		width: auto !important;
+		max-width: none !important;
+		border: 0 !important;
+		padding: 2px 8px !important;
+	}
+	body.rm-obj-order.page-card_notes .tagtable.tableforfield textarea {
+		width: 100% !important;
+		box-sizing: border-box;
+		font-size: 16px;
+	}
+	body.rm-obj-order.page-card_notes .tagtable.tableforfield input.button,
+	body.rm-obj-order.page-card_notes .tagtable.tableforfield button.button {
+		min-height: 40px;
+		padding: 8px 16px !important;
+		margin: 6px 6px 0 0 !important;
+	}
+	body.rm-obj-order.page-card_notes .tagtable.tableforfield a.editfielda {
+		display: inline-block;
+		padding: 6px 10px;
+	}
+
+	/* ===================== Liste ===================== */
+
+	/* Filtres complémentaires (catégories, commercial, contact, produit) derrière le bouton « Filtres » */
+	body.rm-obj-order.rm-page-list #searchFormList:not(.rm-showmore) div.liste_titre_bydiv {
+		display: none;
+	}
+	body.rm-obj-order.rm-page-list #searchFormList div.liste_titre_bydiv .divsearchfield {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	body.rm-obj-order.rm-page-list #searchFormList div.liste_titre_bydiv .divsearchfield select,
+	body.rm-obj-order.rm-page-list #searchFormList div.liste_titre_bydiv .divsearchfield input[type="text"],
+	body.rm-obj-order.rm-page-list #searchFormList div.liste_titre_bydiv .divsearchfield .select2-container {
+		flex: 1 1 0;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		font-size: 16px;
+	}
+	/* Choix multiple (tags / catégories) : la zone de saisie prend toute la largeur, libellé lisible */
+	body.rm-obj-order.rm-page-list #searchFormList div.liste_titre_bydiv .select2-selection--multiple .select2-search--inline,
+	body.rm-obj-order.rm-page-list #searchFormList div.liste_titre_bydiv .select2-selection--multiple .select2-search__field {
+		width: 100% !important;
+	}
 }
