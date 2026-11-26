@@ -98,6 +98,13 @@
 		font-size: 1.25em;
 	}
 
+	/* ===== Menu « +N » des onglets : liens à la taille du doigt (20 px → environ 40 px), toutes les pages prises en charge ===== */
+	body.rm-on div.popuptabset a,
+	body.rm-on div.popuptab a {
+		display: block;
+		padding: 10px 6px;
+	}
+
 	/* ===== Formulaire d'ajout ou de modification de ligne : une colonne ===== */
 	body.rm-doc.rm-page-card #tablelines tr.rm-createrow,
 	body.rm-doc.rm-page-card #tablelines tr.rm-editrow {
