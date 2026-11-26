@@ -3,7 +3,449 @@
  * Pichinov — Mobile : règles propres à l'objet « expédition » (classe body.rm-obj-shipment), sous 600 px de large.
  * Chargé après css/receptionmobile.css (règles communes). Un seul auteur par fichier : la session de cet objet.
  * Pages : body.rm-obj-shipment.rm-page-card | .rm-page-list | .rm-page-tab
+ * Classes posées par js/rm-shipment.js :
+ *   form.rm-ship-createform (création depuis une commande), table.rm-ship-stack (libellé au-dessus du champ),
+ *   table.rm-ship-lines + tr.rm-ship-main / tr.rm-ship-sub (quantités à expédier par entrepôt ou par lot),
+ *   p.rm-ship-qtytools (remplir / remettre à 0), td.rm-ship-editcell / td.rm-ship-savecell (ligne modifiée),
+ *   table.rm-ship-orderlines (onglet « Expéditions » de la commande), table.rm-ship-cards (tableaux des onglets).
  */
 
 @media (max-width: 600px) {
+
+	/* ===== Champs en 16 px : pas de zoom au toucher ===== */
+	body.rm-obj-shipment form.rm-ship-createform input[type=text],
+	body.rm-obj-shipment form.rm-ship-createform input:not([type]),
+	body.rm-obj-shipment form.rm-ship-createform select,
+	body.rm-obj-shipment form.rm-ship-createform textarea,
+	body.rm-obj-shipment .orderremainder-form input[type=text],
+	body.rm-obj-shipment .orderremainder-form select,
+	body.rm-obj-shipment .tableforcontact select,
+	body.rm-obj-shipment #tablelines tr.rm-editrow input[type=text] {
+		font-size: 16px;
+	}
+
+	/* ===== Formulaires : libellé au-dessus du champ (création, « Ajouter un produit ») ===== */
+	body.rm-obj-shipment table.rm-ship-stack,
+	body.rm-obj-shipment table.rm-ship-stack > tbody,
+	body.rm-obj-shipment table.rm-ship-stack > tbody > tr {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-shipment table.rm-ship-stack > tbody > tr {
+		height: auto !important;
+		padding: 6px 0;
+		border-bottom: 1px solid #e4e4e4;
+	}
+	body.rm-obj-shipment table.rm-ship-stack > tbody > tr > td {
+		display: block;
+		height: auto !important;
+		width: auto !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-shipment table.rm-ship-stack > tbody > tr > td:first-child {
+		font-size: 0.9em;
+		opacity: 0.8;
+	}
+	body.rm-obj-shipment table.rm-ship-stack input[name="ref_customer"],
+	body.rm-obj-shipment table.rm-ship-stack input[name="tracking_number"],
+	body.rm-obj-shipment table.rm-ship-stack input[name="or_note"],
+	body.rm-obj-shipment table.rm-ship-stack textarea {
+		width: 100% !important;
+		max-width: none !important;
+		min-width: 0 !important;
+		box-sizing: border-box;
+		min-height: 38px;
+	}
+	body.rm-obj-shipment table.rm-ship-stack input[name="tracking_number"] {
+		width: calc(100% - 28px) !important;
+	}
+	body.rm-obj-shipment table.rm-ship-stack select:not(.select2-hidden-accessible),
+	body.rm-obj-shipment table.rm-ship-stack input[type=text] {
+		min-height: 38px;
+	}
+	body.rm-obj-shipment table.rm-ship-stack .select2-container {
+		max-width: 100% !important;
+	}
+	body.rm-obj-shipment table.rm-ship-stack select:not([name$="hour"]):not([name$="min"]):not(.select2-hidden-accessible) {
+		max-width: 100% !important;
+	}
+	body.rm-obj-shipment .orderremainder-form table.rm-ship-stack .select2-container,
+	body.rm-obj-shipment .orderremainder-form table.rm-ship-stack input[name="or_qty"] {
+		min-height: 38px;
+	}
+	body.rm-obj-shipment .orderremainder-form table.rm-ship-stack input[name="or_qty"] {
+		width: 110px !important;
+	}
+
+	/* ===== Création : quantités à expédier, une fiche par ligne de commande ===== */
+	body.rm-obj-shipment .div-table-responsive-no-min:has(> table.rm-ship-lines) {
+		overflow-x: visible;
+	}
+	body.rm-obj-shipment table.rm-ship-lines,
+	body.rm-obj-shipment table.rm-ship-lines > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-shipment table.rm-ship-lines tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-shipment table.rm-ship-lines > tbody > tr {
+		height: auto !important;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 4px;
+		padding: 4px 8px;
+		background: transparent;
+	}
+	body.rm-obj-shipment table.rm-ship-lines > tbody > tr.rm-ship-main {
+		padding-top: 12px;
+		border-top: 1px solid #c8c8c8;
+	}
+	body.rm-obj-shipment table.rm-ship-lines > tbody > tr > td {
+		display: block;
+		justify-self: stretch;
+		margin: 0 !important;
+		margin: 0 !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		height: auto !important;
+	}
+	body.rm-obj-shipment table.rm-ship-lines td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+		margin-bottom: 1px;
+	}
+	body.rm-obj-shipment table.rm-ship-lines td.rm-empty,
+	body.rm-obj-shipment table.rm-ship-lines tr.rm-ship-sub > td[colspan] {
+		display: none !important;
+	}
+	/* Description, entrepôt choisi : toute la largeur */
+	body.rm-obj-shipment table.rm-ship-lines tr.rm-ship-main > td:first-child {
+		grid-column: 1 / -1;
+		font-weight: 600;
+	}
+	body.rm-obj-shipment table.rm-ship-lines tr.rm-ship-main > td.rm-ship-wh {
+		grid-column: 1 / -1;
+	}
+	/* Sous-ligne d'un entrepôt ou d'un lot : entrepôt / lot (stock) à gauche, quantité à droite */
+	body.rm-obj-shipment table.rm-ship-lines > tbody > tr.rm-ship-sub {
+		grid-template-columns: minmax(0, 1fr) 110px;
+		align-items: end;
+		margin-left: 8px;
+		border-left: 3px solid #d8dee6;
+		background: #f6f8fa;
+	}
+	body.rm-obj-shipment table.rm-ship-lines tr.rm-ship-sub > td.rm-ship-wh {
+		order: 1;
+		align-self: center;
+	}
+	body.rm-obj-shipment table.rm-ship-lines tr.rm-ship-sub > td.rm-ship-qty {
+		order: 2;
+	}
+	body.rm-obj-shipment table.rm-ship-lines input.qtyl {
+		width: 100% !important;
+		max-width: 140px;
+		box-sizing: border-box;
+		min-height: 40px;
+		font-size: 16px;
+	}
+	body.rm-obj-shipment table.rm-ship-lines tr.rm-ship-sub input.qtyl {
+		max-width: none;
+	}
+	body.rm-obj-shipment table.rm-ship-lines select:not(.select2-hidden-accessible),
+	body.rm-obj-shipment table.rm-ship-lines .select2-container {
+		width: 100% !important;
+		max-width: none !important;
+		min-width: 0 !important;
+	}
+	body.rm-obj-shipment table.rm-ship-lines .select2-container .select2-selection--single {
+		min-height: 40px;
+		display: flex;
+		align-items: center;
+	}
+	/* Remplir / remettre à 0 (sortis de l'en-tête masqué) */
+	body.rm-obj-shipment p.rm-ship-qtytools {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px 18px;
+		margin: 6px 0 4px 0;
+	}
+	body.rm-obj-shipment p.rm-ship-qtytools > a,
+	body.rm-obj-shipment p.rm-ship-qtytools > span {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 40px;
+		padding: 0 6px;
+		opacity: 1;
+	}
+	/* Créer / Annuler : pleine largeur */
+	body.rm-obj-shipment form.rm-ship-createform .center > input.button,
+	body.rm-obj-shipment .orderremainder-form .center > input.button {
+		display: block;
+		width: 100%;
+		margin: 8px 0 !important;
+		padding: 12px !important;
+		font-size: 1.05em;
+		box-sizing: border-box;
+	}
+
+	/* ===== Fiche : ligne en modification ===== */
+	body.rm-obj-shipment.rm-page-card #tablelines tr.rm-editrow > td.rm-ship-editcell,
+	body.rm-obj-shipment.rm-page-card #tablelines tr.rm-editrow > td.rm-ship-savecell {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines tr.rm-editrow > td.rm-ship-savecell {
+		order: 95;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell table,
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell table > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell table tr {
+		display: grid;
+		grid-template-columns: 90px minmax(0, 1fr);
+		column-gap: 8px;
+		row-gap: 2px;
+		align-items: center;
+		padding: 4px 0;
+		border: 0;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell table td {
+		display: block;
+		padding: 0 !important;
+		width: auto !important;
+		min-width: 0 !important;
+		text-align: left !important;
+	}
+	/* Quantité | entrepôt, puis le lot sur toute la largeur (la règle commune td:first-child / td:last-child
+	   de tr.rm-editrow atteint aussi ce tableau imbriqué) */
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell table td:first-child {
+		grid-column: 1;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell table td:nth-child(2) {
+		grid-column: 2;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell table td:nth-child(n+3),
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell table td[colspan] {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell input.qtyl {
+		width: 100% !important;
+		min-height: 40px;
+		box-sizing: border-box;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell .select2-container {
+		width: 100% !important;
+		max-width: none !important;
+	}
+	body.rm-obj-shipment.rm-page-card #tablelines td.rm-ship-editcell .select2-selection--single {
+		min-height: 40px;
+		display: flex;
+		align-items: center;
+	}
+
+	/* ===== Onglet « Expéditions » de la commande : une fiche par ligne de commande ===== */
+	body.rm-obj-shipment.rm-page-tab .div-table-responsive-no-min:has(> table.rm-ship-orderlines),
+	body.rm-obj-shipment.rm-page-tab .div-table-responsive-no-min:has(> table.rm-ship-cards),
+	body.rm-obj-shipment.rm-page-tab .div-table-responsive:has(> table.rm-ship-cards) {
+		overflow-x: visible;
+	}
+	body.rm-obj-shipment table.rm-ship-orderlines,
+	body.rm-obj-shipment table.rm-ship-orderlines > tbody,
+	body.rm-obj-shipment table.rm-ship-orderlines > thead {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-shipment table.rm-ship-orderlines tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-shipment table.rm-ship-orderlines tr {
+		height: auto !important;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		align-items: end;
+		column-gap: 8px;
+		row-gap: 4px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-shipment table.rm-ship-orderlines tr > td {
+		display: block;
+		justify-self: stretch;
+		margin: 0 !important;
+		height: auto !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-shipment table.rm-ship-orderlines tr > td:first-child {
+		grid-column: 1 / -1;
+		font-weight: 600;
+	}
+	body.rm-obj-shipment table.rm-ship-orderlines tr > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.72em;
+		opacity: 0.65;
+		margin-bottom: 1px;
+		font-weight: normal;
+	}
+	body.rm-obj-shipment table.rm-ship-orderlines tr > td.rm-empty {
+		visibility: hidden;
+	}
+
+	/* Entrepôt source + « Créer expédition » : pleine largeur */
+	body.rm-obj-shipment.rm-page-tab .tabsAction form .select2-container {
+		width: 100% !important;
+		max-width: none !important;
+		margin-bottom: 6px;
+	}
+	body.rm-obj-shipment.rm-page-tab .tabsAction form .select2-selection--single {
+		min-height: 40px;
+		display: flex;
+		align-items: center;
+	}
+	body.rm-obj-shipment.rm-page-tab .tabsAction form input.butAction {
+		display: block;
+		width: 100%;
+		margin: 6px 0 !important;
+		padding: 12px !important;
+		box-sizing: border-box;
+	}
+
+	/* ===== Tableaux des onglets (expéditions de la commande, contacts, fichiers) : une fiche par ligne ===== */
+	body.rm-obj-shipment table.rm-ship-cards,
+	body.rm-obj-shipment table.rm-ship-cards > tbody,
+	body.rm-obj-shipment table.rm-ship-cards > thead {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr {
+		height: auto !important;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 2px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr > td {
+		display: block;
+		justify-self: stretch;
+		margin: 0 !important;
+		height: auto !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow-wrap: anywhere;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr > td[colspan] {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr > td.rm-main {
+		grid-column: 1 / -1;
+		font-weight: 600;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr > td.rm-wide {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr > td.rm-empty {
+		display: none !important;
+	}
+	/* Boutons d'action (supprimer, modifier, aperçu) : en bas à droite, cibles tactiles */
+	body.rm-obj-shipment table.rm-ship-cards tr > td.rm-actions {
+		grid-column: 1 / -1;
+		text-align: right !important;
+	}
+	body.rm-obj-shipment table.rm-ship-cards tr > td.rm-actions a {
+		display: inline-block;
+		padding: 8px 12px;
+		font-size: 1.15em;
+	}
+
+	/* ===== Onglet Contacts : formulaires d'ajout en colonne ===== */
+	body.rm-obj-shipment .div-table-responsive-no-min:has(> .tableforcontact) {
+		overflow-x: visible;
+	}
+	body.rm-obj-shipment .tableforcontact {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-shipment .tableforcontact > .tagtr {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 6px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-shipment .tableforcontact > .tagtr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-shipment .tableforcontact > .tagtr > .tagtd {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin: 0 !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 0 !important;
+		border: 0 !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-shipment .tableforcontact > .tagtr > .tagtd:empty,
+	body.rm-obj-shipment .tableforcontact > .tagtr > .tagtd.rm-empty {
+		display: none;
+	}
+	body.rm-obj-shipment .tableforcontact .select2-container,
+	body.rm-obj-shipment .tableforcontact select:not(.select2-hidden-accessible) {
+		flex: 1 1 auto;
+		width: 100% !important;
+		max-width: none !important;
+		min-width: 0 !important;
+	}
+	body.rm-obj-shipment .tableforcontact .select2-selection--single {
+		width: 100% !important;
+		max-width: none !important;
+		box-sizing: border-box;
+		min-height: 40px;
+		display: flex;
+		align-items: center;
+	}
+	body.rm-obj-shipment .tableforcontact input[type=submit] {
+		width: 100%;
+		padding: 10px !important;
+		margin: 0 !important;
+	}
 }
