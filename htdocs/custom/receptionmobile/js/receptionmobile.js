@@ -44,12 +44,14 @@
 
 	// The supplier pages come first: /fourn/commande/card.php also ends with /commande/card.php
 	var OBJECTS = [
-		{key: 'supplierorder', re: /\/fourn\/commande\/(card|list|dispatch|contact|note|document|info)\.php$/, doc: true, link: '/fourn/commande/card.php'},
-		{key: 'supplierinvoice', re: /\/fourn\/facture\/(card|list|contact|note|document|info|paiement)\.php$/, doc: true, link: '/fourn/facture/card.php'},
-		{key: 'order', re: /\/commande\/(card|list|contact|note|document|info)\.php$/, doc: true, link: '/commande/card.php'},
-		{key: 'invoice', re: /\/compta\/facture\/(card|list|contact|note|document|info)\.php$/, doc: true, link: '/compta/facture/card.php'},
-		{key: 'shipment', re: /\/expedition\/(card|list|shipment|contact|note|document)\.php$/, doc: true, link: '/expedition/card.php'},
-		{key: 'reception', re: /\/reception\/(card|list|contact|note|document|info)\.php$/, doc: true, link: '/reception/card.php'},
+		{key: 'supplierorder', re: /\/fourn\/commande\/(card|list|dispatch|contact|note|document|info|agenda|messaging)\.php$/, doc: true, link: '/fourn/commande/card.php'},
+		{key: 'supplierinvoice', re: /\/fourn\/facture\/(card|list|contact|note|document|info|paiement|agenda|messaging)\.php$/, doc: true, link: '/fourn/facture/card.php'},
+		{key: 'order', re: /\/commande\/(card|list|contact|note|document|info|agenda|messaging)\.php$/, doc: true, link: '/commande/card.php'},
+		{key: 'invoice', re: /\/compta\/facture\/(card|list|contact|note|document|info|agenda|messaging)\.php$/, doc: true, link: '/compta/facture/card.php'},
+		// Payment of a customer invoice (button « Saisir règlement »): a page of its own, without the line rules
+		{key: 'invoice', re: /\/compta\/(paiement)\.php$/, doc: false, link: '/compta/facture/card.php'},
+		{key: 'shipment', re: /\/expedition\/(card|list|shipment|contact|note|document|info|agenda|messaging)\.php$/, doc: true, link: '/expedition/card.php'},
+		{key: 'reception', re: /\/reception\/(card|list|contact|note|document|info|agenda|messaging)\.php$/, doc: true, link: '/reception/card.php'},
 		{key: 'product', re: /\/product\/(card|list|price|fournisseurs|note|document|agenda|stats\/card|stock\/product|composition\/card)\.php$/, doc: false, link: '/product/card.php'}
 	];
 	var PAGE = null;
