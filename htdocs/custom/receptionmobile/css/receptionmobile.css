@@ -135,9 +135,26 @@
 		min-width: 0 !important;
 		width: auto !important;
 	}
-	/* Recherche produit : laisser la place au bouton « + » de création */
-	body.rm-doc.rm-page-card #tablelines tr.rm-createrow #search_idprodfournprice {
-		width: calc(100% - 64px) !important;
+	/* Recherche produit + filtre + bouton « + » de création : sur une ligne qui peut se replier, sans déborder */
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow span.nowraponall {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 4px;
+		max-width: 100%;
+		white-space: normal !important;
+	}
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef {
+		display: flex;
+		flex: 1 1 100%;
+		align-items: center;
+		gap: 4px;
+		min-width: 0;
+	}
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow input[id^="search_idprod"] {
+		flex: 1 1 auto;
+		width: auto !important;
+		min-width: 0 !important;
 		display: inline-block;
 	}
 	body.rm-doc.rm-page-card #tablelines tr.rm-createrow td.linecoldescription,
