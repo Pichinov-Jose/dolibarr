@@ -826,3 +826,5 @@ AIAttachmentExpired=The attached file %s is no longer available (attached files 
 AIAttachmentConversionFailed=The attached document (%s) could not be converted into text. It may be damaged or protected by a password.
 AIAttachmentMustBeConvertedToText=On this installation, attached files must be converted into text so their content can be obfuscated: this file could not be converted, and binary files cannot be sent to the AI provider.
 AIContextLabelHelp=Number of the last exchanges (question + answer) of the conversation sent back to the AI with your next question. More exchanges increase the context size and may cost more tokens, but the answers take the previous conversation into account.
+AIWriteThirdpartyCodeRequired=A %s is mandatory here and Dolibarr does not number it: ask the user for it and give it in %s.
+AIWriteThirdpartyCodeRefused=The %s "%s" is refused: %s.
