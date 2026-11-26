@@ -3,7 +3,420 @@
  * Pichinov — Mobile : règles propres à l'objet « produit (fiche, onglets, liste) » (classe body.rm-obj-product), sous 600 px de large.
  * Chargé après css/receptionmobile.css (règles communes). Un seul auteur par fichier : la session de cet objet.
  * Pages : body.rm-obj-product.rm-page-card | .rm-page-list | .rm-page-tab
+ * Les classes rm-p* sont posées par js/rm-product.js (formulaires, tableaux des onglets, liste, graphiques).
+ * Formulaires : même rendu que la création de produit sur mobile (module productquickcreate 1.6.0).
  */
 
+/* Bouton « Filtres » posé par le script : sur ordinateur, les filtres restent affichés comme d'habitude */
+body a.rm-pfiltertoggle {
+	display: none !important;
+}
+
 @media (max-width: 600px) {
+
+	/* ===== En-tête de la fiche : navigation, crayons de modification (menu « +N » des onglets : commun) ===== */
+	/* Flèches produit précédent / suivant et « Retour liste » */
+	body.rm-obj-product div.pagination.paginationref li.pagination a,
+	body.rm-obj-product div.pagination.paginationref a.paginationprevious,
+	body.rm-obj-product div.pagination.paginationref a.paginationnext {
+		display: inline-block;
+		padding: 8px 14px;
+	}
+	body.rm-obj-product div.pagination.paginationref li.litext a {
+		display: inline-block;
+		padding: 8px 4px;
+	}
+	/* Crayon de modification d'un champ : cible tactile plus grande sans décaler la ligne */
+	body.rm-obj-product div.fiche a.editfielda {
+		display: inline-block;
+		padding: 10px 12px;
+		margin: -10px -12px;
+	}
+	/* Modification d'un seul champ depuis la fiche (crayon) : boutons Enregistrer / Annuler tactiles */
+	body.rm-obj-product div.fiche table.tableforfield form input.button {
+		min-height: 40px;
+		padding: 8px 14px !important;
+		font-size: 15px;
+	}
+	/* Textes longs (description, URL, valeurs d'attributs) : coupés au lieu de déborder */
+	body.rm-obj-product div.fiche table.tableforfield td {
+		word-break: break-word;
+	}
+
+	/* ===== Formulaires : libellé au-dessus du champ, champs pleine largeur ===== */
+	body.rm-obj-product table.rm-pstack,
+	body.rm-obj-product table.rm-pstack > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-product div.tabBar:has(> table.rm-pstack) {
+		overflow: visible;
+	}
+	body.rm-obj-product table.rm-pstack > tbody > tr:not(.hideobject) {
+		display: block;
+		height: auto !important;
+		padding: 6px 0;
+	}
+	body.rm-obj-product table.rm-pstack > tbody > tr > td {
+		display: block;
+		height: auto !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: none !important;
+		text-align: left !important;
+	}
+	body.rm-obj-product table.rm-pstack > tbody > tr > td.rm-plabel {
+		padding-bottom: 4px !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-product table.rm-pstack > tbody > tr > td.rm-psection {
+		padding-top: 10px !important;
+		font-weight: 600;
+	}
+	body.rm-obj-product table.rm-pstack > tbody > tr > td.rm-pfield {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		white-space: normal !important;
+	}
+	body.rm-obj-product table.rm-pstack td.rm-pfield > input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=submit]):not([type=button]),
+	body.rm-obj-product table.rm-pstack td.rm-pfield > select:not(.select2-hidden-accessible),
+	body.rm-obj-product table.rm-pstack td.rm-pfield > textarea,
+	body.rm-obj-product table.rm-pstack td.rm-pfield > .select2-container,
+	body.rm-obj-product table.rm-pstack td.rm-pfield > span[class*=multiselectarray] {
+		flex: 1 1 0;
+		min-width: 0 !important;
+		width: auto !important;
+		max-width: none !important;
+		box-sizing: border-box;
+	}
+	/* Blocs (éditeur de description, tableaux imbriqués) : toute la largeur */
+	body.rm-obj-product table.rm-pstack td.rm-pfield > div,
+	body.rm-obj-product table.rm-pstack td.rm-pfield > table {
+		flex: 1 1 100%;
+		min-width: 0 !important;
+		width: 100% !important;
+		max-width: none !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-product table.rm-pstack td.rm-pfield > span[class*=multiselectarray] > .select2-container {
+		width: 100% !important;
+	}
+	/* HT / TTC, unité : à côté du montant, à leur taille */
+	body.rm-obj-product table.rm-pstack select[name$=price_base_type],
+	body.rm-obj-product table.rm-pstack select[name$=_units],
+	body.rm-obj-product table.rm-pstack select[name^=fk_unit] {
+		flex: 0 0 auto !important;
+		width: auto !important;
+	}
+	body.rm-obj-product table.rm-pstack input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=submit]):not([type=button]),
+	body.rm-obj-product table.rm-pstack select:not(.select2-hidden-accessible) {
+		min-height: 44px;
+		font-size: 16px;
+	}
+	body.rm-obj-product table.rm-pstack textarea {
+		font-size: 16px;
+	}
+	body.rm-obj-product table.rm-pstack .select2-container .select2-selection {
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		text-align: left;
+	}
+	/* Devise : toute la ligne, le taux de change passe dessous */
+	body.rm-obj-product table.rm-pstack select[name=multicurrency_code] + .select2-container {
+		flex: 1 1 100% !important;
+	}
+	/* Unité (kg, m, m², m³) et HT / TTC : liste courte à droite des valeurs (Longueur x Largeur x Hauteur sur une ligne) */
+	body.rm-obj-product table.rm-pstack select[name$=price_base_type] + .select2-container,
+	body.rm-obj-product table.rm-pstack select[name$=_units] + .select2-container {
+		flex: 0 0 76px !important;
+		width: 76px !important;
+	}
+	body.rm-obj-product table.rm-pstack td.rm-pfield > input[name^=size] {
+		flex: 1 1 0;
+		min-width: 0 !important;
+	}
+	body.rm-obj-product table.rm-pstack .select2-container .select2-selection--single,
+	body.rm-obj-product table.rm-pstack .select2-container .select2-selection--multiple {
+		min-height: 44px;
+		display: flex;
+		align-items: center;
+	}
+	body.rm-obj-product table.rm-pstack .select2-container .select2-selection__rendered {
+		font-size: 16px;
+		line-height: 1.4 !important;
+		flex: 1 1 auto;
+	}
+	body.rm-obj-product table.rm-pstack .select2-container .select2-selection__arrow {
+		height: 42px !important;
+	}
+	body.rm-obj-product .select2-dropdown .select2-search__field {
+		font-size: 16px !important;
+	}
+	body.rm-obj-product .select2-dropdown .select2-results__option {
+		font-size: 16px;
+		padding: 10px 8px;
+	}
+	body.rm-obj-product table.rm-pstack input[type=checkbox] {
+		width: 22px;
+		height: 22px;
+	}
+	/* Enregistrer / Annuler : pleine largeur */
+	body.rm-obj-product form.rm-pform div.center {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		font-size: 0;	/* l'espace insécable entre les deux boutons ne fait pas une ligne vide */
+	}
+	body.rm-obj-product form.rm-pform div.center > input.button,
+	body.rm-obj-product form.rm-pform div.center > button.button {
+		width: 100%;
+		min-height: 44px;
+		font-size: 16px;
+		margin: 0 !important;
+	}
+
+	/* Champs des autres formulaires des onglets (prix par niveau, filtres) : 16 px, pas de zoom au toucher */
+	body.rm-obj-product div.fiche input[type=text],
+	body.rm-obj-product div.fiche input:not([type]),
+	body.rm-obj-product div.fiche input[type=number],
+	body.rm-obj-product div.fiche select,
+	body.rm-obj-product div.fiche textarea {
+		font-size: 16px;
+	}
+	body.rm-obj-product div.fiche input[type=text],
+	body.rm-obj-product div.fiche input:not([type]),
+	body.rm-obj-product div.fiche input[type=number],
+	body.rm-obj-product div.fiche select:not(.select2-hidden-accessible) {
+		min-height: 40px;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+
+	/* ===== Tableaux des onglets : une fiche par ligne ===== */
+	body.rm-obj-product .rm-pwrap {
+		overflow-x: visible !important;
+	}
+	body.rm-obj-product table.rm-pcards,
+	body.rm-obj-product table.rm-pcards > tbody,
+	body.rm-obj-product table.rm-pcards > thead {
+		display: block;
+		width: 100% !important;
+		min-width: 0 !important;
+	}
+	body.rm-obj-product table.rm-pcards tr.liste_titre:not(.liste_titre_filter):not(.rm-pfilterrow) {
+		display: none;
+	}
+	body.rm-obj-product table.rm-pcards tr {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 2px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+		height: auto !important;
+	}
+	body.rm-obj-product table.rm-pcards tr > td,
+	body.rm-obj-product table.rm-pcards tr > th {
+		display: block;
+		justify-self: stretch;
+		margin: 0 !important;
+		height: auto !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow: visible !important;
+		word-break: break-word;
+	}
+	body.rm-obj-product table.rm-pcards tr > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+	body.rm-obj-product table.rm-pcards tr > td.rm-pmain {
+		grid-column: 1 / -1;
+		order: -1;
+		font-weight: 600;
+		font-size: 1.05em;
+	}
+	body.rm-obj-product table.rm-pcards tr > td.rm-pwide {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-product table.rm-pcards tr > td.rm-empty {
+		display: none !important;
+	}
+	/* Modifier / supprimer : en bas de la fiche, gros boutons */
+	body.rm-obj-product table.rm-pcards tr > td.rm-pactions {
+		grid-column: 1 / -1;
+		order: 90;
+		display: flex;
+		gap: 4px;
+	}
+	body.rm-obj-product table.rm-pcards tr > td.rm-pactions a {
+		display: inline-block;
+		padding: 8px 14px;
+		font-size: 1.25em;
+	}
+	/* Ligne de total : en gras */
+	body.rm-obj-product table.rm-pcards tr.liste_total {
+		font-weight: 600;
+		background: #f4f6f8;
+	}
+	/* Ligne de filtres d'un tableau d'onglet : derrière le bouton « Filtres », champs pleine largeur */
+	body.rm-obj-product table.rm-pcards tr.rm-pfilterrow {
+		display: none;
+		background: #f4f6f8;
+		gap: 6px 12px;
+	}
+	body.rm-obj-product table.rm-pcards.rm-pshowfilters tr.rm-pfilterrow {
+		display: grid;
+	}
+	body.rm-obj-product a.rm-pfiltertoggle {
+		display: inline-block !important;
+		margin: 6px 0 8px 0;
+	}
+	body.rm-obj-product table.rm-pcards tr.rm-pfilterrow > td.rm-psearchcell {
+		grid-column: 1 / -1;
+		order: 90;
+		display: flex;
+		justify-content: center;
+		gap: 12px;
+	}
+	body.rm-obj-product table.rm-pcards tr.rm-pfilterrow > td.rm-psearchcell button {
+		padding: 10px 18px !important;
+		font-size: 1.2em;
+	}
+	body.rm-obj-product table.rm-pcards tr.rm-pfilterrow .select2-container .select2-selection {
+		width: 100% !important;
+	}
+	body.rm-obj-product table.rm-pcards tr.rm-pfilterrow input[type=text],
+	body.rm-obj-product table.rm-pcards tr.rm-pfilterrow select,
+	body.rm-obj-product table.rm-pcards tr.rm-pfilterrow .select2-container {
+		width: 100% !important;
+		max-width: none !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-product table.rm-pcards tr.rm-pfilterrow > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+
+	/* Fichiers joints de la fiche : nom du fichier sur sa ligne, taille / date / boutons dessous */
+	body.rm-obj-product table.rm-pfiles,
+	body.rm-obj-product table.rm-pfiles > tbody {
+		display: block;
+		width: 100% !important;
+		table-layout: auto;
+	}
+	body.rm-obj-product table.rm-pfiles tr {
+		display: block;
+	}
+	body.rm-obj-product table.rm-pfiles tr.oddeven {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 2px 14px;
+		padding: 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-product table.rm-pfiles tr > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		white-space: normal !important;
+		word-break: break-word;
+		text-align: left !important;
+	}
+	body.rm-obj-product table.rm-pfiles tr > td.rm-pfilename {
+		flex: 1 1 100%;
+		font-weight: 600;
+	}
+	body.rm-obj-product table.rm-pfiles tr > td.rm-empty {
+		display: none !important;
+	}
+	body.rm-obj-product table.rm-pfiles tr.oddeven a {
+		display: inline-block;
+		padding: 6px 4px;
+	}
+
+	/* Barre de filtres de la chronologie des événements : passe à la ligne */
+	body.rm-obj-product table.rm-pfilterbar,
+	body.rm-obj-product table.rm-pfilterbar > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-product table.rm-pfilterbar tr {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		padding: 4px;
+	}
+	body.rm-obj-product table.rm-pfilterbar tr > td,
+	body.rm-obj-product table.rm-pfilterbar tr > th {
+		display: block;
+		flex: 1 1 auto;
+		width: auto !important;
+		min-width: 0 !important;
+		border: 0 !important;
+	}
+	body.rm-obj-product div.fiche .select2-search__field {
+		font-size: 16px !important;
+	}
+
+	/* ===== Statistiques : graphiques à la largeur de l'écran ===== */
+	body.rm-obj-product table.rm-pgraph {
+		width: 100% !important;
+	}
+	body.rm-obj-product table.rm-pgraph .dolgraph,
+	body.rm-obj-product table.rm-pgraph .nographyet {
+		width: auto !important;
+		max-width: calc(100vw - 72px) !important;	/* marges de la fiche et de la cellule */
+	}
+
+	/* ===== Liste des produits ===== */
+	/* Libellé du produit : toute la largeur, juste sous la référence */
+	body.rm-obj-product.rm-page-list table.liste tr.oddeven > td.rm-plabelcell {
+		grid-column: 1 / -1;
+		order: -1;
+	}
+	body.rm-obj-product.rm-page-list table.liste tr.oddeven > td.rm-main {
+		order: -2;
+	}
+	body.rm-obj-product.rm-on.rm-page-list table.liste tr.oddeven > td.rm-plabelcell::before {
+		content: none;	/* le libellé se lit seul, sous la référence */
+	}
+	/* Filtres : colonnes sans champ masquées ; loupe / effacer en bas, gros boutons */
+	body.rm-obj-product.rm-page-list table.liste tr.liste_titre_filter > td.rm-empty {
+		display: none !important;
+	}
+	body.rm-obj-product.rm-page-list table.liste tr.liste_titre_filter .select2-container .select2-selection {
+		width: 100% !important;
+		min-height: 40px;
+	}
+	body.rm-obj-product.rm-page-list table.liste tr.liste_titre_filter > td.rm-psearchcell {
+		grid-column: 1 / -1;
+		order: 90;
+		display: flex;
+		justify-content: center;
+		gap: 12px;
+	}
+	body.rm-obj-product.rm-page-list table.liste tr.liste_titre_filter > td.rm-psearchcell button {
+		padding: 10px 18px !important;
+		font-size: 1.2em;
+	}
 }
