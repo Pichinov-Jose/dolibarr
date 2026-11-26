@@ -153,6 +153,12 @@ if ($object->element == 'commande' && isModEnabled('stock') && isModEnabled('shi
 	print '<th class="linecolstock center nowraponall" title="'.dol_escape_htmltag($langs->trans("Stock").' / '.$langs->trans("VirtualStock")).'">'.$langs->trans("ShippableStatus").'</th>';
 }
 
+// Received / to receive on an open supplier order (ordered or received partially): same condition as in objectline_view.tpl.php
+if ($object->element == 'order_supplier' && isModEnabled('stock') && in_array((int) $object->status, array(3, 4))) {	// 3 = ordered, 4 = received partially
+	$langs->load("sendings");
+	print '<th class="linecolreceived right nowraponall" title="'.dol_escape_htmltag($langs->trans("QtyReceived").' / '.$langs->trans("QtyToReceive")).'">'.$langs->trans("QtyReceived").'</th>';
+}
+
 // Unit
 if (getDolGlobalString('PRODUCT_USE_UNITS')) {
 	print '<th class="linecoluseunit left">'.$langs->trans('Unit').'</th>';
