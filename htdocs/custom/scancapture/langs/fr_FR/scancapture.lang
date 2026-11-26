@@ -58,3 +58,26 @@ AjaxFailed=⚠ Échec de communication (session expirée ?). Rechargez la page �
 CreateProduct=Créer le produit
 CreatedPending=créé — en attente d'envoi
 PriceFromFamily=vide = prix de la famille
+
+# Listes (Historique des scans, Associations apprises)
+ScanListMenu=Historique des scans
+ScanAssocMenu=Associations apprises
+ScanListTitle=Historique des scans
+ScanAssocTitle=Associations code → produit apprises
+ScanAssocCode=Code appris
+ScanStatusMatched=Reconnu
+ScanStatusCreated=Créé
+ScanStatusUnknown=Inconnu
+ScanStatusAmbiguous=Ambigu
+ScanStatusMismatch=Discordance
+SentPending=En attente d'envoi
+SentDone=Envoyé
+SentCaptureOnly=Capture seule
+SentAtCol=Envoyé le
+MatchSourceCol=Source
+StockBefore=Stock avant
+ScanGap=Écart
+ScannedCode=Code saisi
+WrittenTo=Écrit dans
+ScanLinesShort=ligne(s)
+ProductDeleted=Produit supprimé

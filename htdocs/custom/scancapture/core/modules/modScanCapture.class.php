@@ -45,6 +45,20 @@ class modScanCapture extends DolibarrModules
 			'url' => '/scancapture/review.php', 'langs' => 'scancapture@scancapture', 'position' => 1001,
 			'enabled' => 'isModEnabled("scancapture")', 'perms' => '$user->hasRight("stock", "creer") || $user->admin', 'target' => '', 'user' => 0,
 		);
+		$r++;
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=products,fk_leftmenu=scancapture',
+			'type' => 'left', 'titre' => 'ScanListMenu', 'mainmenu' => 'products', 'leftmenu' => 'scancapture_list',
+			'url' => '/scancapture/list.php', 'langs' => 'scancapture@scancapture', 'position' => 1002,
+			'enabled' => 'isModEnabled("scancapture")', 'perms' => '$user->hasRight("stock", "creer") || $user->admin', 'target' => '', 'user' => 0,
+		);
+		$r++;
+		$this->menu[$r] = array(
+			'fk_menu' => 'fk_mainmenu=products,fk_leftmenu=scancapture',
+			'type' => 'left', 'titre' => 'ScanAssocMenu', 'mainmenu' => 'products', 'leftmenu' => 'scancapture_assoc',
+			'url' => '/scancapture/assoc.php', 'langs' => 'scancapture@scancapture', 'position' => 1003,
+			'enabled' => 'isModEnabled("scancapture")', 'perms' => '$user->hasRight("stock", "creer") || $user->admin', 'target' => '', 'user' => 0,
+		);
 	}
 
 	public function init($options = '')
