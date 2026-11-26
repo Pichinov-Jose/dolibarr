@@ -116,6 +116,11 @@
 					if (/^linecol/.test(cl) && label !== '') {
 						labels[cl] = label;
 					}
+					// objectline_title.tpl.php gives the supplier ref title the class linerefsupplier (no "col"), while
+					// the cells of the lines have linecolrefsupplier (supplier orders and invoices, 24.0.3)
+					if (cl === 'linerefsupplier' && label !== '' && !labels.linecolrefsupplier) {
+						labels.linecolrefsupplier = label;
+					}
 				});
 			});
 		}
