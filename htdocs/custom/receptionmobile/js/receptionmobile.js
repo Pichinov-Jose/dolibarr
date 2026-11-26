@@ -244,10 +244,14 @@
 		$('#idprodfournprice').on('change', function () {
 			var hidden = $(this);
 			var value = String(hidden.val() || '');
-			// All screens: a reception has no currency, so objectline_create.tpl.php wrongly finds a
+			// Receptions only, all screens: a reception has no currency, so objectline_create.tpl.php wrongly finds a
 			// multicurrency price (undefined == null) and never copies the buying price into the line.
-			// Copy it when a supplier price (numeric id) was chosen and the field stayed empty.
+			// Copy it when a supplier price (numeric id) was chosen and the field stayed empty. Not on supplier
+			// orders and invoices: in a foreign currency the core fills the currency price and leaves price_ht empty.
 			setTimeout(function () {
+				if (!PAGE || PAGE.key !== 'reception') {
+					return;
+				}
 				var up = hidden.attr('data-up-locale') || hidden.attr('data-up');
 				var price = $('#tablelines tr.rm-createrow input[name="price_ht"]');
 				if (/^[0-9]+$/.test(value) && up && price.length && price.val() === '') {
@@ -374,8 +378,8 @@
 				}
 			});
 		});
-		if (!filter || document.querySelector('a.rm-filtertoggle')) {
-			return;
+		if (!filter || document.querySelector('a.rm-filtertoggle') || !small()) {
+			return;	// The button only makes sense when the filters are folded (under 600 px)
 		}
 		var active = Array.prototype.some.call(filter.querySelectorAll('input[type="text"], select'), function (el) {
 			return el.value !== '' && el.value !== '-1' && el.value !== '0';
@@ -410,7 +414,8 @@
 		if (PAGE.doc && PAGE.type === 'card') {
 			markCreateRow();
 			labelReceptionLines();
-			if (PAGE.key === 'reception') {
+			// Supplier price search (#search_idprodfournprice): receptions, supplier orders and invoices
+			if (PAGE.key === 'reception' || PAGE.key === 'supplierorder' || PAGE.key === 'supplierinvoice') {
 				bindScanHelpers();
 			}
 			if (small()) {

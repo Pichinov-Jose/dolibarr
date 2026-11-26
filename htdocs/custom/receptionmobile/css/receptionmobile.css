@@ -18,13 +18,10 @@
 		display: block;
 		width: 100% !important;
 	}
-	body.rm-doc.rm-page-card .div-table-responsive-no-min {
+	/* Only the box of the lines: the other tables of the card (linked objects, last events…) keep their own scroll */
+	body.rm-doc.rm-page-card .div-table-responsive-no-min:has(> #tablelines),
+	body.rm-doc.rm-page-card .div-table-responsive-no-min:has(> form > #tablelines) {
 		overflow-x: visible;
-	}
-	/* Only the lines: the blocks of the two halves of the card (linked objects, 7 columns) keep their own scroll */
-	body.rm-doc.rm-page-card .fichehalfleft .div-table-responsive-no-min,
-	body.rm-doc.rm-page-card .fichehalfright .div-table-responsive-no-min {
-		overflow-x: auto;
 	}
 	body.rm-doc.rm-page-card #tablelines tr.liste_titre {
 		display: none;
