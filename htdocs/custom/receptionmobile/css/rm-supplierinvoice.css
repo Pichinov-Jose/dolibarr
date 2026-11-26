@@ -6,4 +6,492 @@
  */
 
 @media (max-width: 600px) {
+
+	/* ===== Fiche : formulaire d'ajout de ligne ===== */
+
+	/* Ligne libre : bouton radio à sa taille, liste des types sur le reste de la largeur
+	   (la règle commune .prod_entry_mode_free vise aussi le bouton radio, qui porte la même classe) */
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow input.prod_entry_mode_free,
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow input.prod_entry_mode_predef {
+		display: inline-block !important;
+		flex: 0 0 auto;
+		width: 22px !important;
+		height: 22px;
+		margin: 0 4px 0 0;
+	}
+	/* Le thème fixe la hauteur des deux choix (26 px) : la liste et la recherche (38 px) débordaient l'une sur l'autre */
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free,
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef {
+		height: auto !important;
+		min-height: 40px;
+		align-items: center;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free > label {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free > label > select {
+		width: 100% !important;
+		min-width: 0 !important;
+	}
+	/* Article prédéfini : radio, recherche, filtre de recherche, bouton « + » sur une ligne sans débordement */
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow td.linecoldescription > span.nowraponall:not(.prod_entry_mode_free) {
+		display: block;
+		white-space: normal !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow td.linecoldescription > span.nowraponall:not(.prod_entry_mode_free) > br,
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow td.linecoldescription > br {
+		display: none;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		padding-top: 10px;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef > label {
+		flex: 0 0 auto;
+	}
+	body.rm-obj-supplierinvoice.rm-doc.rm-page-card #tablelines tr.rm-createrow #search_idprodfournprice {
+		flex: 1 1 auto;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef > .psp-scope,
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef > #dropdownAddProductAndService {
+		flex: 0 0 auto;
+		position: relative;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow .psp-scope-btn {
+		min-width: 40px;
+		min-height: 40px;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow #dropdownAddProductAndServiceLink {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		min-height: 40px;
+		font-size: 1.3em;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow #dropdownAddProductAndServiceLink .paddingleft {
+		padding-left: 0;
+	}
+	/* Menus déroulants (« Nouveau produit », portée de la recherche) : ouverts vers la gauche, dans l'écran */
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow #dropdownAddProductAndService .dropdown-menu,
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr.rm-createrow .psp-scope-menu {
+		left: auto !important;
+		right: 0 !important;
+		max-width: calc(100vw - 24px);
+	}
+	/* Dates de service (« Si produit de type service à durée limitée ») : pleine largeur */
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr#trlinefordates > td {
+		grid-column: 1 / -1;
+	}
+
+	/* ===== Fiche : lignes enregistrées ===== */
+	/* Modifier / supprimer toujours sur leur propre rangée (une ligne libre sans réf. fournisseur a une cellule de moins) */
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr:not(.rm-createrow):not(.rm-editrow) > td.linecoledit {
+		grid-column: 1;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card #tablelines tr:not(.rm-createrow):not(.rm-editrow) > td.linecoldelete {
+		grid-column: 2;
+	}
+
+	/* ===== Fiche : règlements (facture validée) — un règlement par fiche, totaux en libellé / montant ===== */
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards,
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards > tbody {
+		display: block;
+		width: 100% !important;
+		height: auto !important;	/* le thème pose .paymenttable { height: 22px } */
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		column-gap: 12px;
+		padding: 6px 4px;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		white-space: normal !important;
+		overflow: visible !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr > td:empty,
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr > td.rm-empty,
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr.liste_titre > td:not(:first-child) {
+		display: none !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr.rm-payrow {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		row-gap: 2px;
+		padding: 8px 4px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr.rm-payrow > td {
+		order: 2;
+		text-align: left !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr.rm-payrow > td.rm-payref {
+		order: 0;
+		font-weight: 600;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr.rm-payrow > td.rm-payamount {
+		order: 1;
+		text-align: right !important;
+		font-weight: 600;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr.rm-payrow > td.rm-paydelete {
+		order: 3;
+		grid-column: 2;
+		text-align: right !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr.rm-payrow > td.rm-paydelete a {
+		display: inline-block;
+		padding: 8px 14px;
+		font-size: 1.25em;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.paymenttable.rm-paycards tr.rm-payrow > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+
+	/* ===== Fiche : bloc « Fichiers joints » — nom du fichier en entier, puis taille et date, puis boutons ===== */
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc,
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	/* Hauteurs fixes du thème (rangée de titre 26 px, cellules 32 px) : le bouton Générer et le nom sur deux lignes débordaient */
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr,
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr > td {
+		height: auto !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.liste_titre {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 6px;
+		padding: 6px 8px;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.liste_titre > td {
+		display: block;
+		width: auto !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.oddeven {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 2px;
+		padding: 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.oddeven > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: nowrap !important;
+		overflow: visible !important;
+		word-break: normal !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.oddeven > td.rm-main,
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.oddeven > td[colspan] {
+		grid-column: 1 / -1;
+		white-space: normal !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.oddeven > td.rm-main .spanoverflow {
+		display: inline;
+		white-space: normal !important;
+		overflow: visible !important;
+		word-break: break-all;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.oddeven > td.rm-empty {
+		display: none !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.oddeven > td.rm-docactions {
+		grid-column: 1 / -1;
+		text-align: right !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-card table.formdoc.rm-formdoc tr.oddeven > td.rm-docactions a {
+		display: inline-block;
+		padding: 8px 12px;
+		font-size: 1.2em;
+	}
+
+	/* ===== Fiche : boutons d'action en grille, cibles au doigt ===== */
+	body.rm-obj-supplierinvoice div.tabsAction {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: stretch;
+		gap: 8px;
+		margin: 16px 0;
+	}
+	body.rm-obj-supplierinvoice div.tabsAction > .butAction,
+	body.rm-obj-supplierinvoice div.tabsAction > .butActionRefused,
+	body.rm-obj-supplierinvoice div.tabsAction > .butActionDelete,
+	body.rm-obj-supplierinvoice div.tabsAction > .inline-block > .butAction,
+	body.rm-obj-supplierinvoice div.tabsAction > a,
+	body.rm-obj-supplierinvoice div.tabsAction > span {
+		flex: 1 1 40%;
+		margin: 0 !important;
+		min-height: 40px;
+		box-sizing: border-box;
+		text-align: center;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	/* ===== Liste : ligne « Total » en fiche, montants avec leur libellé ===== */
+	body.rm-obj-supplierinvoice.rm-page-list table.liste tr.liste_total {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 2px;
+		padding: 10px 8px;
+		font-weight: 600;
+	}
+	body.rm-obj-supplierinvoice.rm-page-list table.liste tr.liste_total > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-supplierinvoice.rm-page-list table.liste tr.liste_total > td.rm-totaltitle {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-supplierinvoice.rm-page-list table.liste tr.liste_total > td.rm-empty {
+		display: none !important;
+	}
+
+	/* ===== Onglet Fichiers joints : un fichier par fiche (nom en entier, puis taille, date, boutons) ===== */
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist,
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist tr.oddeven {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 4px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist tr.oddeven > td {
+		display: block;
+		justify-self: stretch;
+		margin: 0 !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow: visible !important;
+		height: auto !important;
+	}
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist tr.oddeven > td.rm-main {
+		grid-column: 1 / -1;
+		word-break: break-all;
+		font-weight: 600;
+	}
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist tr.oddeven > td.rm-empty {
+		display: none !important;
+	}
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist tr.oddeven > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist tr.oddeven > td a {
+		display: inline-block;
+		padding: 6px 10px 6px 0;
+	}
+	body.rm-obj-supplierinvoice.page-card_document table.rm-filelist tr.oddeven > td.actionbuttons a {
+		padding: 8px 14px;
+		font-size: 1.25em;
+	}
+	/* Formulaire d'envoi : bouton au doigt */
+	body.rm-obj-supplierinvoice.page-card_document form#formuserfile input[type=submit] {
+		min-height: 40px;
+		margin-top: 6px;
+	}
+
+	/* ===== Onglet Notes : libellé au-dessus, note et zone de saisie sur toute la largeur ===== */
+	body.rm-obj-supplierinvoice.page-card_note .tagtable.tableforfield,
+	body.rm-obj-supplierinvoice.page-card_note .tagtable.tableforfield > .tagtr {
+		display: block;
+		height: auto !important;
+	}
+	body.rm-obj-supplierinvoice.page-card_note .tagtable.tableforfield > .tagtr > .tagtd {
+		display: block;
+		height: auto !important;	/* hauteur fixe du thème : la zone de saisie recouvrait la note suivante */
+		width: auto !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-supplierinvoice.page-card_note .tagtable.tableforfield > .tagtr > .tagtd.tagtdnote {
+		padding-bottom: 0 !important;
+		border-bottom: 0 !important;
+	}
+	body.rm-obj-supplierinvoice.page-card_note .tagtable.tableforfield textarea {
+		width: 100% !important;
+		max-width: none !important;
+		box-sizing: border-box;
+		font-size: 16px;
+	}
+	body.rm-obj-supplierinvoice.page-card_note .tagtable.tableforfield input[type=submit] {
+		min-height: 40px;
+		min-width: 46%;
+		margin: 6px 2px 0 0 !important;
+	}
+	body.rm-obj-supplierinvoice.page-card_note .tagtable.tableforfield a.editfielda {
+		display: inline-block;
+		padding: 6px 10px;
+	}
+
+	/* ===== Onglet Contacts : formulaires d'ajout en une colonne ===== */
+	body.rm-obj-supplierinvoice .tableforcontact,
+	body.rm-obj-supplierinvoice .tableforcontact > form.tagtr {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact > form.tagtr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact > form.tagtr {
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+		box-sizing: border-box;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact > form.tagtr > .tagtd {
+		display: block;
+		height: auto !important;	/* le thème fixe 32 px : les listes de 38 px se chevauchaient */
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 4px 0 !important;
+		border: 0 !important;
+		white-space: normal !important;
+		text-align: left !important;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact > form.tagtr > .tagtd:empty,
+	body.rm-obj-supplierinvoice .tableforcontact > form.tagtr > .tagtd.rm-empty {
+		display: none;
+	}
+	/* Pictogramme, liste et bouton « + » sur une ligne, libellé au-dessus */
+	body.rm-obj-supplierinvoice .tableforcontact > form.tagtr > .tagtd[data-rm-label] {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 2px 4px;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact > form.tagtr > .tagtd[data-rm-label]::before {
+		content: attr(data-rm-label);
+		flex: 0 0 100%;
+		font-size: 0.78em;
+		opacity: 0.65;
+		margin-bottom: 2px;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact .select2-container {
+		flex: 1 1 0;
+		width: auto !important;
+		max-width: none !important;
+		min-width: 0 !important;
+	}
+	/* La classe maxwidth200 du select est recopiée sur la zone affichée : elle restait plus étroite que sa flèche */
+	body.rm-obj-supplierinvoice .tableforcontact .select2-selection {
+		max-width: none !important;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact select {
+		max-width: 100% !important;
+		min-width: 0 !important;
+		font-size: 16px;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact .select2-selection {
+		min-height: 38px;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact input[type=submit] {
+		width: 100%;
+		margin: 4px 0 !important;
+		padding: 10px !important;
+		font-size: 1.05em;
+	}
+	body.rm-obj-supplierinvoice .tableforcontact a .fa-plus-circle {
+		font-size: 1.4em;
+		padding: 6px;
+	}
+
+	/* ===== Onglet Contacts : liste des contacts en fiches ===== */
+	body.rm-obj-supplierinvoice table.rm-contactlist,
+	body.rm-obj-supplierinvoice table.rm-contactlist > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-supplierinvoice table.rm-contactlist tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-supplierinvoice table.rm-contactlist tr {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 4px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-supplierinvoice table.rm-contactlist tr > td {
+		display: block;
+		justify-self: stretch;
+		margin: 0 !important;
+		height: auto !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow: visible !important;
+	}
+	body.rm-obj-supplierinvoice table.rm-contactlist tr > td[colspan] {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-supplierinvoice table.rm-contactlist tr > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+	body.rm-obj-supplierinvoice table.rm-contactlist tr > td.rm-unlink a {
+		display: inline-block;
+		padding: 8px 14px;
+		font-size: 1.25em;
+	}
 }
