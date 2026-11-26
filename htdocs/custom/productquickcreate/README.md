@@ -17,6 +17,8 @@ Module Dolibarr maison Pichinov. Enrichit le formulaire de création de produit 
 - **Code-barres en tête** : type et valeur du code-barres juste après le libellé, pour scanner l'EAN en premier.
 - **Sections repliables** (mobile ready) : Lots / numéros de série, Poids & dimensions,
   Description & notes, Comptabilité, Champs complémentaires — état mémorisé par navigateur.
+- **Sur téléphone et terminal** (moins de 600 px de large) : libellés au-dessus des champs, champs et boutons sur
+  toute la largeur, 44 px de haut et texte de 16 px (pas de zoom au toucher). Rien ne change sur ordinateur.
 
 Aucune modification du core (hooks `formObjectOptions`/`doActions` + trigger). Compatible Dolibarr 22–24.
 

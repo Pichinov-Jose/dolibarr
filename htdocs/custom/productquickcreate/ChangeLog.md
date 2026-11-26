@@ -1,5 +1,14 @@
 # ChangeLog — Pichinov Product Quick Create
 
+## 1.6.0 (2026-11-26)
+- Formulaire de création sur téléphone et terminal (DT50, 412 px), sous 600 px de large seulement : chaque libellé
+  passe au-dessus de son champ ; champs, listes et listes à recherche (select2) prennent toute la largeur, sur 44 px
+  de haut, en texte de 16 px (le téléphone ne zoome plus quand on touche un champ) ; boutons Créer et Annuler sur
+  toute la largeur. Vaut pour les champs natifs de Dolibarr comme pour ceux du module (bloc Fournisseur / Prix
+  d'achat : type et valeur de l'EAN fournisseur l'un sous l'autre), et pour la popup « Nouveau produit » des
+  réceptions et le bouton « Créer l'article » de la réception assistée, qui ouvrent cette même page
+- Aucun changement au-dessus de 600 px
+
 ## 1.5.0 (2026-11-13)
 - Factures, devis et commandes CLIENTS : au retour du « + Nouveau produit » de la ligne, sur la pièce
   brouillon, le produit créé est choisi comme par un clic ; Dolibarr remplit la ligne (prix du niveau du

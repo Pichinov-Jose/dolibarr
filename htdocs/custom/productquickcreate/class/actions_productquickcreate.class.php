@@ -553,6 +553,41 @@ class ActionsProductQuickCreate
 
 		$out = '';
 
+		// Phone and handheld terminal (DT50, 412 px): under 600 px, each label goes above its field, fields, lists and
+		// select2 take the whole width (44 px high, 16 px text so that the phone does not zoom on focus) and the
+		// Create / Cancel buttons too. Native fields of the form and fields of this module alike; also in the popup of
+		// the receptions, which opens this same page. Nothing changes above 600 px.
+		$out .= '<style>
+		@media only screen and (max-width: 600px) {
+			form[name=formprod] table.border, form[name=formprod] table.border > tbody { display: block; width: 100%; }
+			form[name=formprod] table.border > tbody > tr:not(.hideobject) { display: block; height: auto !important; padding: 6px 0; }
+			form[name=formprod] table.border > tbody > tr > td { display: block; height: auto !important; width: auto !important; min-width: 0 !important; max-width: none !important; padding: 2px 0 !important; border: none !important; }
+			form[name=formprod] table.border > tbody > tr > td:first-child:not([colspan]) { padding-bottom: 4px !important; white-space: normal; }
+			form[name=formprod] table.border > tbody > tr > td + td { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+			form[name=formprod] table.border > tbody > tr > td + td > input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=submit]):not([type=button]),
+			form[name=formprod] table.border > tbody > tr > td + td > select:not(.select2-hidden-accessible),
+			form[name=formprod] table.border > tbody > tr > td + td > textarea,
+			form[name=formprod] table.border > tbody > tr > td + td > .select2-container,
+			form[name=formprod] table.border > tbody > tr > td + td > span[class*=multiselectarray],
+			form[name=formprod] table.border > tbody > tr > td + td > div { flex: 1 1 0; min-width: 0 !important; width: auto !important; max-width: none !important; box-sizing: border-box; }
+			form[name=formprod] table.border > tbody > tr > td + td > div { flex-basis: 100%; }
+			form[name=formprod] table.border > tbody > tr > td + td > input:not([type=checkbox]):not([type=radio]):not([type=hidden]),
+			form[name=formprod] table.border > tbody > tr > td + td > select:not(.select2-hidden-accessible) { min-height: 44px; font-size: 16px; }
+			form[name=formprod] table.border > tbody > tr > td + td > textarea { font-size: 16px; }
+			form[name=formprod] table.border > tbody > tr > td + td > span[class*=multiselectarray] > .select2-container { width: 100% !important; }
+			form[name=formprod] select[name$=price_base_type] { flex: 0 0 auto !important; width: auto !important; }
+			form[name=formprod] input[name=fourn_barcode] { flex-basis: 100% !important; }
+			form[name=formprod] table.border > tbody > tr > td + td .select2-container .select2-selection { width: auto !important; max-width: none !important; text-align: left; }
+			form[name=formprod] .select2-container .select2-selection--single, form[name=formprod] .select2-container .select2-selection--multiple { min-height: 44px; display: flex; align-items: center; }
+			form[name=formprod] .select2-container .select2-selection__rendered { font-size: 16px; line-height: 1.4 !important; flex: 1 1 auto; }
+			form[name=formprod] .select2-container .select2-selection__arrow { height: 42px !important; }
+			form[name=formprod] .select2-container .select2-search__field, .select2-dropdown .select2-search__field { font-size: 16px !important; }
+			.select2-dropdown .select2-results__option { font-size: 16px; padding: 10px 8px; }
+			form[name=formprod] div.center { display: flex; flex-direction: column; gap: 8px; }
+			form[name=formprod] div.center > input.button { width: 100%; min-height: 44px; font-size: 16px; margin: 0 !important; }
+		}
+		</style>';
+
 		// Selling price of level 1: with multiprices enabled, Dolibarr shows no price at creation (prices tab only)
 		if (getDolGlobalString('PRODUIT_MULTIPRICES') && !getDolGlobalString('PRODUCT_DISABLE_PRICES')) {
 			$labellevel1 = getDolGlobalString('PRODUIT_MULTIPRICES_LABEL1');
