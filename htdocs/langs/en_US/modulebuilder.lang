@@ -202,4 +202,4 @@ FieldsEdit=Fields edit
 FieldsInsert=Fields insert
 FieldsView=Fields view
 AIPromptExtrafield=AI Prompt
-AIPromptExtrafieldDesc=Enter here a prompt that should return a value and only the value. The substition variables are replaced into the prompt before calling the AI API.
+AIPromptExtrafieldDesc=Enter here a prompt that should return a value and only the value. The substition variables are replaced in the prompt before calling the AI API.
