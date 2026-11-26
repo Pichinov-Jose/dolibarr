@@ -3,7 +3,485 @@
  * Pichinov — Mobile : règles propres à l'objet « commande fournisseur » (classe body.rm-obj-supplierorder), sous 600 px de large.
  * Chargé après css/receptionmobile.css (règles communes). Un seul auteur par fichier : la session de cet objet.
  * Pages : body.rm-obj-supplierorder.rm-page-card | .rm-page-list | .rm-page-tab
+ * Classes rm-so-* posées par js/rm-supplierorder.js.
  */
 
 @media (max-width: 600px) {
+
+	/* ===== Fiche : ordre des valeurs d'une ligne =====
+	   Qté et Qté reçue côte à côte (statuts Commandée / Reçue partiellement), puis prix, total, réf. fournisseur, TVA, TTC */
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecolqty { order: 1; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecolreceived { order: 2; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecoluht { order: 3; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecoluht_currency { order: 3; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecoldiscount { order: 4; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecolht { order: 5; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecolrefsupplier { order: 6; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecolvat { order: 7; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecoluttc { order: 8; }
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecoluttc_currency { order: 8; }
+	/* Modifier et supprimer sur la même ligne, en bas de la fiche */
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr:not(.rm-createrow):not(.rm-editrow) > td.linecoledit {
+		order: 90;
+		grid-column: 1;
+	}
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr:not(.rm-createrow):not(.rm-editrow) > td.linecoldelete {
+		order: 91;
+		grid-column: 2;
+		text-align: right !important;
+	}
+	/* Modification d'une ligne : Enregistrer / Annuler en bas */
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr.rm-editrow > td:last-child {
+		order: 90;
+	}
+	/* Quantité reçue : « Qté à recevoir » sous la valeur, sans retour forcé */
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecolreceived .opacitymedium,
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr > td.linecolreceived small {
+		display: block;
+	}
+
+	/* Formulaire d'ajout : filtre de recherche et bouton « + » à la taille du doigt */
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr.rm-createrow .psp-scope-btn {
+		min-width: 40px;
+		min-height: 40px;
+	}
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr.rm-createrow #dropdownAddProductAndServiceLink {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		min-height: 40px;
+		font-size: 1.3em;
+	}
+	/* Suggestions de la recherche produit : toute la largeur de l'écran, une suggestion sur plusieurs lignes si besoin
+	   (jQuery UI les place au bord gauche du champ, avec la largeur du texte : elles débordaient à droite) */
+	body.rm-obj-supplierorder ul.ui-autocomplete {
+		left: 6px !important;
+		right: 6px !important;
+		width: auto !important;
+		max-width: none !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-supplierorder ul.ui-autocomplete .ui-menu-item-wrapper {
+		white-space: normal;
+		padding-top: 8px;
+		padding-bottom: 8px;
+	}
+
+	/* Dates d'un service à durée limitée : toute la largeur, champs à la taille du doigt */
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr#trlinefordates {
+		display: block;
+	}
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr#trlinefordates > td {
+		line-height: 2.6em;
+	}
+	body.rm-obj-supplierorder.rm-page-card #tablelines tr#trlinefordates input.maxwidthdate {
+		width: 8.5em !important;
+		max-width: none !important;
+		font-size: 16px;
+		min-height: 38px;
+		box-sizing: border-box;
+	}
+
+	/* Bloc « Fichiers joints » : une petite fiche par fichier (nom, puis taille, date et actions), sans débordement */
+	body.rm-obj-supplierorder.rm-page-card table.formdoc,
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody > tr {
+		display: block;
+		height: auto !important;
+	}
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody > tr > th,
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody > tr > td {
+		display: block;
+		width: auto !important;
+		max-width: none !important;
+		word-break: normal;
+	}
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody > tr.rm-so-docrow {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 2px 14px;
+		padding: 6px 8px;
+		border-top: 1px solid #e0e0e0;
+	}
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody > tr.rm-so-docrow > td {
+		padding: 2px 0 !important;
+		white-space: nowrap;
+		overflow: visible !important;
+	}
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody > tr.rm-so-docrow > td:first-child {
+		flex-basis: 100%;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		text-overflow: clip;
+	}
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody > tr.rm-so-docrow > td:first-child a {
+		white-space: normal;
+	}
+	body.rm-obj-supplierorder.rm-page-card table.formdoc > tbody > tr.rm-so-docrow > td:nth-child(n+4) a {
+		display: inline-block;
+		padding: 6px 8px;
+		font-size: 1.15em;
+	}
+
+	/* ===== Tableaux en fiches (événements, contacts, fichiers, produits reçus) ===== */
+	body.rm-obj-supplierorder .rm-so-wrap {
+		overflow-x: visible !important;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards,
+	body.rm-obj-supplierorder table.rm-so-cards > tbody {
+		display: block;
+		width: 100% !important;
+		min-width: 0 !important;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.liste_titre:not(.liste_titre_filter) {
+		display: none;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.rm-so-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		gap: 2px 12px;
+		padding: 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.rm-so-row > td {
+		display: block;
+		flex: 1 1 calc(50% - 12px);
+		box-sizing: border-box;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		height: auto !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow: visible !important;
+		text-overflow: clip !important;
+		overflow-wrap: anywhere;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.rm-so-row > td.rm-so-main {
+		flex-basis: 100%;
+		order: -1;
+		font-weight: 600;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.rm-so-row > td.rm-so-full {
+		flex-basis: 100%;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.rm-so-row > td.rm-so-icon {
+		flex: 0 0 auto;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.rm-so-row > td.rm-so-icon a {
+		display: inline-block;
+		padding: 6px 10px;
+		font-size: 1.15em;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.rm-so-row > td.rm-so-empty,
+	body.rm-obj-supplierorder .rm-so-empty {
+		display: none !important;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards tr.rm-so-row > td[data-rm-label]::before,
+	body.rm-obj-supplierorder table.rm-so-dispatch tr > td[data-rm-label]::before,
+	body.rm-obj-supplierorder .tableforcontact .tagtd[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		font-weight: normal;
+		opacity: 0.65;
+		margin-bottom: 1px;
+	}
+	/* Filtres d'un tableau d'événements : derrière le bouton « Filtres » */
+	body.rm-obj-supplierorder table.rm-so-cards tr.liste_titre_filter {
+		display: none;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px 12px;
+		padding: 8px;
+		background: #f4f6f8;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter > * {
+		display: block;
+		flex: 1 1 calc(50% - 12px);
+		min-width: 0 !important;
+		max-width: none !important;
+		width: auto !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter > .rm-so-wide {
+		flex-basis: 100%;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter > [data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+		margin-bottom: 1px;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter .select2-container,
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter > :not(.rm-so-wide) input[type=text] {
+		width: 100% !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter input[type=text],
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter select,
+	body.rm-obj-supplierorder table.rm-so-cards.rm-so-showfilters tr.liste_titre_filter .select2-container {
+		max-width: 100% !important;
+		font-size: 16px;
+	}
+	body.rm-obj-supplierorder a.rm-so-filtertoggle {
+		display: inline-block;
+		margin: 6px 0 8px 0;
+	}
+
+	/* ===== Liste ===== */
+	/* Filtres supplémentaires (catégorie, commercial, contact, produit, alerte) avec le bouton « Filtres » */
+	body.rm-obj-supplierorder.rm-page-list:not(.rm-so-morefilters) div.liste_titre_bydiv {
+		display: none;
+	}
+	body.rm-obj-supplierorder.rm-page-list div.liste_titre_bydiv .divsearchfield {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		float: none;
+		margin: 4px 0;
+		max-width: 100%;
+	}
+	body.rm-obj-supplierorder.rm-page-list div.liste_titre_bydiv .divsearchfield input[type=text],
+	body.rm-obj-supplierorder.rm-page-list div.liste_titre_bydiv .divsearchfield select:not(.select2-hidden-accessible),
+	body.rm-obj-supplierorder.rm-page-list div.liste_titre_bydiv .divsearchfield > .select2-container,
+	body.rm-obj-supplierorder.rm-page-list div.liste_titre_bydiv .divsearchfield > span[class^="multiselectarray"] {
+		flex: 1 1 auto;
+		min-width: 0 !important;
+		max-width: none !important;
+		font-size: 16px;
+	}
+	body.rm-obj-supplierorder.rm-page-list div.liste_titre_bydiv .divsearchfield > span[class^="multiselectarray"] .select2-container {
+		width: 100% !important;
+	}
+	/* Ligne de total : libellée comme les fiches */
+	body.rm-obj-supplierorder.rm-page-list table.liste tr.liste_total {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 2px;
+		padding: 10px 8px;
+	}
+	body.rm-obj-supplierorder.rm-page-list table.liste tr.liste_total > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+	}
+	body.rm-obj-supplierorder.rm-page-list table.liste tr.liste_total > td.rm-main {
+		grid-column: 1 / -1;
+		font-weight: 600;
+	}
+	body.rm-obj-supplierorder.rm-page-list table.liste tr.liste_total > td.rm-empty {
+		display: none !important;
+	}
+
+	/* ===== Réception des produits (dispatch.php) : une fiche par ligne de commande ===== */
+	body.rm-obj-supplierorder table.rm-so-dispatch,
+	body.rm-obj-supplierorder table.rm-so-dispatch > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr,
+	body.rm-obj-supplierorder table.rm-so-cards tr {
+		height: auto !important;	/* le thème fixe la hauteur des titres (26 px) */
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr > td {
+		display: block;
+		box-sizing: border-box;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		height: auto !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow: visible !important;
+	}
+	/* Titres : seulement « Vider » et l'entrepôt forcé pour toutes les lignes */
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-disphead {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 6px 12px;
+		padding: 8px;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-disphead > td.rm-so-dispwarehouse {
+		flex: 1 1 60%;
+		order: 1;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-disphead > td.rm-so-dispreset {
+		flex: 0 0 auto;
+		order: 2;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-disphead #autoreset {
+		display: inline-block;
+		padding: 8px 4px;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-disphead select,
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-disphead .select2-container {
+		width: 100% !important;
+		max-width: none !important;
+		font-size: 16px;
+	}
+	/* Ligne d'information : produit, puis réf. fournisseur, quantité commandée, déjà reçue */
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispinfo {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		column-gap: 10px;
+		row-gap: 2px;
+		padding: 10px 8px 4px 8px;
+		border-top: 1px solid #c8c8c8;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispinfo > td.rm-so-dispdesc {
+		grid-column: 1 / -1;
+		font-weight: 600;
+	}
+	/* Ligne de saisie : quantité à recevoir (remplir / vider), découpe, entrepôt */
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		column-gap: 10px;
+		row-gap: 6px;
+		align-items: end;
+		padding: 4px 8px 10px 8px;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform:not(.rm-so-dispfollow) {
+		border-top: 1px solid #c8c8c8;
+		padding-top: 10px;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform > td.rm-so-dispqty {
+		grid-column: 1;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform > td.rm-so-dispqty::before {
+		flex-basis: 100%;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform input.qtydispatchinput {
+		width: 6em !important;
+		max-width: none !important;
+		font-size: 16px;
+		min-height: 40px;
+		box-sizing: border-box;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform button.auto-fill-qty,
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform button.resetline {
+		min-width: 40px;
+		min-height: 40px;
+		font-size: 1.1em;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform > td.rm-so-dispsplit {
+		grid-column: 2;
+		align-self: end;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform .splitbutton {
+		display: inline-block;
+		padding: 10px;
+		font-size: 1.3em;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform > td.rm-so-dispwh,
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform > td.rm-so-dispfield {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform select,
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform .select2-container,
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform input.inputlotnumber {
+		width: 100% !important;
+		max-width: none !important;
+		font-size: 16px;
+		box-sizing: border-box;
+	}
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform input.inputlotnumber,
+	body.rm-obj-supplierorder table.rm-so-dispatch tr.rm-so-dispform input.maxwidthdate {
+		min-height: 38px;
+		font-size: 16px;
+	}
+	/* Bouton « Créer une réception » */
+	body.rm-obj-supplierorder.rm-page-tab form input[type=submit][name=dispatch] {
+		width: 100%;
+		max-width: 360px;
+		padding: 12px !important;
+		font-size: 1.1em;
+	}
+
+	/* ===== Onglet Contacts : formulaires d'ajout sur une colonne ===== */
+	body.rm-obj-supplierorder .tableforcontact {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-supplierorder .tableforcontact form.rm-so-contacthead {
+		display: none;
+	}
+	body.rm-obj-supplierorder .tableforcontact form.rm-so-contactadd {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	/* Chaque champ : libellé au-dessus, icône, liste déroulante sur le reste de la largeur, bouton « + » */
+	body.rm-obj-supplierorder .tableforcontact form.rm-so-contactadd > .tagtd {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 2px 6px;
+		width: auto !important;
+		height: auto !important;	/* le thème fixe 32 px : les champs se chevauchaient */
+		min-width: 0 !important;
+		max-width: none !important;
+		margin: 0 !important;	/* .center centre la cellule du bouton (margin: auto) */
+		padding: 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-supplierorder .tableforcontact form.rm-so-contactadd > .tagtd[data-rm-label]::before {
+		flex-basis: 100%;
+	}
+	body.rm-obj-supplierorder .tableforcontact form.rm-so-contactadd > .tagtd > .select2-container {
+		flex: 1 1 auto;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+	}
+	body.rm-obj-supplierorder .tableforcontact form.rm-so-contactadd .select2-container .select2-selection {
+		width: 100% !important;
+		min-width: 0 !important;
+		max-width: none !important;	/* liste des rôles : maxwidth200 */
+		box-sizing: border-box;
+		min-height: 38px;
+		font-size: 16px;
+	}
+	body.rm-obj-supplierorder .tableforcontact form.rm-so-contactadd > .tagtd > a {
+		display: inline-block;
+		padding: 8px;
+		font-size: 1.2em;
+	}
+	body.rm-obj-supplierorder .tableforcontact form.rm-so-contactadd input.button {
+		flex: 1 1 100%;
+		width: 100% !important;
+		padding: 10px !important;
+		margin: 2px 0 0 0;
+	}
 }
