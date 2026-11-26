@@ -115,9 +115,21 @@ class ActionsProductEnrichment
 		#pe_panel .pe-photo { display: inline-block; margin-right: 6px; }
 		#pe_panel .pe-current { font-weight: bold; }
 		#pe_panel .pe-actions { margin-top: 8px; }
-		#pe_panel .pe-done { opacity: .6; }
+		#pe_panel a.button.pe-done { background: #2a7a2a !important; border-color: #2a7a2a !important; color: #fff !important; }
+		#pe_panel .pe-chip.pe-chosen { border-color: #2a7a2a; background: #e8f5e8; }
+		#pe_panel .pe-chip.pe-chosen::after, #pe_panel a.pe-done::after { content: "\2713"; margin-left: 6px; }
 		#pe_status.pe-ok { color: #2a7a2a; } #pe_status.pe-error { color: #b00; } #pe_status.pe-warning { color: #a66b00; } #pe_status.pe-wait { color: #555; }
+		#pe_mbar { display: none; }
 		@media only screen and (max-width: 600px) {
+			#pe_mbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 99; justify-content: space-around; background: #263238; padding: 4px 0 max(4px, env(safe-area-inset-bottom)); box-shadow: 0 -2px 8px rgba(0, 0, 0, .25); }
+			#pe_mbar .pe-mbar-btn { flex: 1 1 0; min-width: 0; padding: 4px 2px; color: #b0bec5; font-size: .72em; line-height: 1.2; text-align: center; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-tap-highlight-color: transparent; }
+			#pe_mbar .pe-mbar-btn[hidden] { display: none; }
+			#pe_mbar .pe-mbar-btn .fa { display: block; margin-bottom: 2px; font-size: 1.9em; }
+			#pe_mbar .pe-mbar-btn.pe-mbar-primary { color: #fff; }
+			#pe_mbar .pe-mbar-btn.pe-mbar-primary .fa { color: #4fc3f7; }
+			#pe_mbar .pe-mbar-btn:active { color: #fff; }
+			#pe_mbar .pe-mbar-btn.pe-mbar-off { opacity: .45; }
+			body.pe-has-mbar { padding-bottom: 76px !important; }
 			#pe_buttons { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; white-space: normal; margin: 4px 0; }
 			#pe_buttons > a.button { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 0 !important; font-size: 16px; box-sizing: border-box; }
 			#pe_panel { max-height: none; overflow: visible; padding: 6px; }
@@ -130,8 +142,7 @@ class ActionsProductEnrichment
 			#pe_panel table.pe-table td[data-label]::before { content: attr(data-label) " : "; font-weight: normal; opacity: .7; }
 			#pe_panel .pe-value { word-break: normal; overflow-wrap: anywhere; }
 			#pe_panel .pe-chip { display: block; max-width: 100%; box-sizing: border-box; margin: 6px 0; padding: 10px 12px; border-radius: 8px; font-size: 15px; white-space: normal; word-break: normal; overflow-wrap: anywhere; text-align: left; }
-			#pe_panel .pe-chip.pe-chosen { border-color: #2a7a2a; background: #e8f5e8; font-weight: bold; }
-			#pe_panel .pe-chip.pe-chosen::after, #pe_panel a.pe-done::after { content: "\2713"; margin-left: 6px; }
+			#pe_panel .pe-chip.pe-chosen { font-weight: bold; }
 			#pe_panel a.button, #pe_panel a.butAction { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 4px 6px 4px 0 !important; font-size: 16px; white-space: normal; box-sizing: border-box; }
 			#pe_panel .pe-actions a.button, #pe_panel .pe-actions a.butAction { display: flex; width: 100%; margin: 4px 0 !important; }
 			#pe_panel .pe-desc { max-height: 10em; }
@@ -143,7 +154,9 @@ class ActionsProductEnrichment
 			#pe_panel .pe-photo { margin: 4px 6px 4px 0; }
 		}
 		</style>';
-		$out .= '<script src="'.dol_buildpath('/productenrichment/js/productenrichment.js', 1).'?v='.urlencode(ProductEnrichment::VERSION).'"></script>';
+		// Version and date of the file: a file changed without a new version is not kept by the cache of the terminals
+		$jsfile = dol_buildpath('/productenrichment/js/productenrichment.js', 0);
+		$out .= '<script src="'.dol_buildpath('/productenrichment/js/productenrichment.js', 1).'?v='.urlencode(ProductEnrichment::VERSION.'.'.(int) @filemtime($jsfile)).'"></script>';
 		$out .= '<script>ProductEnrichment.init('.json_encode($cfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).');</script>';
 		return $out;
 	}
@@ -185,6 +198,25 @@ class ActionsProductEnrichment
 		$out .= '<input type="text" id="pe_ean" class="minwidth150" placeholder="'.dol_escape_htmltag($langs->trans('PeEanPlaceholder')).'" value="'.dol_escape_htmltag($ean).'" autocomplete="off"></div>';
 		$out .= $buttons.' <span id="pe_status" class="small"></span>';
 		$out .= '<div id="pe_panel" style="display:none"></div><span id="pe_hidden"></span>';
+		// Bottom bar under 600 px (same look as receptionassist and scancapture): the actions stay at hand while
+		// scrolling the form. Moved to the end of the body by the js, hidden on large screens by the css.
+		$bar = array(
+			array('ean', 'fa-barcode', $langs->trans('PeBarEan'), ''),
+			array('go', 'fa-magic', $langs->trans('PeEnrich'), 'pe-mbar-primary'),
+			array('ai', 'fa-robot', $langs->trans('PeBarAi'), ''),
+			array('panel', 'fa-list', $langs->trans('PeBarPanel'), ''),
+			array('fill', 'fa-edit', $langs->trans('PeBarFill'), ''),
+			array('create', 'fa-check', $langs->trans('Create'), 'pe-mbar-primary'),
+		);
+		$out .= '<nav id="pe_mbar" class="pe-mbar" aria-label="'.dol_escape_htmltag($langs->trans('PeEnrichment')).'">';
+		foreach ($bar as $b) {
+			if ($b[0] == 'ai' && empty($sources['ai'])) {
+				continue;
+			}
+			$out .= '<a href="#" class="pe-mbar-btn'.($b[3] ? ' '.$b[3] : '').'" data-pe="'.$b[0].'"'.(in_array($b[0], array('ai', 'panel', 'fill')) ? ' hidden' : '').'>';
+			$out .= '<span class="fa '.$b[1].'" aria-hidden="true"></span>'.dol_escape_htmltag($b[2]).'</a>';
+		}
+		$out .= '</nav>';
 		// Look up at once an EAN given in the url (product created from a reception), not when the form comes back after an error
 		$autorun = ($ean !== '' && (empty($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] == 'GET'));
 		$out .= $this->panelAssets('form', array('autoRun' => $autorun));

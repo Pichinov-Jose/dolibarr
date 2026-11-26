@@ -237,3 +237,7 @@ PeErr_ebay_auth=clés eBay refusées
 PeErr_ebay_http=eBay a répondu en erreur
 PeErr_upc_rate=UPCitemdb : trop de demandes (offre gratuite), réessayer plus tard
 PeErr_upc_http=UPCitemdb a répondu en erreur
+PeBarEan=Code-barres
+PeBarAi=IA
+PeBarPanel=Propositions
+PeBarFill=Remplir

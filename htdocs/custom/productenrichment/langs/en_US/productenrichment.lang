@@ -233,3 +233,7 @@ PeErr_ebay_auth=eBay keys refused
 PeErr_ebay_http=eBay answered with an error
 PeErr_upc_rate=UPCitemdb: too many requests (free tier), try again later
 PeErr_upc_http=UPCitemdb answered with an error
+PeBarEan=Barcode
+PeBarAi=AI
+PeBarPanel=Proposals
+PeBarFill=Fill

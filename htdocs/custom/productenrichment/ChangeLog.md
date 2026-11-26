@@ -1,5 +1,17 @@
 # ChangeLog — Pichinov Enrichissement produit
 
+## 1.2.5 (2026-11-26)
+- Fiche de création, sous 600 px : barre de boutons fixée en bas de l'écran, comme l'assistant de réception et
+  ScanCapture : Code-barres (remonte au champ, sélectionné pour le prochain scan), Enrichir, puis après une
+  recherche IA, Propositions (remonte au panneau) et Remplir (champs vides), et Créer (le bouton Créer du
+  formulaire, avec les mêmes contrôles). Ordinateur : rien ne change
+- Propositions réversibles (fiche de création, tous écrans) : un libellé ou un bouton « → … » (réf. marque,
+  réf. fournisseur, code-barres, EAN fournisseur, description, prix, page fabricant) est marqué en vert avec une
+  coche tant que son champ porte la proposition ; touché une seconde fois, il la reprend : le champ retrouve sa
+  valeur d'avant, ou est vidé si la valeur y était déjà. Vaut aussi pour « Remplir les champs vides » et pour
+  l'EAN fournisseur rempli par la recherche. Passer d'un libellé proposé à un autre ne demande plus de
+  confirmation. Le bouton utilisé n'est plus grisé (il semblait désactivé)
+
 ## 1.2.4 (2026-11-26)
 - Téléphone et terminal portable (DT50, 412 px), sous 600 px seulement : sur la fiche de création, les boutons
   « Enrichir » et « Recherche IA » passent sur leur propre ligne sous le code-barres, qui garde toute la largeur

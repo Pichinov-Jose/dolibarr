@@ -53,7 +53,8 @@
 			if (PE.cfg.mode === 'form') {
 				$('#pe_row').show();
 				// The supplier EAN of the creation form is the same code
-				if ($('input[name=fourn_barcode]').length && !$.trim($('input[name=fourn_barcode]').val())) { $('input[name=fourn_barcode]').val(ean); }
+				// (recorded as a proposal applied: "→ EAN fournisseur" is marked and can take it back)
+				if ($('input[name=fourn_barcode]').length && !$.trim($('input[name=fourn_barcode]').val())) { $('input[name=fourn_barcode]').val(ean); PE.applied.fourn_barcode = {prev: '', value: ean}; }
 			}
 			var params = {ean: ean, ai: withai ? 1 : 0};
 			if (PE.cfg.mode === 'card') {
@@ -64,13 +65,17 @@
 			}
 			PE.status(withai ? PE.t('SearchingAi') : PE.t('Searching'), 'wait');
 			$('#pe_go, #pe_ai').addClass('butActionRefused').prop('disabled', true);
+			PE.busy = true;
+			PE.updateBar();
 			PE.post(PE.cfg.urlEnrich, params, function (r) {
 				$('#pe_go, #pe_ai').removeClass('butActionRefused').prop('disabled', false);
-				if (!r || !r.ok) { PE.status((r && r.message) ? r.message : PE.t('Error'), 'error'); return; }
+				PE.busy = false;
+				if (!r || !r.ok) { PE.status((r && r.message) ? r.message : PE.t('Error'), 'error'); PE.updateBar(); return; }
 				PE.data = r;
 				PE.status(PE.stepsText(r), r.found ? 'ok' : ($.isEmptyObject(r.errors || {}) ? 'warning' : 'error'));
 				if (PE.cfg.aiEnabled) { $('#pe_ai').show(); }
 				PE.render();
+				PE.updateBar();
 			});
 		},
 
@@ -113,6 +118,11 @@
 				if (!window.confirm(PE.t('ConfirmReplace').replace('{a}', cur.substring(0, 80)).replace('{b}', value.substring(0, 80)))) { return false; }
 			}
 			if (cur !== '' && noconfirm) { return false; }
+			PE.writeField(name, value);
+			return true;
+		},
+
+		writeField: function (name, value) {
 			if (name === 'desc') {
 				if (typeof CKEDITOR === 'object' && CKEDITOR.instances && CKEDITOR.instances.desc) {
 					CKEDITOR.instances.desc.setData($('<div>').text(value).html().replace(/\n/g, '<br>'));
@@ -124,7 +134,85 @@
 			}
 			// A field filled in a folded section must be visible
 			$('[name=' + name + ']').first().closest('tr').removeClass('hideobject');
+		},
+
+		/* Raw value of a field (html of the editor for the description), to give it back as it was */
+		rawVal: function (name) {
+			if (name === 'desc') {
+				if (typeof CKEDITOR === 'object' && CKEDITOR.instances && CKEDITOR.instances.desc) { return CKEDITOR.instances.desc.getData(); }
+				return $('textarea[name=desc]').val() || '';
+			}
+			return $('[name=' + name + ']').first().val() || '';
+		},
+
+		rawSet: function (name, raw) {
+			if (name === 'desc' && typeof CKEDITOR === 'object' && CKEDITOR.instances && CKEDITOR.instances.desc) {
+				CKEDITOR.instances.desc.setData(raw);
+			} else {
+				$((name === 'desc' ? 'textarea' : '') + '[name=' + name + ']').first().val(raw).trigger('change');
+			}
+		},
+
+		/* Does the field hold this value (spaces and line breaks ignored: the editor turns them into html) */
+		same: function (name, value) {
+			var norm = function (s) { return String(s === undefined || s === null ? '' : s).replace(/\s+/g, ''); };
+			return value !== null && value !== undefined && norm(value) !== '' && norm(PE.fieldVal(name)) === norm(value);
+		},
+
+		/*
+		 * Proposals applied to the creation form, by field: {prev: raw value before, value: value written}.
+		 * A proposal (label, "→ ..." button) is marked while its field holds it; touching it again takes it back:
+		 * the field gets the value it had before, or is emptied when the value was already there.
+		 */
+		applied: {},
+
+		apply: function (name, value, onlyEmpty) {
+			value = String(value);
+			var a = PE.applied[name], ours = a && PE.same(name, a.value);
+			var prev = ours ? a.prev : PE.rawVal(name);
+			if (onlyEmpty) {
+				if (PE.fieldVal(name) !== '') { return false; }
+				PE.writeField(name, value);
+			} else if (ours) {
+				// Another proposal of the same field (other label): no confirmation, the previous value stays known
+				PE.writeField(name, value);
+			} else if (!PE.setField(name, value, false)) {
+				return false;
+			}
+			PE.applied[name] = {prev: prev, value: value};
+			PE.refreshMarks();
 			return true;
+		},
+
+		unapply: function (name) {
+			var a = PE.applied[name];
+			PE.rawSet(name, (a && PE.same(name, a.value)) ? a.prev : '');
+			delete PE.applied[name];
+			PE.refreshMarks();
+		},
+
+		/* Value proposed by a chip or a "→ ..." button (the description is computed when it is applied) */
+		propValue: function (el) {
+			var name = el.data('peField'), v = el.data('peValue');
+			if (typeof v === 'function') { return PE.applied[name] ? PE.applied[name].value : null; }
+			return v;
+		},
+
+		toggle: function (el) {
+			var name = el.data('peField');
+			if (PE.same(name, PE.propValue(el))) {
+				PE.unapply(name);
+			} else {
+				var v = el.data('peValue');
+				PE.apply(name, typeof v === 'function' ? v() : v, false);
+			}
+		},
+
+		refreshMarks: function () {
+			$('#pe_panel [data-pe-field]').each(function () {
+				var el = $(this), on = PE.same(el.data('peField'), PE.propValue(el));
+				el.toggleClass(el.hasClass('pe-chip') ? 'pe-chosen' : 'pe-done', on);
+			});
 		},
 
 		/* ---------- rendering ---------- */
@@ -147,6 +235,7 @@
 			PE.renderSpecs(panel, r);
 			PE.renderVariants(panel, info);
 			PE.renderSources(panel, info);
+			PE.refreshMarks();
 			if (PE.cfg.mode === 'card') {
 				var apply = PE.el('a', 'butAction', PE.t('Apply')).attr('href', '#').on('click', function (e) { e.preventDefault(); PE.applyCard(); });
 				panel.append($('<div class="center pe-actions">').append(apply));
@@ -163,10 +252,10 @@
 		},
 
 		fillButton: function (name, value, label) {
-			return PE.el('a', 'button smallpaddingimp', label || PE.t('Fill')).attr('href', '#').on('click', function (e) {
+			// Second touch takes the proposal back (see PE.applied)
+			return PE.el('a', 'button smallpaddingimp', label || PE.t('Fill')).attr('href', '#').attr('data-pe-field', name).data('peValue', value).on('click', function (e) {
 				e.preventDefault();
-				var v = (typeof value === 'function') ? value() : value;
-				if (PE.setField(name, v, false)) { $(this).addClass('pe-done'); }
+				PE.toggle($(this));
 			});
 		},
 
@@ -178,10 +267,11 @@
 			if (labels.length && PE.hasField('label')) {
 				var chips = $('<div>');
 				$.each(labels, function (i, l) {
-					chips.append(PE.el('a', 'pe-chip', l).attr('href', '#').on('click', function (e) {
+					// The chip applied is marked (seen under 600 px, where the label field is often out of the screen);
+					// touched again, it is taken back
+					chips.append(PE.el('a', 'pe-chip', l).attr('href', '#').attr('data-pe-field', 'label').data('peValue', l).on('click', function (e) {
 						e.preventDefault();
-						// The chip applied is marked (seen under 600 px, where the label field is often out of the screen)
-						if (PE.setField('label', l, false)) { chips.find('.pe-chip').removeClass('pe-chosen'); $(this).addClass('pe-chosen'); }
+						PE.toggle($(this));
 					}));
 				});
 				PE.row(t, PE.t('Label'), chips, '');
@@ -237,7 +327,7 @@
 			var n = 0;
 			$.each(pairs, function (i, p) {
 				if (p[1] && PE.hasField(p[0]) && PE.fieldVal(p[0]) === '') {
-					if (PE.setField(p[0], p[1], true)) { n++; }
+					if (PE.apply(p[0], p[1], true)) { n++; }
 					if (p[0] === 'pqc_sell_price') { $('select[name=pqc_sell_price_base_type]').val('TTC').trigger('change'); }
 				}
 			});
@@ -452,10 +542,68 @@
 			$('#pe_eanbox').show();
 			$('#pe_ean').on('keydown', function (e) { if (e.keyCode === 13) { e.preventDefault(); PE.run(false); } });
 		}
+		PE.initBar();
+		// A field changed by hand: the marks of the proposals follow
+		$('#pe_row').closest('form').on('input change', 'input, textarea', function () {
+			if (!$(this).closest('#pe_panel').length) { PE.refreshMarks(); }
+		});
 		if (PE.cfg.autoRun && $.trim(PE.eanInput().val())) {
 			// EAN given by the reception: show its field (it may be in a folded section) and look it up
 			PE.eanInput().closest('tr').removeClass('hideobject');
 			PE.run(false);
+		}
+	};
+
+	/* Bottom bar of the creation form (shown under 600 px by the css): actions at hand while scrolling */
+	PE.initBar = function () {
+		var bar = $('#pe_mbar');
+		if (!bar.length) { return; }
+		// Out of the table of the form, where a parent could break the fixed position
+		bar.appendTo('body');
+		$('body').addClass('pe-has-mbar');
+		bar.on('click', '.pe-mbar-btn', function (e) {
+			e.preventDefault();
+			if (!$(this).hasClass('pe-mbar-off')) { PE.barAction($(this).attr('data-pe')); }
+		});
+		PE.updateBar();
+	};
+
+	PE.updateBar = function () {
+		var bar = $('#pe_mbar');
+		if (!bar.length) { return; }
+		var has = !!PE.data;
+		bar.find('[data-pe=ai]').prop('hidden', !has);
+		bar.find('[data-pe=panel]').prop('hidden', !has);
+		bar.find('[data-pe=fill]').prop('hidden', !(has && PE.data.found));
+		bar.find('[data-pe=go], [data-pe=ai]').toggleClass('pe-mbar-off', !!PE.busy);
+	};
+
+	PE.scrollTo = function (el) {
+		if (!el || !el.length) { return; }
+		window.scrollTo(0, Math.max(0, el.offset().top - 10));
+	};
+
+	PE.barAction = function (a) {
+		var ean = PE.eanInput();
+		if (a === 'ean' || (a === 'go' && !$.trim(ean.val() || ''))) {
+			// Barcode field ready for the next scan (selected, so that the scan replaces the code)
+			ean.closest('tr').removeClass('hideobject');
+			PE.scrollTo(ean.closest('tr').length ? ean.closest('tr') : ean);
+			ean.trigger('focus').trigger('select');
+			if (a === 'go') { PE.status(PE.t('NeedEan'), 'error'); $('#pe_row').show(); }
+		} else if (a === 'go' || a === 'ai') {
+			PE.run(a === 'ai');
+			PE.scrollTo($('#pe_row'));
+		} else if (a === 'panel') {
+			PE.scrollTo($('#pe_row'));
+		} else if (a === 'fill') {
+			PE.fillEmpty();
+			PE.scrollTo($('#pe_row'));
+		} else if (a === 'create') {
+			// The button "Create" of the form itself: same checks as when it is touched
+			var form = $('#pe_row').closest('form'), btn = form.find('input[type=submit][name=add], .button-add, .button-save').first();
+			if (!btn.length) { btn = form.find('input[type=submit]:not([name=cancel]), button[type=submit]:not([name=cancel])').last(); }
+			if (btn.length) { btn.trigger('click'); }
 		}
 	};
 
