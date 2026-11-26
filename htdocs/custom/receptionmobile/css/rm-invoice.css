@@ -3,7 +3,672 @@
  * Pichinov — Mobile : règles propres à l'objet « facture client » (classe body.rm-obj-invoice), sous 600 px de large.
  * Chargé après css/receptionmobile.css (règles communes). Un seul auteur par fichier : la session de cet objet.
  * Pages : body.rm-obj-invoice.rm-page-card | .rm-page-list | .rm-page-tab
+ * Classes posées par js/rm-invoice.js : rm-inv-payment (body, saisie d'un règlement), rm-total (ligne de total
+ * d'une liste), rm-contactlist (liste des contacts), rm-eventlist (onglet Événements), rm-paylist (factures à régler).
  */
 
 @media (max-width: 600px) {
+
+	/* ===== Fiche : tableaux des demi-colonnes ===== */
+	/* Le socle laisse déborder les tableaux de la fiche (overflow visible, pour les lignes en fiches) : ceux des
+	   demi-colonnes (règlements, marges, factures de situation) retrouvent leur défilement interne en dernier recours */
+	body.rm-obj-invoice.rm-page-card .fichehalfleft .div-table-responsive-no-min,
+	body.rm-obj-invoice.rm-page-card .fichehalfright .div-table-responsive-no-min {
+		overflow-x: auto;
+	}
+
+	/* ===== Fiche : règlements, déjà réglé, facturé, reste à payer ===== */
+	/* Chaque ligne en grille : la réf. du règlement et son montant sur la première ligne, date et mode dessous ;
+	   les totaux (libellé à droite, montant au bord droit) comme sur ordinateur */
+	body.rm-obj-invoice.rm-page-card table.paymenttable,
+	body.rm-obj-invoice.rm-page-card table.paymenttable > tbody {
+		display: block;
+		width: 100% !important;
+		height: auto !important;	/* le thème fixe une hauteur au tableau : en bloc, il se réduisait à une ligne */
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr {
+		height: auto !important;
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
+		column-gap: 10px;
+		row-gap: 2px;
+		align-items: baseline;
+		padding: 6px 8px;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr > td {
+		display: block;
+		min-width: 0;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		white-space: normal;
+	}
+	/* En-tête : « Règlements » … « Montant » */
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.liste_titre > td {
+		display: none;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.liste_titre > td:first-child {
+		display: block;
+		grid-column: 1 / 3;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.liste_titre > td:last-child {
+		display: block;
+		grid-column: 4;
+	}
+	/* Règlement : réf. | supprimer | montant, puis date | mode | compte bancaire */
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven {
+		border-bottom: 1px solid #e0e0e0;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven > td:first-child {
+		grid-column: 1 / 3;
+		grid-row: 1;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven > td.center {
+		grid-column: 3;
+		grid-row: 1;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven > td:last-child {
+		grid-column: 4;
+		grid-row: 1;
+		font-weight: 600;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven > td:nth-child(2) {
+		grid-column: 1;
+		grid-row: 2;
+		font-size: 0.9em;
+		white-space: nowrap;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven > td:nth-child(3) {
+		grid-column: 2 / -1;
+		grid-row: 2;
+		font-size: 0.9em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven > td.nowraponall:not(:first-child) {
+		grid-column: 1 / -1;
+		grid-row: 3;
+		font-size: 0.9em;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven > td:empty {
+		display: none;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr.oddeven > td.center a {
+		display: inline-block;
+		padding: 4px 8px;
+		font-size: 1.2em;
+	}
+	/* Totaux : libellé (sur les deux premières colonnes), délier un avoir ou un acompte, montant */
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr:not(.liste_titre):not(.oddeven) > td:first-child {
+		grid-column: 1 / 3;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr:not(.liste_titre):not(.oddeven) > td:nth-child(2):not(:last-child) {
+		grid-column: 3;
+	}
+	body.rm-obj-invoice.rm-page-card table.paymenttable tr:not(.liste_titre):not(.oddeven) > td:last-child {
+		grid-column: 4;
+		white-space: nowrap;
+	}
+
+	/* ===== Fiche : formulaire d'ajout de ligne ===== */
+	/* Ligne libre : bouton radio à sa taille, liste des types sur le reste de la largeur
+	   (la règle commune .prod_entry_mode_free vise aussi le bouton radio, qui porte la même classe) */
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow input.prod_entry_mode_free,
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow input.prod_entry_mode_predef {
+		display: inline-block !important;
+		flex: 0 0 auto;
+		width: 22px !important;
+		height: 22px;
+		margin: 0 4px 0 0;
+	}
+	/* Le thème fixe la hauteur des deux choix (26 px) : la liste et la recherche (38 px) débordaient l'une sur l'autre */
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free,
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef {
+		height: auto !important;
+		min-height: 40px;
+		align-items: center;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free > label {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free > label > select {
+		width: 100% !important;
+		min-width: 0 !important;
+	}
+	/* Article prédéfini : radio, recherche, filtre de recherche, bouton « + » sur une ligne sans débordement */
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow td.linecoldescription > span.nowraponall:not(.prod_entry_mode_free) {
+		display: block;
+		white-space: normal !important;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow td.linecoldescription > span.nowraponall:not(.prod_entry_mode_free) > br,
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow td.linecoldescription > br {
+		display: none;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		padding-top: 10px;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef > label {
+		flex: 0 0 auto;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow #search_idprod,
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef > .select2-container {
+		flex: 1 1 auto;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef > .psp-scope,
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_predef > #dropdownAddProductAndService {
+		flex: 0 0 auto;
+		position: relative;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow .psp-scope-btn {
+		min-width: 40px;
+		min-height: 40px;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow #dropdownAddProductAndServiceLink {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		min-height: 40px;
+		font-size: 1.3em;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow #dropdownAddProductAndServiceLink .paddingleft {
+		padding-left: 0;
+	}
+	/* Menus déroulants (« Nouveau produit », portée de la recherche) : ouverts vers la gauche, dans l'écran */
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow #dropdownAddProductAndService .dropdown-menu,
+	body.rm-obj-invoice.rm-page-card #tablelines tr.rm-createrow .psp-scope-menu {
+		left: auto !important;
+		right: 0 !important;
+		max-width: calc(100vw - 24px);
+	}
+	/* Résultats de la recherche produit (jQuery UI, rattachés au body) : sur la largeur de l'écran, textes repliés
+	   (le menu prenait la largeur du champ à partir de sa gauche et sortait de l'écran à droite) */
+	body.rm-obj-invoice ul.ui-autocomplete {
+		left: 8px !important;
+		right: 8px !important;
+		width: auto !important;
+		max-width: none !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-invoice ul.ui-autocomplete > li,
+	body.rm-obj-invoice ul.ui-autocomplete > li > * {
+		white-space: normal !important;
+	}
+	body.rm-obj-invoice ul.ui-autocomplete > li > .ui-menu-item-wrapper,
+	body.rm-obj-invoice ul.ui-autocomplete > li > a {
+		padding-top: 8px;
+		padding-bottom: 8px;
+	}
+	/* Dates de service (« Si produit de type service à durée limitée ») : pleine largeur */
+	body.rm-obj-invoice.rm-page-card #tablelines tr#trlinefordates > td {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-invoice.rm-page-card #tablelines tr#trlinefordates input[type=text] {
+		font-size: 16px;
+		min-height: 38px;
+	}
+
+	/* ===== Fiche : fichiers joints (PDF générés) en fiches ===== */
+	/* Le socle fixe la largeur des colonnes (table-layout fixed) : 5 colonnes de 68 px à 360 px, nom tronqué, date
+	   coupée. Ici : nom sur toute la largeur, puis taille, date et actions, puis le lien de partage */
+	body.rm-obj-invoice.rm-page-card table.formdoc,
+	body.rm-obj-invoice.rm-page-card table.formdoc > tbody {
+		display: block;
+		width: 100% !important;
+		height: auto !important;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr {
+		display: grid;
+		grid-template-columns: auto auto minmax(0, 1fr);
+		column-gap: 12px;
+		row-gap: 4px;
+		align-items: center;
+		height: auto !important;
+		padding: 8px;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr > th,
+	body.rm-obj-invoice.rm-page-card table.formdoc tr > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		margin: 0 !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr > th,
+	body.rm-obj-invoice.rm-page-card table.formdoc tr > td[colspan] {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr.oddeven > td:nth-child(1) {
+		grid-column: 1 / -1;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr.oddeven > td:nth-child(2) {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr.oddeven > td:nth-child(3) {
+		grid-column: 2;
+		grid-row: 2;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr.oddeven > td:nth-child(5) {
+		grid-column: 3;
+		grid-row: 2;
+		justify-self: end;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr.oddeven > td:nth-child(4) {
+		grid-column: 1 / -1;
+		grid-row: 3;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr.oddeven > td:nth-child(4) input {
+		width: calc(100% - 40px) !important;
+		max-width: none !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-invoice.rm-page-card table.formdoc tr.oddeven > td:nth-child(5) a {
+		display: inline-block;
+		padding: 6px 10px;
+		font-size: 1.2em;
+	}
+
+	/* ===== Fiche : boutons d'action en grille, cibles au doigt ===== */
+	body.rm-obj-invoice div.tabsAction {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: stretch;
+		gap: 8px;
+		margin: 16px 0;
+	}
+	body.rm-obj-invoice div.tabsAction > .butAction,
+	body.rm-obj-invoice div.tabsAction > .butActionRefused,
+	body.rm-obj-invoice div.tabsAction > .butActionDelete,
+	body.rm-obj-invoice div.tabsAction > .inline-block > .butAction,
+	body.rm-obj-invoice div.tabsAction > a,
+	body.rm-obj-invoice div.tabsAction > span {
+		flex: 1 1 40%;
+		margin: 0 !important;
+		min-height: 40px;
+		box-sizing: border-box;
+		text-align: center;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	/* ===== Fiche en création (action=create) ===== */
+	/* « Facture standard (ou modèle) » : passe à la ligne au lieu de déborder à 360 px */
+	body.rm-obj-invoice.rm-page-card .listofinvoicetype span.nowraponall {
+		white-space: normal !important;
+	}
+	body.rm-obj-invoice.rm-page-card form[name="add"] table.border input[type=text],
+	body.rm-obj-invoice.rm-page-card form[name="add"] table.border select,
+	body.rm-obj-invoice.rm-page-card form[name="add"] table.border textarea {
+		font-size: 16px;
+		max-width: 100%;
+	}
+
+	/* ===== Liste : ligne de total en fiche (Montant HT, Montant TTC) ===== */
+	body.rm-obj-invoice.rm-page-list table.liste tr.liste_total.rm-total {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 2px;
+		padding: 10px 8px;
+	}
+	body.rm-obj-invoice.rm-page-list table.liste tr.liste_total.rm-total > td {
+		display: block;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+	}
+	body.rm-obj-invoice.rm-page-list table.liste tr.liste_total.rm-total > td:first-child {
+		grid-column: 1 / -1;
+		font-weight: 600;
+	}
+	body.rm-obj-invoice.rm-page-list table.liste tr.liste_total.rm-total > td.rm-empty {
+		display: none !important;
+	}
+	body.rm-obj-invoice.rm-page-list table.liste tr.liste_total.rm-total > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+	/* Filtres par tag / tiers / produit au-dessus de la liste : dans l'écran */
+	body.rm-obj-invoice.rm-page-list .divsearchfield {
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+	body.rm-obj-invoice.rm-page-list .divsearchfield .select2-container {
+		max-width: calc(100% - 30px) !important;
+	}
+
+	/* ===== Onglet Contacts : formulaires d'ajout en une colonne ===== */
+	body.rm-obj-invoice .tableforcontact,
+	body.rm-obj-invoice .tableforcontact > form.tagtr {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-invoice .tableforcontact > form.tagtr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-invoice .tableforcontact > form.tagtr {
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+		box-sizing: border-box;
+	}
+	body.rm-obj-invoice .tableforcontact > form.tagtr > .tagtd {
+		display: block;
+		height: auto !important;	/* le thème fixe 32 px : libellés et listes se chevauchaient */
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 4px 0 !important;
+		border: 0 !important;
+		white-space: normal !important;
+		text-align: left !important;
+	}
+	body.rm-obj-invoice .tableforcontact > form.tagtr > .tagtd:empty,
+	body.rm-obj-invoice .tableforcontact > form.tagtr > .tagtd.rm-empty {
+		display: none;
+	}
+	body.rm-obj-invoice .tableforcontact > form.tagtr > .tagtd[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+		margin-bottom: 2px;
+	}
+	body.rm-obj-invoice .tableforcontact .select2-container {
+		width: calc(100% - 40px) !important;
+		max-width: none !important;
+		min-width: 0 !important;
+	}
+	body.rm-obj-invoice .tableforcontact > form.tagtr > .tagtd:first-of-type .select2-container {
+		width: 100% !important;
+	}
+	body.rm-obj-invoice .tableforcontact select {
+		max-width: 100% !important;
+		min-width: 0 !important;
+		font-size: 16px;
+	}
+	body.rm-obj-invoice .tableforcontact .select2-selection {
+		min-height: 38px;
+		width: 100% !important;	/* le rôle garde sinon sa largeur maxwidth200, plus étroite que sa flèche */
+		max-width: none !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-invoice .tableforcontact input[type=submit] {
+		width: 100%;
+		margin: 4px 0 !important;
+		padding: 10px !important;
+		font-size: 1.05em;
+	}
+	body.rm-obj-invoice .tableforcontact a .fa-plus-circle {
+		font-size: 1.4em;
+		padding: 6px;
+	}
+
+	/* ===== Onglets Contacts et Événements, saisie d'un règlement : tableaux en fiches ===== */
+	body.rm-obj-invoice table.rm-contactlist,
+	body.rm-obj-invoice table.rm-contactlist > tbody,
+	body.rm-obj-invoice table.rm-eventlist,
+	body.rm-obj-invoice table.rm-eventlist > tbody,
+	body.rm-obj-invoice table.rm-paylist,
+	body.rm-obj-invoice table.rm-paylist > tbody {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-invoice .div-table-responsive-no-min:has(> table.rm-contactlist),
+	body.rm-obj-invoice .div-table-responsive-no-min:has(> table.rm-eventlist),
+	body.rm-obj-invoice .div-table-responsive-no-min:has(> table.rm-paylist) {
+		overflow-x: visible;
+	}
+	body.rm-obj-invoice table.rm-contactlist tr.liste_titre,
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre,
+	body.rm-obj-invoice table.rm-paylist tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-invoice table.rm-contactlist tr,
+	body.rm-obj-invoice table.rm-eventlist tr,
+	body.rm-obj-invoice table.rm-paylist tr {
+		height: auto !important;	/* hauteur de ligne du thème : les cellules se chevauchaient */
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 12px;
+		row-gap: 4px;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-invoice table.rm-contactlist tr > td,
+	body.rm-obj-invoice table.rm-eventlist tr > td,
+	body.rm-obj-invoice table.rm-paylist tr > td {
+		display: block;
+		justify-self: stretch;
+		margin: 0 !important;	/* .center du thème = margin auto : la cellule se centrait dans la grille */
+		height: auto !important;	/* 32 px du thème : textes sur deux lignes chevauchés */
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+		white-space: normal !important;
+		overflow: visible !important;
+	}
+	body.rm-obj-invoice table.rm-contactlist tr > td[colspan],
+	body.rm-obj-invoice table.rm-eventlist tr > td[colspan],
+	body.rm-obj-invoice table.rm-paylist tr > td[colspan],
+	body.rm-obj-invoice table.rm-eventlist tr > td.rm-main,
+	body.rm-obj-invoice table.rm-paylist tr > td.rm-main {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-invoice table.rm-eventlist tr > td.rm-main,
+	body.rm-obj-invoice table.rm-paylist tr > td.rm-main {
+		font-weight: 600;
+	}
+	body.rm-obj-invoice table.rm-contactlist tr > td.rm-empty,
+	body.rm-obj-invoice table.rm-eventlist tr > td.rm-empty,
+	body.rm-obj-invoice table.rm-paylist tr > td.rm-empty {
+		display: none !important;
+	}
+	body.rm-obj-invoice table.rm-contactlist tr > td[data-rm-label]::before,
+	body.rm-obj-invoice table.rm-eventlist tr > td[data-rm-label]::before,
+	body.rm-obj-invoice table.rm-paylist tr > td[data-rm-label]::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+	body.rm-obj-invoice table.rm-contactlist tr > td.rm-unlink {
+		grid-column: 1 / -1;
+		text-align: right !important;
+	}
+	body.rm-obj-invoice table.rm-contactlist tr > td.rm-unlink a {
+		display: inline-block;
+		padding: 8px 14px;
+		font-size: 1.25em;
+	}
+	/* ===== Onglet Documents : un fichier par fiche (nom, puis taille, date et actions, puis lien de partage) ===== */
+	body.rm-obj-invoice table.rm-filelist,
+	body.rm-obj-invoice table.rm-filelist > tbody,
+	body.rm-obj-invoice table.rm-filelist > thead {
+		display: block;
+		width: 100% !important;
+	}
+	body.rm-obj-invoice .div-table-responsive-no-min:has(> table.rm-filelist) {
+		overflow-x: visible;
+	}
+	body.rm-obj-invoice table.rm-filelist tr.liste_titre {
+		display: none;
+	}
+	body.rm-obj-invoice table.rm-filelist tr {
+		display: grid;
+		grid-template-columns: auto auto minmax(0, 1fr);
+		column-gap: 12px;
+		row-gap: 4px;
+		align-items: center;
+		height: auto !important;
+		padding: 10px 8px;
+		border-bottom: 1px solid #d0d0d0;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td {
+		display: block;
+		margin: 0 !important;
+		height: auto !important;
+		width: auto !important;
+		min-width: 0 !important;
+		max-width: none !important;
+		padding: 2px 0 !important;
+		border: 0 !important;
+		text-align: left !important;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td.rm-empty {
+		display: none !important;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td[colspan],
+	body.rm-obj-invoice table.rm-filelist tr > td:nth-child(1) {
+		grid-column: 1 / -1;
+		white-space: normal !important;
+		overflow-wrap: anywhere;
+		font-weight: 600;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td:nth-child(2) {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td:nth-child(3) {
+		grid-column: 2;
+		grid-row: 2;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td.actionbuttons {
+		grid-column: 3;
+		grid-row: 2;
+		justify-self: end;
+		text-align: right !important;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td:nth-child(4),
+	body.rm-obj-invoice table.rm-filelist tr > td:nth-child(5) {
+		grid-column: 1 / -1;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td.actionbuttons a {
+		display: inline-block;
+		padding: 6px 8px;
+		font-size: 1.2em;
+	}
+	body.rm-obj-invoice table.rm-filelist tr > td[data-rm-label]:not(:nth-child(1))::before {
+		content: attr(data-rm-label);
+		display: block;
+		font-size: 0.78em;
+		opacity: 0.65;
+	}
+
+	/* ===== Saisie d'un règlement (compta/paiement.php, body.rm-inv-payment) ===== */
+	/* Montant du règlement : pleine largeur, bouton « reporter le reste à payer » au doigt */
+	body.rm-inv-payment table.rm-paylist tr > td.rm-payinput {
+		grid-column: 1 / -1;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 4px 8px;
+	}
+	body.rm-inv-payment table.rm-paylist tr > td.rm-payinput::before {
+		flex: 0 0 100%;
+	}
+	body.rm-inv-payment table.rm-paylist tr > td.rm-payinput input[type=text] {
+		flex: 1 1 auto;
+		width: auto !important;
+		min-width: 0;
+		max-width: none !important;
+		min-height: 40px;
+		font-size: 16px;
+		box-sizing: border-box;
+	}
+	body.rm-inv-payment table.rm-paylist tr > td.rm-payinput .AutoFillAmount {
+		flex: 0 0 auto;
+		min-width: 40px;
+		min-height: 40px;
+	}
+	body.rm-inv-payment table.rm-paylist tr.liste_total {
+		font-weight: 600;
+	}
+	/* Formulaire : champs en 16 px sur la largeur disponible */
+	body.rm-inv-payment #payment_form table.border input[type=text],
+	body.rm-inv-payment #payment_form table.border select,
+	body.rm-inv-payment #payment_form table.border textarea {
+		font-size: 16px;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+	body.rm-inv-payment #payment_form table.border input[name="num_paiement"],
+	body.rm-inv-payment #payment_form table.border input[name="chqemetteur"],
+	body.rm-inv-payment #payment_form table.border input[name="chqbank"],
+	body.rm-inv-payment #payment_form table.border textarea {
+		width: 100%;
+	}
+	body.rm-inv-payment #payment_form table.border .select2-container {
+		max-width: 100% !important;
+	}
+	/* Bouton « Payer » : pleine largeur */
+	body.rm-inv-payment #payment_form input.button.reposition {
+		width: 100%;
+		padding: 12px !important;
+		font-size: 1.1em;
+		margin: 8px 0 !important;
+		box-sizing: border-box;
+	}
+	/* Confirmation affichée dans la page (« Confirmez-vous la saisie de ce règlement ? ») : Oui / Non et Valider au doigt */
+	body.rm-obj-invoice div.valid select#confirm {
+		min-height: 40px;
+		font-size: 16px;
+	}
+	body.rm-obj-invoice div.valid input.confirmvalidatebutton {
+		min-height: 40px;
+		padding: 8px 20px !important;
+		font-size: 1em;
+	}
+
+	/* Onglet Événements : filtres derrière un bouton « Filtres » (posé par le script), en une colonne */
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre_filter {
+		display: none;
+	}
+	body.rm-obj-invoice table.rm-eventlist.rm-showfilters tr.liste_titre_filter {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		background: #f4f6f8;
+	}
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre_filter > td.rm-empty {
+		display: none !important;
+	}
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre_filter select,
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre_filter input[type=text],
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre_filter .select2-container {
+		max-width: 100% !important;
+		font-size: 16px;
+	}
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre_filter input[type=text]:not(.maxwidthdate):not([name$="day"]):not([name$="month"]):not([name$="year"]),
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre_filter select,
+	body.rm-obj-invoice table.rm-eventlist tr.liste_titre_filter .select2-container {
+		width: 100% !important;
+		box-sizing: border-box;
+	}
+	body.rm-obj-invoice a.rm-filtertoggle.rm-inv-filtertoggle {
+		display: inline-block;
+		margin: 6px 0 8px 0;
+	}
 }
