@@ -1,5 +1,13 @@
 # ChangeLog — Pichinov Réception mobile
 
+## 1.1.0 (2026-11-26)
+- Socle commun pour tous les objets natifs : le script pose sur le body rm-on, rm-obj-<objet>, rm-page-card|list|tab et
+  rm-doc (documents à lignes) d'après l'adresse (réceptions, commandes clients et fournisseurs, factures clients et
+  fournisseurs, expéditions, produits) ; les règles des lignes (#tablelines), du formulaire d'ajout, des popups et des
+  listes en fiches valent désormais pour tous ces documents ; l'ordre propre aux réceptions reste limité aux réceptions.
+- Un fichier CSS et un fichier JS par objet (css/rm-<objet>.css, js/rm-<objet>.js), vides au départ, chacun tenu par
+  une seule session ; fonctions communes exposées dans window.PichinovMobile.
+
 ## 1.0.1 (2026-11-22)
 - Première ligne d'une réception : le formulaire d'ajout est reconnu (Dolibarr ne lui donne la classe
   liste_titre_create qu'à partir de la 2e ligne) ; le prix d'achat y est recopié et l'affichage mobile s'applique

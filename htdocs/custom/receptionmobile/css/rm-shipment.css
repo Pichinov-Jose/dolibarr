@@ -1,0 +1,9 @@
+/* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
+ *
+ * Pichinov — Mobile : règles propres à l'objet « expédition » (classe body.rm-obj-shipment), sous 600 px de large.
+ * Chargé après css/receptionmobile.css (règles communes). Un seul auteur par fichier : la session de cet objet.
+ * Pages : body.rm-obj-shipment.rm-page-card | .rm-page-list | .rm-page-tab
+ */
+
+@media (max-width: 600px) {
+}

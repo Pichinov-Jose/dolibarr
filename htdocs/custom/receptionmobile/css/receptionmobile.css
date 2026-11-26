@@ -1,27 +1,30 @@
 /* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  *
- * Pichinov — Réception mobile : écrans de réception sur petit écran (terminal Android DT50, 412 px).
- * Tout est sous 600 px de large et limité aux pages de réception (classe mod-reception du body),
- * sauf la popup de création de produit (page produit ouverte dans la popup, classe dol_openinpopup).
- * Les libellés des cellules (data-rm-label) sont posés par js/receptionmobile.js depuis l'en-tête du tableau.
+ * Pichinov — Mobile (module receptionmobile) : règles COMMUNES sous 600 px de large.
+ * Les classes du body sont posées par js/receptionmobile.js selon l'adresse de la page :
+ *   rm-on (page prise en charge), rm-obj-<objet>, rm-page-card | rm-page-list | rm-page-tab, rm-doc (document à lignes).
+ * Objets : reception, order, supplierorder, invoice, supplierinvoice, shipment, product.
+ * Ce fichier est tenu par la session « Réceptions erpdev PecheCenter » ; chaque objet a son propre fichier
+ * css/rm-<objet>.css (une session par objet), chargé après celui-ci.
+ * Les libellés des cellules (data-rm-label) viennent de l'en-tête du tableau (script).
  */
 
 @media (max-width: 600px) {
 
 	/* ===== Fiche réception : une fiche par ligne ===== */
-	body.mod-reception.page-card #tablelines,
-	body.mod-reception.page-card #tablelines > tbody,
-	body.mod-reception.page-card #tablelines > thead {
+	body.rm-doc.rm-page-card #tablelines,
+	body.rm-doc.rm-page-card #tablelines > tbody,
+	body.rm-doc.rm-page-card #tablelines > thead {
 		display: block;
 		width: 100% !important;
 	}
-	body.mod-reception.page-card .div-table-responsive-no-min {
+	body.rm-doc.rm-page-card .div-table-responsive-no-min {
 		overflow-x: visible;
 	}
-	body.mod-reception.page-card #tablelines tr.liste_titre {
+	body.rm-doc.rm-page-card #tablelines tr.liste_titre {
 		display: none;
 	}
-	body.mod-reception.page-card #tablelines tr {
+	body.rm-doc.rm-page-card #tablelines tr {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		column-gap: 12px;
@@ -29,7 +32,7 @@
 		padding: 10px 8px;
 		border-bottom: 1px solid #d0d0d0;
 	}
-	body.mod-reception.page-card #tablelines tr > td {
+	body.rm-doc.rm-page-card #tablelines tr > td {
 		display: block;
 		justify-self: stretch;
 		margin: 0 !important;
@@ -43,25 +46,29 @@
 		overflow: visible !important;
 		height: auto !important;
 	}
-	body.mod-reception.page-card #tablelines tr > td[data-rm-label]::before {
+	body.rm-doc.rm-page-card #tablelines tr > td[data-rm-label]::before {
 		content: attr(data-rm-label);
 		display: block;
 		font-size: 0.78em;
 		opacity: 0.65;
 		margin-bottom: 1px;
 	}
-	body.mod-reception.page-card #tablelines tr > td.linecoldescription {
+	body.rm-doc.rm-page-card #tablelines tr > td.linecoldescription {
 		grid-column: 1 / -1;
 		font-weight: 600;
 	}
-	body.mod-reception.page-card #tablelines tr > td.linecolwarehouse {
+	body.rm-doc.rm-page-card #tablelines tr > td.linecolwarehouse {
 		grid-column: 1 / -1;
 	}
-	body.mod-reception.page-card #tablelines tr > td.linecolmove,
-	body.mod-reception.page-card #tablelines tr > td.rm-empty {
+	body.rm-doc.rm-page-card #tablelines tr > td.linecolmove,
+	body.rm-doc.rm-page-card #tablelines tr > td.rm-empty {
 		display: none !important;	/* glisser-déposer inutilisable au doigt ; cellules vides des lignes saisies */
 	}
-	/* Ordre dans la fiche : réf. fournisseur et prix, puis quantité et lot, puis entrepôt, puis les boutons */
+	/* Boutons modifier / supprimer en bas de la fiche de ligne */
+	body.rm-doc.rm-page-card #tablelines tr > td.linecoledit,
+	body.rm-doc.rm-page-card #tablelines tr > td.linecoldelete,
+	body.rm-doc.rm-page-card #tablelines tr > td.linecolmove { order: 90; }
+	/* Réception : réf. fournisseur et prix, puis quantité et lot, puis entrepôt, puis les boutons */
 	body.mod-reception.page-card #tablelines tr > td.linecolrefsupplier { order: 1; }
 	body.mod-reception.page-card #tablelines tr > td.linecolcostprice,
 	body.mod-reception.page-card #tablelines tr > td.linecoluht { order: 2; }
@@ -71,78 +78,78 @@
 	body.mod-reception.page-card #tablelines tr > td.linecoledit,
 	body.mod-reception.page-card #tablelines tr > td.linecoldelete { order: 6; }
 	/* Bas de fiche : bloc « Générer un document » sans débordement */
-	body.mod-reception.page-card table.formdoc {
+	body.rm-doc.rm-page-card table.formdoc {
 		width: 100% !important;
 		table-layout: fixed;
 	}
-	body.mod-reception.page-card table.formdoc td {
+	body.rm-doc.rm-page-card table.formdoc td {
 		word-break: break-word;
 	}
-	body.mod-reception.page-card table.formdoc select {
+	body.rm-doc.rm-page-card table.formdoc select {
 		max-width: 100%;
 	}
 	/* Boutons modifier / supprimer : cibles tactiles plus grandes */
-	body.mod-reception.page-card #tablelines tr > td.linecoledit a,
-	body.mod-reception.page-card #tablelines tr > td.linecoldelete a {
+	body.rm-doc.rm-page-card #tablelines tr > td.linecoledit a,
+	body.rm-doc.rm-page-card #tablelines tr > td.linecoldelete a {
 		display: inline-block;
 		padding: 8px 14px;
 		font-size: 1.25em;
 	}
 
 	/* ===== Formulaire d'ajout ou de modification de ligne : une colonne ===== */
-	body.mod-reception.page-card #tablelines tr.rm-createrow,
-	body.mod-reception.page-card #tablelines tr.rm-editrow {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow,
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow {
 		background: #f4f6f8;
 		padding: 12px 8px;
 	}
 	/* Champs de saisie (certains n'ont pas d'attribut type, comme la réf. fournisseur) */
-	body.mod-reception.page-card #tablelines tr.rm-createrow input:not([type]),
-	body.mod-reception.page-card #tablelines tr.rm-createrow input[type=text],
-	body.mod-reception.page-card #tablelines tr.rm-createrow input[type=number],
-	body.mod-reception.page-card #tablelines tr.rm-createrow select,
-	body.mod-reception.page-card #tablelines tr.rm-editrow input:not([type]),
-	body.mod-reception.page-card #tablelines tr.rm-editrow input[type=text],
-	body.mod-reception.page-card #tablelines tr.rm-editrow input[type=number],
-	body.mod-reception.page-card #tablelines tr.rm-editrow select {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow input:not([type]),
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow input[type=text],
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow input[type=number],
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow select,
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow input:not([type]),
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow input[type=text],
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow input[type=number],
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow select {
 		width: 100% !important;
 		max-width: none !important;
 		box-sizing: border-box;
 		font-size: 16px;
 		min-height: 38px;
 	}
-	body.mod-reception.page-card #tablelines tr.rm-createrow .select2-container,
-	body.mod-reception.page-card #tablelines tr.rm-editrow .select2-container {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow .select2-container,
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow .select2-container {
 		width: 100% !important;
 		max-width: none !important;
 	}
 	/* Choix « Ligne libre » : passe à la ligne au lieu de déborder */
-	body.mod-reception.page-card #tablelines tr.rm-createrow .prod_entry_mode_free {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow .prod_entry_mode_free {
 		white-space: normal !important;
 		display: flex;
 		align-items: center;
 		gap: 6px;
 		width: 100%;
 	}
-	body.mod-reception.page-card #tablelines tr.rm-createrow .prod_entry_mode_free select {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow .prod_entry_mode_free select {
 		flex: 1;
 		min-width: 0 !important;
 		width: auto !important;
 	}
 	/* Recherche produit : laisser la place au bouton « + » de création */
-	body.mod-reception.page-card #tablelines tr.rm-createrow #search_idprodfournprice {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow #search_idprodfournprice {
 		width: calc(100% - 64px) !important;
 		display: inline-block;
 	}
-	body.mod-reception.page-card #tablelines tr.rm-createrow td.linecoldescription,
-	body.mod-reception.page-card #tablelines tr.rm-createrow td.linecoledit,
-	body.mod-reception.page-card #tablelines tr.rm-editrow td.linecoldescription,
-	body.mod-reception.page-card #tablelines tr.rm-editrow td:first-child,
-	body.mod-reception.page-card #tablelines tr.rm-editrow td:last-child {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow td.linecoldescription,
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow td.linecoledit,
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow td.linecoldescription,
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow td:first-child,
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow td:last-child {
 		grid-column: 1 / -1;
 	}
-	body.mod-reception.page-card #tablelines tr.rm-createrow td.linecoledit input[type=submit],
-	body.mod-reception.page-card #tablelines tr.rm-createrow td.linecoledit button,
-	body.mod-reception.page-card #tablelines tr.rm-editrow input[type=submit] {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow td.linecoledit input[type=submit],
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow td.linecoledit button,
+	body.rm-doc.rm-page-card #tablelines tr.rm-editrow input[type=submit] {
 		width: 100% !important;
 		max-width: none !important;
 		padding: 12px !important;
@@ -151,17 +158,17 @@
 		box-sizing: border-box;
 	}
 	/* Éditeur de description replié par défaut (voir le lien posé par le script) */
-	body.mod-reception.page-card #tablelines .rm-deschidden {
+	body.rm-doc.rm-page-card #tablelines .rm-deschidden {
 		display: none !important;
 	}
-	body.mod-reception.page-card #tablelines a.rm-desctoggle {
+	body.rm-doc.rm-page-card #tablelines a.rm-desctoggle {
 		display: inline-block;
 		margin: 6px 0;
 		font-weight: normal;
 	}
 
 	/* Bouton « Lignes » pour sauter l'en-tête de la fiche */
-	body.mod-reception.page-card a.rm-golines {
+	body.rm-doc.rm-page-card a.rm-golines {
 		position: fixed;
 		right: 12px;
 		bottom: 16px;
@@ -176,7 +183,7 @@
 	}
 
 	/* Popups avec une page (Nouveau produit, prix fournisseur) : plein écran */
-	body.mod-reception .ui-dialog.rm-fullscreen {
+	body.rm-on .ui-dialog.rm-fullscreen {
 		position: fixed !important;
 		top: 0 !important;
 		left: 0 !important;
@@ -189,7 +196,7 @@
 		box-sizing: border-box;
 		z-index: 1001 !important;
 	}
-	body.mod-reception .ui-dialog.rm-fullscreen .ui-dialog-content {
+	body.rm-on .ui-dialog.rm-fullscreen .ui-dialog-content {
 		width: 100% !important;
 		height: calc(100vh - 52px) !important;
 		height: calc(100dvh - 52px) !important;
@@ -197,34 +204,34 @@
 		padding: 0 !important;
 		box-sizing: border-box;
 	}
-	body.mod-reception .ui-dialog.rm-fullscreen iframe {
+	body.rm-on .ui-dialog.rm-fullscreen iframe {
 		width: 100% !important;
 		height: 100% !important;
 	}
 
 	/* ===== Liste des réceptions : une fiche par réception ===== */
-	body.mod-reception.page-list table.liste,
-	body.mod-reception.page-list table.liste > tbody {
+	body.rm-on.rm-page-list table.liste,
+	body.rm-on.rm-page-list table.liste > tbody {
 		display: block;
 		width: 100% !important;
 	}
-	body.mod-reception.page-list .div-table-responsive {
+	body.rm-on.rm-page-list .div-table-responsive {
 		overflow-x: visible;
 	}
-	body.mod-reception.page-list table.liste tr.liste_titre:not(.liste_titre_filter) {
+	body.rm-on.rm-page-list table.liste tr.liste_titre:not(.liste_titre_filter) {
 		display: none;
 	}
-	body.mod-reception.page-list table.liste tr.liste_titre_filter {
+	body.rm-on.rm-page-list table.liste tr.liste_titre_filter {
 		display: none;
 	}
-	body.mod-reception.page-list table.liste.rm-showfilters tr.liste_titre_filter {
+	body.rm-on.rm-page-list table.liste.rm-showfilters tr.liste_titre_filter {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 6px 12px;
 		padding: 8px;
 		background: #f4f6f8;
 	}
-	body.mod-reception.page-list table.liste tr.oddeven {
+	body.rm-on.rm-page-list table.liste tr.oddeven {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		column-gap: 12px;
@@ -232,8 +239,8 @@
 		padding: 10px 8px;
 		border-bottom: 1px solid #d0d0d0;
 	}
-	body.mod-reception.page-list table.liste tr.oddeven > td,
-	body.mod-reception.page-list table.liste tr.liste_titre_filter > td {
+	body.rm-on.rm-page-list table.liste tr.oddeven > td,
+	body.rm-on.rm-page-list table.liste tr.liste_titre_filter > td {
 		display: block;
 		justify-self: stretch;
 		margin: 0 !important;
@@ -247,33 +254,33 @@
 		white-space: normal !important;
 		overflow: visible !important;
 	}
-	body.mod-reception.page-list table.liste tr.liste_titre_filter input[type=text],
-	body.mod-reception.page-list table.liste tr.liste_titre_filter select,
-	body.mod-reception.page-list table.liste tr.liste_titre_filter .select2-container {
+	body.rm-on.rm-page-list table.liste tr.liste_titre_filter input[type=text],
+	body.rm-on.rm-page-list table.liste tr.liste_titre_filter select,
+	body.rm-on.rm-page-list table.liste tr.liste_titre_filter .select2-container {
 		width: 100% !important;
 		max-width: none !important;
 		box-sizing: border-box;
 		font-size: 16px;
 	}
-	body.mod-reception.page-list table.liste tr > td[data-rm-label]::before {
+	body.rm-on.rm-page-list table.liste tr > td[data-rm-label]::before {
 		content: attr(data-rm-label);
 		display: block;
 		font-size: 0.78em;
 		opacity: 0.65;
 	}
-	body.mod-reception.page-list table.liste tr > td.rm-wide {
+	body.rm-on.rm-page-list table.liste tr > td.rm-wide {
 		grid-column: 1 / -1;
 	}
-	body.mod-reception.page-list table.liste tr > td.rm-main {
+	body.rm-on.rm-page-list table.liste tr > td.rm-main {
 		grid-column: 1 / -1;
 		font-weight: 600;
 		font-size: 1.05em;
 	}
-	body.mod-reception.page-list table.liste tr > td.rm-empty,
-	body.mod-reception.page-list table.liste tr > td.rm-hide {
+	body.rm-on.rm-page-list table.liste tr > td.rm-empty,
+	body.rm-on.rm-page-list table.liste tr > td.rm-hide {
 		display: none !important;
 	}
-	body.mod-reception.page-list a.rm-filtertoggle {
+	body.rm-on.rm-page-list a.rm-filtertoggle {
 		display: inline-block;
 		margin: 6px 0 8px 0;
 	}

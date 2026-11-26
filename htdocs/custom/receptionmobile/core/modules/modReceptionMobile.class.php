@@ -36,19 +36,28 @@ class modReceptionMobile extends DolibarrModules
 		$this->familyinfo = array('pichinov' => array('position' => '001', 'label' => 'Pichinov'));
 		$this->module_position = '94';
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
-		$this->description = 'Réception mobile : écrans de réception adaptés aux petits écrans (terminal Android DT50)';
+		$this->description = 'Mobile : réceptions, commandes, factures, expéditions et produits adaptés aux petits écrans (terminal Android DT50, téléphone)';
 		$this->descriptionlong = 'Sous 600 px de large, sur les pages de réception : une fiche par ligne de réception et par réception de la liste, formulaire d\'ajout de ligne en une colonne, popup de création de produit en plein écran, sélection automatique du produit scanné quand la recherche ne trouve qu\'un résultat. Aucune modification du cœur.';
 		$this->editor_name = 'Pichinov';
 		$this->editor_url = 'https://www.pichinov.com';
-		$this->version = '1.0.1';
+		$this->version = '1.1.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'dolly';
 		$this->langfiles = array('receptionmobile@receptionmobile');
 		$this->depends = array('modReception');
 		// The version in the path makes browsers load the new files after an update (re-enable the module)
+		// Common files first, then one file per object (one author each). The version in the path makes browsers
+		// load the new files after an update (re-enable the module, or update the MAIN_MODULE_RECEPTIONMOBILE_CSS/_JS consts)
+		$objects = array('product', 'order', 'supplierorder', 'invoice', 'supplierinvoice', 'shipment');
+		$css = array('/receptionmobile/css/receptionmobile.css?v='.$this->version);
+		$js = array('/receptionmobile/js/receptionmobile.js?v='.$this->version);
+		foreach ($objects as $object) {
+			$css[] = '/receptionmobile/css/rm-'.$object.'.css?v='.$this->version;
+			$js[] = '/receptionmobile/js/rm-'.$object.'.js?v='.$this->version;
+		}
 		$this->module_parts = array(
-			'css' => array('/receptionmobile/css/receptionmobile.css?v='.$this->version),
-			'js' => array('/receptionmobile/js/receptionmobile.js?v='.$this->version),
+			'css' => $css,
+			'js' => $js,
 		);
 		$this->config_page_url = array();
 		$this->rights = array();

@@ -1,13 +1,14 @@
 /* Copyright (C) 2026	Jose Martinez			<jose.martinez@pichinov.com>
  *
- * Pichinov — Réception mobile : complète css/receptionmobile.css sur les pages de réception.
- * - pose sur chaque cellule le libellé de sa colonne (data-rm-label), lu dans l'en-tête du tableau,
- *   pour l'affichage en fiche sous 600 px (fiche réception et liste des réceptions) ;
- * - sous 600 px : replie l'éditeur de description du formulaire d'ajout de ligne, met en plein écran
- *   les popups qui contiennent une page (Nouveau produit…), ajoute un bouton « Lignes », un bouton
- *   « Filtres » sur la liste, sélectionne le produit scanné quand la recherche ne trouve qu'un résultat
- *   et place alors le curseur dans la quantité.
- * Chargé sur toutes les pages par Dolibarr (module_parts js) : ne fait rien hors des pages de réception.
+ * Pichinov — Mobile (module receptionmobile) : script COMMUN.
+ * - pose sur le body les classes de la page prise en charge (rm-on, rm-obj-<objet>, rm-page-card|list|tab, rm-doc),
+ *   d'après l'adresse : reception, order, supplierorder, invoice, supplierinvoice, shipment, product ;
+ * - documents à lignes (rm-doc) : libellé de colonne sur chaque cellule de #tablelines (data-rm-label), ligne de
+ *   saisie marquée rm-createrow, sous 600 px éditeur de description replié et bouton « Lignes » ;
+ * - listes : une fiche par ligne (libellés, cellule principale rm-main, filtres derrière un bouton) ;
+ * - popups contenant une page : plein écran ; réceptions : aides au scan.
+ * Fonctions exposées dans window.PichinovMobile pour les scripts par objet (js/rm-<objet>.js).
+ * Chargé sur toutes les pages par Dolibarr (module_parts js) : ne fait rien hors des pages prises en charge.
  */
 (function () {
 	'use strict';
@@ -37,6 +38,45 @@
 		}
 		var label = text(cell);
 		return (label.length <= 40 ? label : '');
+	}
+
+	/* ---------- Page prise en charge ---------- */
+
+	// The supplier pages come first: /fourn/commande/card.php also ends with /commande/card.php
+	var OBJECTS = [
+		{key: 'supplierorder', re: /\/fourn\/commande\/(card|list|dispatch|contact|note|document|info)\.php$/, doc: true, link: '/fourn/commande/card.php'},
+		{key: 'supplierinvoice', re: /\/fourn\/facture\/(card|list|contact|note|document|info|paiement)\.php$/, doc: true, link: '/fourn/facture/card.php'},
+		{key: 'order', re: /\/commande\/(card|list|contact|note|document|info)\.php$/, doc: true, link: '/commande/card.php'},
+		{key: 'invoice', re: /\/compta\/facture\/(card|list|contact|note|document|info)\.php$/, doc: true, link: '/compta/facture/card.php'},
+		{key: 'shipment', re: /\/expedition\/(card|list|shipment|contact|note|document)\.php$/, doc: true, link: '/expedition/card.php'},
+		{key: 'reception', re: /\/reception\/(card|list|contact|note|document|info)\.php$/, doc: true, link: '/reception/card.php'},
+		{key: 'product', re: /\/product\/(card|list|price|fournisseurs|note|document|agenda|stats\/card|stock\/product|composition\/card)\.php$/, doc: false, link: '/product/card.php'}
+	];
+	var PAGE = null;
+
+	function detectPage() {
+		var path = window.location.pathname;
+		for (var i = 0; i < OBJECTS.length; i++) {
+			var m = path.match(OBJECTS[i].re);
+			if (m) {
+				var file = m[1];
+				return {
+					key: OBJECTS[i].key,
+					doc: OBJECTS[i].doc,
+					link: OBJECTS[i].link,
+					type: (file === 'card' ? 'card' : (file === 'list' ? 'list' : 'tab'))
+				};
+			}
+		}
+		return null;
+	}
+
+	function markBody(page) {
+		var cl = document.body.classList;
+		cl.add('rm-on', 'rm-obj-' + page.key, 'rm-page-' + page.type);
+		if (page.doc) {
+			cl.add('rm-doc');
+		}
 	}
 
 	/* ---------- Fiche réception ---------- */
@@ -235,9 +275,9 @@
 		});
 	}
 
-	/* ---------- Liste des réceptions ---------- */
+	/* ---------- Listes ---------- */
 
-	function labelReceptionList() {
+	function labelList(mainlink) {
 		var table = document.querySelector('table.liste');
 		if (!table) {
 			return;
@@ -268,7 +308,7 @@
 					td.classList.add('rm-hide');	// Mass actions are not used on the terminal
 					return;
 				}
-				if (!mainset && td.querySelector('a[href*="/reception/card.php"]')) {
+				if (!mainset && mainlink && td.querySelector('a[href*="' + mainlink + '"]')) {
 					td.classList.add('rm-main');
 					mainset = true;
 					return;
@@ -306,22 +346,40 @@
 
 	function init() {
 		var body = document.body;
-		if (!body || !body.classList.contains('mod-reception')) {
+		if (!body) {
 			return;
 		}
-		if (body.classList.contains('page-card')) {
+		PAGE = detectPage();
+		if (!PAGE) {
+			return;
+		}
+		markBody(PAGE);
+		bindFullscreenDialogs();
+		if (PAGE.doc && PAGE.type === 'card') {
 			markCreateRow();
 			labelReceptionLines();
-			bindScanHelpers();
-			bindFullscreenDialogs();
+			if (PAGE.key === 'reception') {
+				bindScanHelpers();
+			}
 			if (small()) {
 				collapseLineDescription(0);
 				addLinesButton();
 			}
-		} else if (body.classList.contains('page-list')) {
-			labelReceptionList();
+		} else if (PAGE.type === 'list') {
+			labelList(PAGE.link);
 		}
 	}
+
+	// For the scripts of each object (js/rm-<objet>.js, loaded after this one)
+	window.PichinovMobile = {
+		small: small,
+		text: text,
+		titleText: titleText,
+		page: function () { return PAGE; },
+		labelLines: labelReceptionLines,
+		labelList: labelList,
+		markCreateRow: markCreateRow
+	};
 
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', init);
