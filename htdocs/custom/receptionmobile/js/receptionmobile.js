@@ -268,6 +268,49 @@
 		});
 	}
 
+	/*
+	 * Mass entry on small screens: after « Ajouter », the cursor goes back to the product search of the add-line
+	 * form, ready for the next code. A mark in sessionStorage on the submit, read on the next load of the same card.
+	 */
+	var REFOCUS_KEY = 'pichinovMobileRefocus';
+
+	function cardKey() {
+		var m = window.location.search.match(/[?&](id|facid)=([0-9]+)/);
+		return window.location.pathname + '|' + (m ? m[2] : '');
+	}
+
+	function bindRefocusAfterAdd() {
+		var row = document.querySelector('#tablelines tr.rm-createrow');
+		var form = row ? row.closest('form') : null;
+		if (!form) {
+			return;
+		}
+		form.addEventListener('submit', function () {
+			if (!small()) {
+				return;
+			}
+			try { window.sessionStorage.setItem(REFOCUS_KEY, cardKey()); } catch (e) { /* private mode */ }
+		});
+		var mark = null;
+		try { mark = window.sessionStorage.getItem(REFOCUS_KEY); } catch (e) { mark = null; }
+		if (mark === null) {
+			return;
+		}
+		try { window.sessionStorage.removeItem(REFOCUS_KEY); } catch (e) { /* private mode */ }
+		if (mark !== cardKey() || !small()) {
+			return;
+		}
+		// The ajax search field when there is one, otherwise the product list; after the select2/autocomplete setup
+		setTimeout(function () {
+			var target = row.querySelector('input[id^="search_idprod"]') || row.querySelector('select[name^="idprod"]') || row.querySelector('input[name="qty"]');
+			if (!target) {
+				return;
+			}
+			row.scrollIntoView({block: 'start'});
+			try { target.focus({preventScroll: true}); } catch (e) { target.focus(); }
+		}, 300);
+	}
+
 	/* Popups that hold a page (product creation, supplier prices): full screen */
 	function bindFullscreenDialogs() {
 		if (!window.jQuery) {
@@ -374,6 +417,7 @@
 				collapseLineDescription(0);
 				addLinesButton();
 			}
+			bindRefocusAfterAdd();
 		} else if (PAGE.type === 'list') {
 			labelList(PAGE.link);
 		}
