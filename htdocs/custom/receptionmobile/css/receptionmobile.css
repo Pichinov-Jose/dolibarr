@@ -123,14 +123,16 @@
 		max-width: none !important;
 	}
 	/* Choix « Ligne libre » : passe à la ligne au lieu de déborder */
-	body.rm-doc.rm-page-card #tablelines tr.rm-createrow .prod_entry_mode_free {
+	/* The radio button also has the class prod_entry_mode_free: only the span holding it and the type list */
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free {
 		white-space: normal !important;
 		display: flex;
+		flex-wrap: nowrap !important;
 		align-items: center;
 		gap: 6px;
 		width: 100%;
 	}
-	body.rm-doc.rm-page-card #tablelines tr.rm-createrow .prod_entry_mode_free select {
+	body.rm-doc.rm-page-card #tablelines tr.rm-createrow span.prod_entry_mode_free select {
 		flex: 1;
 		min-width: 0 !important;
 		width: auto !important;
