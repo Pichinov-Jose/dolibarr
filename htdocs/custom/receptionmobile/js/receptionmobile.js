@@ -52,7 +52,9 @@
 		{key: 'invoice', re: /\/compta\/(paiement)\.php$/, doc: false, link: '/compta/facture/card.php'},
 		{key: 'shipment', re: /\/expedition\/(card|list|shipment|contact|note|document|info|agenda|messaging)\.php$/, doc: true, link: '/expedition/card.php'},
 		{key: 'reception', re: /\/reception\/(card|list|contact|note|document|info|agenda|messaging)\.php$/, doc: true, link: '/reception/card.php'},
-		{key: 'product', re: /\/product\/(card|list|price|fournisseurs|note|document|agenda|stats\/card|stock\/product|composition\/card)\.php$/, doc: false, link: '/product/card.php'}
+		{key: 'product', re: /\/product\/(card|list|price|price_suppliers|fournisseurs|note|document|agenda|messaging|stats\/[a-z_]+|stock\/product|composition\/card)\.php$/, doc: false, link: '/product/card.php'},
+		// Margins tab of a product (outside /product/)
+		{key: 'product', re: /\/margin\/tabs\/(productMargins)\.php$/, doc: false, link: '/product/card.php'}
 	];
 	var PAGE = null;
 
